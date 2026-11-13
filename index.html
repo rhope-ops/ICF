@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store">
+<meta name="theme-color" content="#0b111c">
+<meta name="description" content="ICF Companion — focused, device-local Cyber Fundamentals practice.">
+<title>ICF Companion</title>
+<script>
+// Synchronous theme bootstrap: runs before styles or application content.
+(()=>{const choices=['light','dark','system'];
+const mobile=matchMedia('(hover: none) and (pointer: coarse)');
+const defaultChoice=mobile.matches?'dark':'light';
+let choice=defaultChoice;try{const saved=JSON.parse(localStorage.getItem('icf:theme'));if(choices.includes(saved))choice=saved;}catch{}
+const media=matchMedia('(prefers-color-scheme: dark)');
+const apply=()=>{const resolved=choice==='system'?(media.matches?'dark':'light'):choice;document.documentElement.dataset.theme=resolved;document.documentElement.style.colorScheme=resolved;document.querySelector('meta[name="theme-color"]').content=resolved==='dark'?'#121C2B':'#FFFFFF';};
+window.icfTheme={defaultChoice,get choice(){return choice;},set(value){choice=choices.includes(value)?value:defaultChoice;apply();}};
+apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})();
+</script>
+<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=5538116f1abd","./app.mjs":"./app.mjs?v=8d4b3a49e0db","./diagnostics.mjs":"./diagnostics.mjs?v=5e21794e5b82","./engine.mjs":"./engine.mjs?v=a6c9f176629d","./exam.mjs":"./exam.mjs?v=31401d7547ae","./flashcards.mjs":"./flashcards.mjs?v=6f5d7eb27922","./glossary.mjs":"./glossary.mjs?v=a7700d937f31","./learning.mjs":"./learning.mjs?v=f53485b76ccc","./presentation.mjs":"./presentation.mjs?v=4d5e5cfca80f","./reader.mjs":"./reader.mjs?v=6527146145a1","./screens.mjs":"./screens.mjs?v=b3bd40bfc1f2","./sources.mjs":"./sources.mjs?v=e87c82ab4ab9","./storage.mjs":"./storage.mjs?v=4d7f52be0c9b"}}</script>
+<link rel="preload" href="./font-display-500.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="./font-display-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="./font-display-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./styles.css?v=bf0b5fcba74e">
+<link rel="modulepreload" href="./app.mjs?v=8d4b3a49e0db">
+<link rel="modulepreload" href="./engine.mjs?v=a6c9f176629d">
+<link rel="modulepreload" href="./storage.mjs?v=4d7f52be0c9b">
+<link rel="modulepreload" href="./presentation.mjs?v=4d5e5cfca80f">
+<link rel="modulepreload" href="./screens.mjs?v=b3bd40bfc1f2">
+<link rel="modulepreload" href="./flashcards.mjs?v=6f5d7eb27922">
+<link rel="modulepreload" href="./analytics.mjs?v=5538116f1abd">
+<link rel="modulepreload" href="./glossary.mjs?v=a7700d937f31">
+<link rel="modulepreload" href="./learning.mjs?v=f53485b76ccc">
+<link rel="modulepreload" href="./exam.mjs?v=31401d7547ae">
+<link rel="modulepreload" href="./diagnostics.mjs?v=5e21794e5b82">
+</head>
+<body>
+<a class="skip" href="#main">Skip to study content</a>
+<header>
+<a href="#" id="home" aria-label="ICF Companion home">
+<svg class="mark" viewBox="0 0 80 80" aria-hidden="true" focusable="false">
+<mask id="mark-weave" maskUnits="userSpaceOnUse" x="-20" y="-20" width="120" height="120">
+<rect x="-20" y="-20" width="120" height="120" fill="#fff"/>
+<rect class="mark-frame mark-frame-outer mark-weave-gap" x="11" y="11" width="58" height="58"/>
+</mask>
+<g mask="url(#mark-weave)"><rect class="mark-frame mark-frame-inner" x="15" y="15" width="50" height="50"/></g>
+<rect class="mark-frame mark-frame-outer" x="11" y="11" width="58" height="58"/>
+<g class="mark-letters">
+<path d="M22 29H38V33.4H32.2V51H27.8V33.4H22Z"/>
+<path fill-rule="evenodd" d="M41 29H49.5C54 29 56.6 31.6 56.6 35.6C56.6 38.7 54.9 40.9 52.2 41.8L57.6 51H52.6L47.9 42.4H45.4V51H41ZM45.4 32.9V38.6H49.3C51.3 38.6 52.2 37.5 52.2 35.75C52.2 34 51.3 32.9 49.3 32.9Z"/>
+</g>
+</svg>
+<strong>ICF <span>Companion</span></strong>
+</a>
+<nav class="screens" id="screens" aria-label="Screens">
+<button type="button" data-screen-link="blocks">Blocks</button><button type="button" data-screen-link="units">Mode</button><button type="button" data-screen-link="study">Study</button><button type="button" data-screen-link="results">Results</button>
+</nav>
+<button class="theme-switch" id="theme-switch" type="button" role="switch" aria-checked="false" aria-label="Dark theme"><span class="track-sw" aria-hidden="true"><span class="knob"><svg class="ico-sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6L13 13M3 13l1.4-1.4M11.6 4.4L13 3"/></svg><svg class="ico-moon" viewBox="0 0 16 16"><path d="M13 9.5A5.5 5.5 0 1 1 6.5 3a4.5 4.5 0 0 0 6.5 6.5z"/></svg></span></span></button>
+<button id="tools-toggle" class="tools-toggle" type="button" aria-controls="tools-panel" aria-expanded="false" aria-label="Settings"><svg class="gear" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.4 7.4 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 2.6-1.5l2.4 1 2-3.4Z"/></svg></button>
+<nav id="tools-panel" class="tools-menu" aria-label="Settings" hidden>
+<label class="menu-toggle" for="settings-pin-question"><span>Pin question while scrolling</span><input type="checkbox" id="settings-pin-question" role="switch" class="sw-input"><span class="track-sw" aria-hidden="true"><span class="knob"></span></span></label>
+<button id="reviews" type="button">Diagnostics</button>
+<button id="reset" type="button" class="danger">Delete Local Data</button>
+</nav>
+</header>
+<main id="main" tabindex="-1">
+<p role="status">Opening your study space…</p>
+</main>
+<p id="answer-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+<p id="storage-notice" role="status"></p>
+<footer>
+<span id="app-version">ICF Companion v2.1.53 · 12 Nov 2026</span>
+</footer>
+<dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+<script type="module" src="./app.mjs?v=8d4b3a49e0db"></script>
+</body>
+</html>

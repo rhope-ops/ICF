@@ -1,0 +1,86 @@
+// On-device first-answer accuracy and exposure history; independent of grading/flags.
+// Question pool kinds (Random / Smart). v1.1.1 kept Smart Mode as a boolean in icf:smart: true maps to Smart.
+export const POOL_KINDS = Object.freeze(['random', 'smart']);
+export const POOL_LABEL = Object.freeze({ random: 'Random', smart: 'Smart' });
+export const toPoolKind = (stored, legacySmart) => POOL_KINDS.includes(stored) ? stored : legacySmart === true ? 'smart' : 'random';
+// Fields that only Scholar used (help-free, confidence and confused-pair counts; Scholar removed in 1.2.3, the owner
+// 2026-11-08). They are dropped on load; every other count of the question stays as it was.
+const SCHOLAR_KEYS=['freeAsked','freeCorrect','confSure','confUnsure','confGuess','guessCorrect','sureWrong'];
+// Stats restore: a damaged record is dropped on its own and the other records stay (1.2.4). Only an unknown
+// schema or a damaged outer shape starts empty. `dropped` counts what was lost, so the app can tell the user;
+// without that, the next save would silently overwrite the stored stats.
+export function inspectStats(raw) {
+  const empty=()=>({schema:1,questions:{},sessions:{}});
+  const object=value=>value&&typeof value==='object'&&!Array.isArray(value);
+  const count=n=>Number.isSafeInteger(n)&&n>=0;
+  const identities=value=>Array.isArray(value)&&new Set(value).size===value.length&&value.every(n=>Number.isSafeInteger(n)&&n>0);
+  if(raw==null)return {stats:empty(),dropped:0,reset:false};
+  if(!object(raw)||raw.schema!==1||!object(raw.questions)||!object(raw.sessions))return {stats:empty(),dropped:0,reset:true};
+  const question=r=>object(r)&&[r.seen,r.correct,r.asked,r.misses].every(count)&&r.correct+r.misses===r.asked&&r.asked<=r.seen&&identities(r.units)&&r.units.length>0&&Number.isSafeInteger(r.block)&&r.block>=1&&
+    // Exam answers (v1.1.0) are part of asked/correct and also counted here, so study accuracy can leave them out.
+    (r.examAsked===undefined&&r.examCorrect===undefined||[r.examAsked,r.examCorrect].every(count)&&r.examCorrect<=r.examAsked&&r.examAsked<=r.asked&&r.examCorrect<=r.correct);
+  const session=r=>object(r)&&identities(r.seen)&&identities(r.scored)&&r.scored.every(n=>r.seen.includes(n))&&count(r.correct)&&count(r.asked)&&r.asked===r.scored.length&&r.correct<=r.asked;
+  const out=empty();let dropped=0;
+  for(const [id,r] of Object.entries(raw.questions)){
+    if(!question(r)){dropped++;continue;}
+    const kept=structuredClone(r);for(const k of SCHOLAR_KEYS)delete kept[k];out.questions[id]=kept;
+  }
+  for(const [id,r] of Object.entries(raw.sessions)){if(session(r))out.sessions[id]=structuredClone(r);else dropped++;}
+  return {stats:out,dropped,reset:false};
+}
+export const restoreStats=raw=>inspectStats(raw).stats;
+export function recordSession(stats,session) {
+  const next=structuredClone(stats),key=session.id;
+  if(!key)return next;
+  const old=next.sessions[key]||{seen:[],scored:[],correct:0,asked:0};
+  const seen=new Set(old.seen),scored=new Set(old.scored);
+  const get=id=>{
+    const q=session.questions.find(q=>q.id===id);
+    if(!q)return null;
+    return next.questions[id]??={seen:0,correct:0,asked:0,misses:0,units:[...q.units],block:q.block};
+  };
+  const appearances=[...(session.history||[]),...(session.current?[session.current]:[])];
+  for(const c of appearances){if(!seen.has(c.appearance)){const r=get(c.id);if(r){r.seen++;seen.add(c.appearance);}}}
+  const score=(id,appearance,correct)=>{
+    if(scored.has(appearance))return;
+    const r=get(id);if(!r)return;
+    if(!seen.has(appearance)){r.seen++;seen.add(appearance);}
+    r.asked++;r.correct+=Number(correct);r.misses+=Number(!correct);
+    // Exam answers still count toward Smart Mode weighting (asked/misses); the exam tag keeps them separable.
+    if(session.kind==='exam'){r.examAsked=(r.examAsked||0)+1;r.examCorrect=(r.examCorrect||0)+Number(correct);}
+    old.asked++;old.correct+=Number(correct);scored.add(appearance);
+  };
+  for(const a of session.attempts)score(a.questionId,a.appearance,a.correct);
+  for(const c of appearances)if(c.resolved==='revealed')score(c.id,c.appearance,false);
+  next.sessions[key]={...old,seen:[...seen],scored:[...scored],kind:session.kind,activeMs:session.activeMs,finished:session.finished,ended:session.ended};
+  return next;
+}
+export function unitScores(stats,block,units) {
+  const rows=units.map(unit=>({id:unit.id,title:unit.title,correct:0,asked:0}));
+  let correct=0,asked=0;
+  for(const r of Object.values(stats.questions))if(r.block===block){correct+=r.correct;asked+=r.asked;for(const row of rows)if(r.units.includes(row.id)){row.correct+=r.correct;row.asked+=r.asked;}}
+  return {correct,asked,rows};
+}
+// Study first-answer accuracy: unitScores without exam answers (Exam results compare against this).
+export function studyScores(stats,block,units) {
+  const rows=units.map(unit=>({id:unit.id,title:unit.title,correct:0,asked:0}));
+  let correct=0,asked=0;
+  for(const r of Object.values(stats.questions))if(r.block===block){
+    const c=r.correct-(r.examCorrect||0),a=r.asked-(r.examAsked||0);
+    correct+=c;asked+=a;for(const row of rows)if(r.units.includes(row.id)){row.correct+=c;row.asked+=a;}
+  }
+  return {correct,asked,rows};
+}
+export function prioritize(questions,stats,random=Math.random) {
+  return questions.map(q=>{
+    const r=stats.questions[q.id],seen=r?.seen||0;
+    const weight=(1+4*(r?.misses||0)/(r?.asked||1))/(1+Math.log1p(seen));
+    return {q,tier:seen?1:0,key:-Math.log(Math.max(Number.EPSILON,random()))/weight};
+  }).sort((a,b)=>a.tier-b.tier||a.key-b.key).map(r=>r.q);
+}
+export function missedUnits(session,blocks) {
+  const missed=new Set(session.missedIds||session.attempts.filter(a=>!a.correct).map(a=>a.questionId)),counts=new Map();
+  for(const q of session.questions)if(missed.has(q.id))for(const id of q.units){const key=`${q.block}/${id}`;const title=blocks.find(b=>b.id===q.block)?.units.find(u=>u.id===id)?.title||`Unit ${id}`;const row=counts.get(key)||{id,title,count:0};row.count++;counts.set(key,row);}
+  return [...counts.values()].sort((a,b)=>b.count-a.count||a.id-b.id);
+}
+export const scoreTone = ratio => ratio===null?'muted':ratio>0.96?'score-gold':ratio>=0.7?'correct-label':'incorrect-label';

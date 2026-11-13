@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>Refresh ICF Companion</title>
+<style>
+:root{color-scheme:dark;font:16px/1.5 system-ui;background:#0A111C;color:#E6ECF4}body{max-width:480px;margin:15vh auto;padding:24px}h1{font-size:24px}p{color:#9AA8BA}button{font:inherit;min-height:44px;padding:8px 18px;border:0;border-radius:8px;background:#7FA8F0;color:#07101C;font-weight:700}button:disabled{opacity:.6}
+</style>
+</head>
+<body>
+<h1>Refresh ICF Companion</h1>
+<p>This removes old offline app files. Your saved progress, settings, card sets and notes stay on this device.</p>
+<p id="status" role="status">Refreshing…</p>
+<button id="retry" hidden>Try again</button>
+<script>
+const status=document.getElementById('status'),retry=document.getElementById('retry');
+async function refreshApp(){
+  retry.hidden=true;status.textContent='Refreshing…';
+  try{
+    const scope=new URL('./',location.href).href;
+    if('serviceWorker' in navigator){
+      const registrations=await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.filter(registration=>registration.scope===scope).map(registration=>registration.unregister()));
+    }
+    if('caches' in window){
+      const names=await caches.keys();
+      await Promise.all(names.filter(name=>name.startsWith('icf-')).map(name=>caches.delete(name)));
+    }
+    const fresh=String(Date.now());
+    const response=await fetch(new URL('index.html?refresh='+fresh,scope),{cache:'no-store'});
+    if(!response.ok)throw Error('App unavailable');
+    location.replace(new URL('?refresh='+fresh,scope).href);
+  }catch{
+    status.textContent='Could not refresh right now. Check your Internet connection and try again.';retry.hidden=false;
+  }
+}
+retry.onclick=refreshApp;
+refreshApp();
+</script>
+</body>
+</html>
