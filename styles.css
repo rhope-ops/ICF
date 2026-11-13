@@ -68,13 +68,10 @@ html:has(header.nav-only){--header-cover:calc(var(--header-height) - var(--top-r
   & strong{font-weight:700;font-size:var(--t5);letter-spacing:.04em;& span{color:var(--muted);font-weight:500}}
   html[data-exam="live"] &{pointer-events:none}}
 .mark{display:block;width:40px;height:40px;flex:0 0 40px;overflow:visible;@media (max-width:640px){width:34px;height:34px;flex-basis:34px}}
-.mark-frame{transform-box:view-box;transform-origin:40px 40px;animation:spin 24s linear infinite;fill:none;stroke-width:1.6}
+.mark-frame{fill:none;stroke-width:5}
 .mark-frame-outer{stroke:var(--blue)}
-.mark-frame-inner{stroke:var(--muted);transform:rotate(45deg);animation-name:spin-offset;animation-direction:reverse}
-.mark-weave-gap{stroke:#000;stroke-width:5.6}
+.mark-frame-inner{stroke:var(--muted)}
 .mark-letters{fill:var(--ink)}
-@keyframes spin{to{transform:rotate(360deg)}}
-@keyframes spin-offset{from{transform:rotate(45deg)}to{transform:rotate(405deg)}}
 .screens{display:flex;align-items:center;gap:2px;
   @media (max-width:640px){order:9;flex:1 0 100%;margin-top:6px;border-top:1px solid var(--rule);html[data-exam="live"] &{display:none}}
   & button{flex:none;min-height:44px;padding:0 10px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:var(--muted);font-size:var(--t3);
@@ -409,7 +406,7 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
    CanvasText solid = done, correct, passed or elapsed; thick CanvasText outline, hollow = missed or failed;
    GrayText = not yet, queued for retry, or a track outline; Mark = warning; a corner notch = flagged. */
 @media (forced-colors:active){
-.mark-frame-outer{stroke:CanvasText}.mark-frame-inner{stroke:GrayText}.mark-weave-gap{stroke:Canvas}.mark-letters{fill:CanvasText}
+.mark-frame-outer{stroke:CanvasText}.mark-frame-inner{stroke:GrayText}.mark-letters{fill:CanvasText}
 .comm-badge{background:CanvasText}
 /* Text on a system-color fill: no backplate (the OS paints Canvas behind text otherwise). */
 :is(.seg label:has(input:checked),.item.picked .letter,.exam-cell.answered,.exam-clock.low){forced-color-adjust:none}

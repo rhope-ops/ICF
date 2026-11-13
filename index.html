@@ -18,12 +18,12 @@ const apply=()=>{const resolved=choice==='system'?(media.matches?'dark':'light')
 window.icfTheme={defaultChoice,get choice(){return choice;},set(value){choice=choices.includes(value)?value:defaultChoice;apply();}};
 apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})();
 </script>
-<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=5538116f1abd","./app.mjs":"./app.mjs?v=8d4b3a49e0db","./diagnostics.mjs":"./diagnostics.mjs?v=5e21794e5b82","./engine.mjs":"./engine.mjs?v=a6c9f176629d","./exam.mjs":"./exam.mjs?v=31401d7547ae","./flashcards.mjs":"./flashcards.mjs?v=6f5d7eb27922","./glossary.mjs":"./glossary.mjs?v=a7700d937f31","./learning.mjs":"./learning.mjs?v=f53485b76ccc","./presentation.mjs":"./presentation.mjs?v=4d5e5cfca80f","./reader.mjs":"./reader.mjs?v=6527146145a1","./screens.mjs":"./screens.mjs?v=b3bd40bfc1f2","./sources.mjs":"./sources.mjs?v=e87c82ab4ab9","./storage.mjs":"./storage.mjs?v=4d7f52be0c9b"}}</script>
+<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=5538116f1abd","./app.mjs":"./app.mjs?v=90aa410da2ba","./diagnostics.mjs":"./diagnostics.mjs?v=df40f74cdc91","./engine.mjs":"./engine.mjs?v=a6c9f176629d","./exam.mjs":"./exam.mjs?v=31401d7547ae","./flashcards.mjs":"./flashcards.mjs?v=6f5d7eb27922","./glossary.mjs":"./glossary.mjs?v=a7700d937f31","./learning.mjs":"./learning.mjs?v=f53485b76ccc","./presentation.mjs":"./presentation.mjs?v=4d5e5cfca80f","./reader.mjs":"./reader.mjs?v=6527146145a1","./screens.mjs":"./screens.mjs?v=b3bd40bfc1f2","./sources.mjs":"./sources.mjs?v=e87c82ab4ab9","./storage.mjs":"./storage.mjs?v=4d7f52be0c9b"}}</script>
 <link rel="preload" href="./font-display-500.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-700.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="./styles.css?v=bf0b5fcba74e">
-<link rel="modulepreload" href="./app.mjs?v=8d4b3a49e0db">
+<link rel="stylesheet" href="./styles.css?v=3488d69be065">
+<link rel="modulepreload" href="./app.mjs?v=90aa410da2ba">
 <link rel="modulepreload" href="./engine.mjs?v=a6c9f176629d">
 <link rel="modulepreload" href="./storage.mjs?v=4d7f52be0c9b">
 <link rel="modulepreload" href="./presentation.mjs?v=4d5e5cfca80f">
@@ -33,24 +33,13 @@ apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})(
 <link rel="modulepreload" href="./glossary.mjs?v=a7700d937f31">
 <link rel="modulepreload" href="./learning.mjs?v=f53485b76ccc">
 <link rel="modulepreload" href="./exam.mjs?v=31401d7547ae">
-<link rel="modulepreload" href="./diagnostics.mjs?v=5e21794e5b82">
+<link rel="modulepreload" href="./diagnostics.mjs?v=df40f74cdc91">
 </head>
 <body>
 <a class="skip" href="#main">Skip to study content</a>
 <header>
 <a href="#" id="home" aria-label="ICF Companion home">
-<svg class="mark" viewBox="0 0 80 80" aria-hidden="true" focusable="false">
-<mask id="mark-weave" maskUnits="userSpaceOnUse" x="-20" y="-20" width="120" height="120">
-<rect x="-20" y="-20" width="120" height="120" fill="#fff"/>
-<rect class="mark-frame mark-frame-outer mark-weave-gap" x="11" y="11" width="58" height="58"/>
-</mask>
-<g mask="url(#mark-weave)"><rect class="mark-frame mark-frame-inner" x="15" y="15" width="50" height="50"/></g>
-<rect class="mark-frame mark-frame-outer" x="11" y="11" width="58" height="58"/>
-<g class="mark-letters">
-<path d="M22 29H38V33.4H32.2V51H27.8V33.4H22Z"/>
-<path fill-rule="evenodd" d="M41 29H49.5C54 29 56.6 31.6 56.6 35.6C56.6 38.7 54.9 40.9 52.2 41.8L57.6 51H52.6L47.9 42.4H45.4V51H41ZM45.4 32.9V38.6H49.3C51.3 38.6 52.2 37.5 52.2 35.75C52.2 34 51.3 32.9 49.3 32.9Z"/>
-</g>
-</svg>
+<svg class="mark" id="mark" viewBox="-47 -47 94 94" aria-hidden="true" focusable="false"></svg>
 <strong>ICF <span>Companion</span></strong>
 </a>
 <nav class="screens" id="screens" aria-label="Screens">
@@ -64,15 +53,51 @@ apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})(
 <button id="reset" type="button" class="danger">Delete Local Data</button>
 </nav>
 </header>
+<script>
+// Header mark (v2.1.54): a square frame and a square turned 45 degrees, woven over and under, with a Greek rho.
+// It sways for 5 s when the app opens, then rests (WCAG 2.2.2: no pause control needed). Reduced motion: no movement.
+(()=>{const svg=document.getElementById('mark');if(!svg)return;
+const S=29,D=39,SW=5,GAP=1.6,GW=SW+2*GAP,MR=52,NS='http://www.w3.org/2000/svg',T=5,AMP=7;
+const RHO='M272 461Q371 461 429.0 397.0Q487 333 487 233Q487 129 427.5 59.5Q368 -10 266 -10Q197 -10 143 33Q143 12 144.0 -29.0Q145 -70 145 -90Q145 -174 134 -221H50Q51 -212 54.5 -195.0Q58 -178 60.0 -164.0Q62 -150 62 -137Q62 -83 59.5 24.5Q57 132 57 186Q57 239 69.0 286.5Q81 334 105.5 374.0Q130 414 173.0 437.5Q216 461 272 461ZM262 432Q138 432 138 239Q138 205 146.0 168.5Q154 132 170.0 97.5Q186 63 215.0 41.0Q244 19 281 19Q314 19 337.5 35.5Q361 52 373.0 80.0Q385 108 390.0 136.5Q395 165 395 196Q395 232 389.0 268.5Q383 305 369.5 344.0Q356 383 328.0 407.5Q300 432 262 432Z';
+const el=(tag,attrs,parent)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);parent.appendChild(e);return e;};
+const defs=el('defs',{},svg);
+const mask=id=>{const m=el('mask',{id,maskUnits:'userSpaceOnUse',x:-MR,y:-MR,width:2*MR,height:2*MR},defs);el('rect',{x:-MR,y:-MR,width:2*MR,height:2*MR,fill:'#fff'},m);const g=el('g',{stroke:'#000','stroke-width':GW},m);return Array.from({length:8},()=>el('line',{x1:0,y1:0,x2:0,y2:0},g));};
+const cutD=mask('mark-cut-d'),cutF=mask('mark-cut-f');
+const diamond=el('path',{class:'mark-frame mark-frame-inner',mask:'url(#mark-cut-d)'},svg);
+const frame=el('path',{class:'mark-frame mark-frame-outer',mask:'url(#mark-cut-f)'},svg);
+el('path',{class:'mark-letters','fill-rule':'evenodd',d:RHO,transform:'translate(-10.74 6.30) scale(0.04 -0.04)'},svg);
+const rad=d=>d*Math.PI/180;
+function draw(a,b){const ca=Math.cos(rad(a)),sa=Math.sin(rad(a));
+const F=[[-S,-S],[S,-S],[S,S],[-S,S]].map(([x,y])=>[x*ca-y*sa,x*sa+y*ca]);
+const V=[0,1,2,3].map(k=>[D*Math.cos(rad(b+90*k)),D*Math.sin(rad(b+90*k))]);
+const poly=P=>'M'+P.map(p=>p[0].toFixed(2)+' '+p[1].toFixed(2)).join('L')+'Z';
+frame.setAttribute('d',poly(F));diamond.setAttribute('d',poly(V));
+const inside=([x,y])=>Math.abs(x*ca+y*sa)<S&&Math.abs(-x*sa+y*ca)<S;let nd=0,nf=0;
+for(let i=0;i<4;i++){const P=V[i],Q=V[(i+1)%4],r=[Q[0]-P[0],Q[1]-P[1]];
+for(let j=0;j<4;j++){const A=F[j],B=F[(j+1)%4],s=[B[0]-A[0],B[1]-A[1]],den=r[0]*s[1]-r[1]*s[0];if(Math.abs(den)<1e-9)continue;
+const q=[A[0]-P[0],A[1]-P[1]],t=(q[0]*s[1]-q[1]*s[0])/den,u=(q[0]*r[1]-q[1]*r[0])/den;if(t<0||t>1||u<0||u>1)continue;
+const X=[P[0]+t*r[0],P[1]+t*r[1]],lr=Math.hypot(...r),ls=Math.hypot(...s),sinA=Math.max(Math.abs(den)/(lr*ls),0.2),cosA=Math.sqrt(1-sinA*sinA);
+const H=Math.min(SW/2/sinA+GW/2*cosA/sinA+0.5,16);
+// Diamond moving into the frame passes under it; moving out, over it. This alternates all the way round.
+const enter=!inside([P[0]+(t-0.01)*r[0],P[1]+(t-0.01)*r[1]]),[dir,len,pool,n]=enter?[s,ls,cutD,nd++]:[r,lr,cutF,nf++];if(n>7)continue;
+const dx=dir[0]/len*H,dy=dir[1]/len*H,L=pool[n];L.setAttribute('x1',X[0]-dx);L.setAttribute('y1',X[1]-dy);L.setAttribute('x2',X[0]+dx);L.setAttribute('y2',X[1]+dy);}}
+const clear=L=>['x1','y1','x2','y2'].forEach(k=>L.setAttribute(k,0));cutD.slice(Math.min(nd,8)).forEach(clear);cutF.slice(Math.min(nf,8)).forEach(clear);}
+const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const pose=x=>{const c=90*ease(x),w=AMP*Math.sin(Math.PI*x)*Math.sin(4*Math.PI*x);draw(c+w,-90+c-w);};
+pose(1);
+if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+let start=null;const tick=now=>{if(start===null)start=now;const x=Math.min((now-start)/1000/T,1);pose(x);if(x<1)requestAnimationFrame(tick);};
+requestAnimationFrame(tick);})();
+</script>
 <main id="main" tabindex="-1">
 <p role="status">Opening your study space…</p>
 </main>
 <p id="answer-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 <p id="storage-notice" role="status"></p>
 <footer>
-<span id="app-version">ICF Companion v2.1.53 · 12 Nov 2026</span>
+<span id="app-version">ICF Companion v2.1.54 · 13 Nov 2026</span>
 </footer>
 <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
-<script type="module" src="./app.mjs?v=8d4b3a49e0db"></script>
+<script type="module" src="./app.mjs?v=90aa410da2ba"></script>
 </body>
 </html>
