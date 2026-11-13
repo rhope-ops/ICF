@@ -117,7 +117,7 @@ const catalog = [
   {"questionId": "B4-U4-Q017", "term": "Top-Level Domain", "definition": "The Domain Name System (DNS) naming level immediately above a second-level domain."},
   {"questionId": "B4-U4-Q018", "term": "Domain Name System (DNS) Root Servers", "definition": "The 13 addresses at the top of the Domain Name System (DNS) hierarchy, answered by over 600 physical servers at last count."},
   {"questionId": "B4-U4-Q019", "term": "Fully Qualified Domain Name (FQDN)", "definition": "A complete name specifying all domain levels needed to locate a host in the Domain Name System (DNS)."},
-  {"questionId": "B4-U4-Q020", "term": "Subdomain", "definition": "A third-level domain directly below a second-level domain, such as saeraneth in saeraneth.chatgpt.site."},
+  {"questionId": "B4-U4-Q020", "term": "Subdomain", "definition": "A third-level domain directly below a second-level domain, such as rhope-ops in rhope-ops.github.io."},
   {"questionId": "B4-U4-Q021", "term": "Lookup", "definition": "Another name for a Domain Name System (DNS) query requesting name or address resolution."},
   {"questionId": "B4-U4-Q022", "term": "Time to Live (TTL)", "definition": "The limit on how long a cached Domain Name System (DNS) answer can be reused before it expires."},
   {"questionId": "B4-U4-Q023", "term": "Recursive Query", "definition": "A Domain Name System (DNS) query requiring an answer or an error rather than only a referral."},
