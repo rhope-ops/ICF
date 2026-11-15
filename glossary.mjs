@@ -103,6 +103,14 @@ export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hier
   'building-an-access-control-list-acl': 'access-control-list', 'access-control-list-acl': 'access-control-list',
   'availability-b4': 'availability', 'electromagnetic-interference-emi-b1': 'electromagnetic-interference', 'electromagnetic-interference-emi': 'electromagnetic-interference',
   'intrusion-detection-system-ids-b1': 'intrusion-detection-system', 'intrusion-detection-system-ids': 'intrusion-detection-system',
+  // Block 2 new bank, 2026-11-15: the old Block 2 entries left, so these entries took the plain id.
+  'administrator-account-b4': 'administrator-account', 'media-access-control-mac-address-b1': 'media-access-control-mac-address',
+  // Block 2 new bank, 2026-11-15: retired Block 2 entries follow to the new Block 2 entry of the same term.
+  'accountable-property-officer-apo': 'accountable-property-officer', 'advanced-technology-attachment-ata': 'advanced-technology-attachment',
+  'approved-product-list-apl': 'approved-product-list', 'approved-products-certification-office-apco': 'approved-products-certification-office',
+  'arithmetic-logic-unit-alu': 'arithmetic-logic-unit', 'central-processing-unit-cpu': 'central-processing-unit',
+  'parallel-ata-pata': 'parallel-ata', 'serial-ata-sata': 'serial-ata',
+  'united-states-government-configuration-baseline-usgcb': 'united-states-government-configuration-baseline', 'universal-serial-bus-usb-host-controller': 'universal-serial-bus-host-controller',
   // Block 1 new bank, 2026-11-15: retired Block 1 entries follow to the new Block 1 entry of the same term.
   'address-resolution-protocol-arp': 'address-resolution-protocol-b1', 'air-force-instruction-afi': 'air-force-instruction',
   'department-of-defense-manual-dodm': 'department-of-defense-manual', 'domain-name-system-dns': 'domain-name-system-b1',
