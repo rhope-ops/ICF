@@ -96,7 +96,8 @@ export function searchEntries(g, { query = '', unit = 0 } = {}) {
 // B4-U4-Q020's card "Domain Name System (DNS) name hierarchy example" became Subdomain).
 // Owner decision 9a (2026-11-11): three Block 5 cards have their course terms back; Group Policy Object and Proxy Server are
 // also Block 4 terms, so their Block 5 entries are "-b5" (build_glossary.assign_ids).
-export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hierarchy-example': 'subdomain',
+export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hierarchy-example': 'third-level-domain',
+  'subdomain': 'third-level-domain', 'security-technical-implementation-guide-stig-b1': 'security-technical-implementation-guide-stig',
   'group-policy-configuration-set': 'group-policy-object-b5', 'proxy-outbound-control': 'proxy-server-b5',
   'building-an-access-control-list-acl': 'access-control-list-acl' });
 export const restoreBookmarks = (raw, g) => Array.isArray(raw) ? [...new Set(raw.map(id => typeof id === 'string' && Object.hasOwn(RENAMED_ENTRIES, id) ? RENAMED_ENTRIES[id] : id)
