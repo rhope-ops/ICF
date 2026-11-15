@@ -18,7 +18,7 @@ const apply=()=>{const resolved=choice==='system'?(media.matches?'dark':'light')
 window.icfTheme={defaultChoice,get choice(){return choice;},set(value){choice=choices.includes(value)?value:defaultChoice;apply();}};
 apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})();
 </script>
-<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=5538116f1abd","./app.mjs":"./app.mjs?v=c8fe7068f41b","./diagnostics.mjs":"./diagnostics.mjs?v=06b4a1b84ad8","./engine.mjs":"./engine.mjs?v=a6c9f176629d","./exam.mjs":"./exam.mjs?v=31401d7547ae","./flashcards.mjs":"./flashcards.mjs?v=a5c75e41b85d","./glossary.mjs":"./glossary.mjs?v=a7700d937f31","./learning.mjs":"./learning.mjs?v=f53485b76ccc","./presentation.mjs":"./presentation.mjs?v=4d5e5cfca80f","./reader.mjs":"./reader.mjs?v=6527146145a1","./screens.mjs":"./screens.mjs?v=b3bd40bfc1f2","./sources.mjs":"./sources.mjs?v=e87c82ab4ab9","./storage.mjs":"./storage.mjs?v=4d7f52be0c9b"}}</script>
+<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=5538116f1abd","./app.mjs":"./app.mjs?v=c8fe7068f41b","./diagnostics.mjs":"./diagnostics.mjs?v=ed819a0bd52b","./engine.mjs":"./engine.mjs?v=a6c9f176629d","./exam.mjs":"./exam.mjs?v=31401d7547ae","./flashcards.mjs":"./flashcards.mjs?v=c44e57bc93d8","./glossary.mjs":"./glossary.mjs?v=a7700d937f31","./learning.mjs":"./learning.mjs?v=f53485b76ccc","./presentation.mjs":"./presentation.mjs?v=4d5e5cfca80f","./reader.mjs":"./reader.mjs?v=6527146145a1","./screens.mjs":"./screens.mjs?v=b3bd40bfc1f2","./sources.mjs":"./sources.mjs?v=e87c82ab4ab9","./storage.mjs":"./storage.mjs?v=4d7f52be0c9b"}}</script>
 <link rel="preload" href="./font-display-500.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-700.woff2" as="font" type="font/woff2" crossorigin>
@@ -28,12 +28,12 @@ apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})(
 <link rel="modulepreload" href="./storage.mjs?v=4d7f52be0c9b">
 <link rel="modulepreload" href="./presentation.mjs?v=4d5e5cfca80f">
 <link rel="modulepreload" href="./screens.mjs?v=b3bd40bfc1f2">
-<link rel="modulepreload" href="./flashcards.mjs?v=a5c75e41b85d">
+<link rel="modulepreload" href="./flashcards.mjs?v=c44e57bc93d8">
 <link rel="modulepreload" href="./analytics.mjs?v=5538116f1abd">
 <link rel="modulepreload" href="./glossary.mjs?v=a7700d937f31">
 <link rel="modulepreload" href="./learning.mjs?v=f53485b76ccc">
 <link rel="modulepreload" href="./exam.mjs?v=31401d7547ae">
-<link rel="modulepreload" href="./diagnostics.mjs?v=06b4a1b84ad8">
+<link rel="modulepreload" href="./diagnostics.mjs?v=ed819a0bd52b">
 </head>
 <body>
 <a class="skip" href="#main">Skip to study content</a>
@@ -97,7 +97,7 @@ requestAnimationFrame(tick);})();
 <p id="answer-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 <p id="storage-notice" role="status"></p>
 <footer>
-<span id="app-version">ICF Companion v2.1.56 · 14 Nov 2026</span>
+<span id="app-version">ICF Companion v2.1.58 · 14 Nov 2026</span>
 </footer>
 <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
 <script type="module" src="./app.mjs?v=c8fe7068f41b"></script>
