@@ -97,10 +97,23 @@ export function searchEntries(g, { query = '', unit = 0 } = {}) {
 // Owner decision 9a (2026-11-11): three Block 5 cards have their course terms back; Group Policy Object and Proxy Server are
 // also Block 4 terms, so their Block 5 entries are "-b5" (build_glossary.assign_ids).
 export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hierarchy-example': 'third-level-domain',
-  'subdomain': 'third-level-domain', 'security-technical-implementation-guide-stig-b1': 'security-technical-implementation-guide-stig',
+  'subdomain': 'third-level-domain', 'security-technical-implementation-guide-stig-b1': 'security-technical-implementation-guide-b1',
+  'security-technical-implementation-guide-stig': 'security-technical-implementation-guide-b1',
   'group-policy-configuration-set': 'group-policy-object-b5', 'proxy-outbound-control': 'proxy-server-b5',
   'building-an-access-control-list-acl': 'access-control-list', 'access-control-list-acl': 'access-control-list',
-  'availability-b4': 'availability', 'electromagnetic-interference-emi-b1': 'electromagnetic-interference-emi',
-  'intrusion-detection-system-ids-b1': 'intrusion-detection-system-ids' });
+  'availability-b4': 'availability', 'electromagnetic-interference-emi-b1': 'electromagnetic-interference', 'electromagnetic-interference-emi': 'electromagnetic-interference',
+  'intrusion-detection-system-ids-b1': 'intrusion-detection-system', 'intrusion-detection-system-ids': 'intrusion-detection-system',
+  // Block 1 new bank, 2026-11-15: retired Block 1 entries follow to the new Block 1 entry of the same term.
+  'address-resolution-protocol-arp': 'address-resolution-protocol-b1', 'air-force-instruction-afi': 'air-force-instruction',
+  'department-of-defense-manual-dodm': 'department-of-defense-manual', 'domain-name-system-dns': 'domain-name-system-b1',
+  'dynamic-host-configuration-protocol-dhcp': 'dynamic-host-configuration-protocol-b1', 'electrostatic-discharge-esd': 'electrostatic-discharge',
+  'file-transfer-protocol-ftp': 'file-transfer-protocol', 'hypertext-transfer-protocol-http': 'hypertext-transfer-protocol-b1',
+  'internet-assigned-numbers-authority-iana': 'internet-assigned-numbers-authority', 'least-significant-digit-lsd': 'least-significant-digit',
+  'lightweight-access-point-lwap': 'lightweight-access-point', 'military-standard-mil-std': 'military-standard',
+  'most-significant-digit-msd': 'most-significant-digit', 'optical-time-domain-reflectometer-otdr': 'optical-time-domain-reflectometer',
+  'rogue-access-point-ap': 'rogue-access-point', 'root-cause-analysis-rca': 'root-cause-analysis',
+  'routing-information-protocol-rip': 'routing-information-protocol-b1', 'service-set-identifier-ssid': 'service-set-identifier',
+  'shielded-twisted-pair-stp': 'shielded-twisted-pair', 'single-mode-fiber-smf': 'single-mode-fiber',
+  'wireless-metropolitan-area-network-wman': 'wireless-metropolitan-area-network', 'wireless-wide-area-network-wwan': 'wireless-wide-area-network' });
 export const restoreBookmarks = (raw, g) => Array.isArray(raw) ? [...new Set(raw.map(id => typeof id === 'string' && Object.hasOwn(RENAMED_ENTRIES, id) ? RENAMED_ENTRIES[id] : id)
   .filter(id => typeof id === 'string' && g.byId.has(id)))] : [];
