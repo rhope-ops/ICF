@@ -99,6 +99,8 @@ export function searchEntries(g, { query = '', unit = 0 } = {}) {
 export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hierarchy-example': 'third-level-domain',
   'subdomain': 'third-level-domain', 'security-technical-implementation-guide-stig-b1': 'security-technical-implementation-guide-stig',
   'group-policy-configuration-set': 'group-policy-object-b5', 'proxy-outbound-control': 'proxy-server-b5',
-  'building-an-access-control-list-acl': 'access-control-list-acl' });
+  'building-an-access-control-list-acl': 'access-control-list', 'access-control-list-acl': 'access-control-list',
+  'availability-b4': 'availability', 'electromagnetic-interference-emi-b1': 'electromagnetic-interference-emi',
+  'intrusion-detection-system-ids-b1': 'intrusion-detection-system-ids' });
 export const restoreBookmarks = (raw, g) => Array.isArray(raw) ? [...new Set(raw.map(id => typeof id === 'string' && Object.hasOwn(RENAMED_ENTRIES, id) ? RENAMED_ENTRIES[id] : id)
   .filter(id => typeof id === 'string' && g.byId.has(id)))] : [];
