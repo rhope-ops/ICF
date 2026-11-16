@@ -754,7 +754,14 @@ const catalog = [
   {"questionId": "B2-U5-Q011", "term": "Unattended Installation", "definition": "A Windows install where a small program answers every setup question, so nobody has to sit with the machine."},
   {"questionId": "B2-U5-Q012", "term": "Microsoft Azure", "definition": "The Microsoft cloud computing service that offers software services, including preconfigured Windows machines, over a network connection."},
   {"questionId": "B2-U5-Q013", "term": "Windows Autopilot", "definition": "A paid Microsoft subscription that remotely re-images new, preregistered computers over a network connection."},
-  {"questionId": "B2-U5-Q014", "term": "Digital Entitlement", "definition": "A valid Windows activation key already tied to a computer from an older Windows installation, reusable for a free upgrade."}
+  {"questionId": "B2-U5-Q014", "term": "Digital Entitlement", "definition": "A valid Windows activation key already tied to a computer from an older Windows installation, reusable for a free upgrade."},
+  {"questionId": "B1-U5-Q044", "term": "User Datagram Protocol", "definition": "A connectionless Transport layer protocol that sends data fast without guaranteeing delivery."},
+  {"questionId": "B1-U5-Q045", "term": "Voice Over Internet Protocol", "definition": "A service listed among the real-time uses of the connectionless transport, where speed is of primary importance."},
+  {"questionId": "B1-U10-Q032", "term": "Connectivity Test Set", "definition": "A device that checks for proper transmission and reception of data signals between devices in a network."},
+  {"questionId": "B1-U10-Q033", "term": "Connectivity Test Set Queries", "definition": "Questions sent in a network test to determine and report information about each device."},
+  {"questionId": "B5-U1-Q091", "term": "Supply Chain", "definition": "Multiple entities, such as governments, corporations or small businesses, coordinating to get a product to a destination."},
+  {"questionId": "B5-U1-Q092", "term": "Third Party", "definition": "An intermediary, subcontracted individual or company that provides a product or service in support of an organization."},
+  {"questionId": "B5-U1-Q093", "term": "Supply Chain Security", "definition": "Efforts to enhance the security of the transport and logistics system for cargo."}
 ];
 // End of generated catalog.
 
