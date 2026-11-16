@@ -46,6 +46,13 @@ export const ICON = {
 // card: the card Flag carries data-flag-card, so question-flag updates never touch it (UX review 2026-11-11, M5).
 export const flagButton = ({id = '', question, label = 'Flag question', flagged = false, card = false}) =>
   `<button type="button" class="flag-btn" ${id ? `id="${escape(id)}" ` : ''}data-flag-${card ? 'card' : 'question'}="${escape(question)}" aria-label="${escape(label)}" title="${escape(label)}" aria-pressed="${flagged}">${ICON.flag}</button>`;
+// Excerpt body (the question Source drop-down, term pop-ups and glossary entries): the build's blocks, paragraphs
+// ({p}) and real lists ({ul: [{t, sub?}]}), or the text as one paragraph. A short first line with no end punctuation
+// right above a list is its heading ("Patch Management"; the owner, 2026-11-16: bullets show as real lists).
+const excerptHeading = (b, next) => next?.ul && b.p.length <= 60 && b.p.split(' ').length <= 8 && !/[.,;!?]$/.test(b.p);
+export const excerptBody = x => { const blocks = x.blocks || [{p: x.text}];
+  return blocks.map((b, i) => b.p !== undefined ? `<p${i === 0 && excerptHeading(b, blocks[1]) ? ' class="excerpt-head"' : ''}>${escape(b.p)}</p>`
+    : `<ul>${b.ul.map(it => `<li>${escape(it.t)}${it.sub ? `<ul>${it.sub.map(t => `<li>${escape(t)}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ul>`).join(''); };
 // Save: the Flag button's twin at the left of the answer tools row. Pressed = the card is in Manual.
 // key: the card key (question ID, or a highlight card ID).
 export const saveButton = ({id = '', key, saved = false}) =>

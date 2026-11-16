@@ -1,12 +1,12 @@
 // Screen markup: pure functions of the state they receive. app.mjs owns state, storage, events and timers,
 // so tests import these screens directly. Every value comes in as an argument; nothing here reads the DOM,
 // except the layout helpers at the end, which receive their elements.
-import { escape, reviewNumber, answersHtml, highlightedStem, unitChoices, poolShortfall, plural, commBadge, questionUnitLabel, answerReviewHtml, reviewItem, tryLabel, studyToolbar, sourceVisible, backLabel, nextLabel, ICON, flagButton, sourceRow, dropHtml, assistanceTimer, saveButton } from './presentation.mjs';
+import { escape, reviewNumber, answersHtml, highlightedStem, unitChoices, poolShortfall, plural, commBadge, questionUnitLabel, answerReviewHtml, reviewItem, tryLabel, studyToolbar, sourceVisible, backLabel, nextLabel, ICON, flagButton, sourceRow, dropHtml, assistanceTimer, saveButton, excerptBody } from './presentation.mjs';
 import { progress, results, questionsForMode, keywordHighlightEnabled, STUDY_MODES } from './engine.mjs';
 import { understandingRecord, notUnderstoodQuestions, sessionMissedIds, reviewIds } from './learning.mjs';
 import { unitScores, missedUnits, scoreTone, POOL_LABEL } from './analytics.mjs';
 import { EXAM, passMark, examCounts, reviewItems, REVIEW_FILTERS, examLabel, formsFor } from './exam.mjs';
-import { cardHtml, cardsInSet, savedSetsHtml, cardKey, MISSED_ID } from './flashcards.mjs';
+import { cardHtml, cardsInSet, savedSetsHtml, setsBlockHtml, cardKey, MISSED_ID } from './flashcards.mjs';
 
 // m:ss, or h:mm:ss from one hour.
 export const duration = ms => { const n = Math.floor(ms/1000); return n >= 3600 ? `${Math.floor(n/3600)}:${String(Math.floor(n/60)%60).padStart(2,'0')}:${String(n%60).padStart(2,'0')}` : `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
@@ -99,10 +99,11 @@ export function questionsSetupHtml({block, mode, units, counts, pool, dynamic, r
 }
 
 // Flash card setup: saved sets and units (the card path of v1.1.1).
-export function cardsSetupHtml({block, library, pickSetId, catalog, units, counts}) {
-  const setRows = library.sets.map(set => { const n = cardsInSet(set,catalog).length; return `<label class="card row"><input type="radio" name="card-set" value="${escape(set.id)}" ${set.id===pickSetId?'checked':''} ${n?'':'disabled'}><span><strong>${escape(set.name)}</strong>${set.id===MISSED_ID?' <span class="tag">Auto</span>':''}</span><span class="set-pick-count mono">${plural(n,'card')}</span></label>`; }).join('');
+// setsBlock: the saved sets' block filter (this block by default, or ALL_BLOCKS); blocks: every block, for the filter.
+export function cardsSetupHtml({block, blocks = [block], library, pickSetId, catalog, units, counts, setsBlock = block.id}) {
+  const setRows = library.sets.map(set => { const n = cardsInSet(set,catalog,setsBlock).length; return `<label class="card row"><input type="radio" name="card-set" value="${escape(set.id)}" ${set.id===pickSetId?'checked':''} ${n?'':'disabled'}><span><strong>${escape(set.name)}</strong>${set.id===MISSED_ID?' <span class="tag">Auto</span>':''}</span><span class="set-pick-count mono">${plural(n,'card')}</span></label>`; }).join('');
   return `<div class="page-head"><p class="label">Block ${block.id} · Flash cards</p><h1>Flash cards</h1></div>
-      <section class="panel card-set-pick"><div class="step-head"><span class="num">Saved</span><h2>Card sets</h2><button class="small" id="manage-sets">Manage sets</button></div><div class="setlist" role="radiogroup" aria-label="Saved card sets">${setRows}</div></section>
+      <section class="panel card-set-pick"><div class="step-head"><span class="num">Saved</span><h2>Card sets</h2><button class="small" id="manage-sets">Manage sets</button></div>${setsBlockHtml(blocks, setsBlock, 'setup-sets-block')}<div class="setlist" role="radiogroup" aria-label="Saved card sets">${setRows}</div></section>
       <section class="panel unit-panel${pickSetId?' is-dimmed':''}"><div class="step-head"><span class="num">Block ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">Units</legend>${unitChoices(block,pickSetId?[]:units,'unit',counts)}</fieldset><p id="eligible-count" class="status count" role="status"></p></section>
       <div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary" id="units-next">${nextLabel('Study')}</button></div>`;
 }
@@ -156,7 +157,7 @@ function trackHtml(c, mode) {
 // A term link inside running text (stem, answers, rationales) is an inline span with role="button" (1.2.2): a <button>
 // is always an atomic box, so a long term broke the sentence into centred lines on phones. Enter and Space open it
 // (one keydown listener in app.mjs). Lists of terms (Key terms, Related) keep real buttons.
-const TERM_SPAN = (ref, limited = false) => `<span role="button" tabindex="0" class="term-link" data-term="${escape(ref)}"${limited ? ' data-limited="true"' : ''} aria-haspopup="dialog">`;
+const TERM_SPAN = ref => `<span role="button" tabindex="0" class="term-link" data-term="${escape(ref)}" aria-haspopup="dialog">`;
 // Stem with key-term marks and glossary links. links: glossary.stemLinks() spans; a link that partly overlaps a key-term
 // mark is split at the mark's edge into two spans with the same term (2.1.7; it was dropped), so the markup always nests
 // and the term still opens. Each link is an inline span (dotted underline, no colour change).
@@ -173,7 +174,7 @@ export function linkedStem(q, {marks = false, links = []} = {}) {
   let out = '', at = 0;
   for (const [pos, isOpen, kind, x] of events) {
     out += escape(q.stem.slice(at, pos)); at = pos;
-    if (isOpen) { out += kind === 'm' ? '<mark>' : TERM_SPAN(x.ref, x.limited); open.push(kind); }
+    if (isOpen) { out += kind === 'm' ? '<mark>' : TERM_SPAN(x.ref); open.push(kind); }
     else out += kind === 'm' ? '</mark>' : '</span>';
   }
   return out + escape(q.stem.slice(at));
@@ -189,7 +190,6 @@ export const keyTermsHtml = terms => terms.length ? dropHtml('terms', 'Key terms
   `<ul class="term-list">${terms.map(t => `<li><button type="button" class="term-link" data-term="${escape(t.id)}" aria-haspopup="dialog">${escape(t.term)}</button></li>`).join('')}</ul>`) : '';
 // Course excerpts of an entry, verbatim, each with its document and page.
 // Layout comes from the build (blocks: paragraphs and real lists); the words are the course text.
-const excerptBody = x => (x.blocks || [{p: x.text}]).map(b => b.p !== undefined ? `<p>${escape(b.p)}</p>` : `<ul>${b.ul.map(i => `<li>${escape(i.t)}${i.sub ? `<ul>${i.sub.map(t => `<li>${escape(t)}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ul>`).join('');
 const excerptsHtml = (entry, docs) => entry.excerpts.length ? `<ul class="term-excerpts">${entry.excerpts.map(x => `<li><blockquote>${excerptBody(x)}</blockquote><span class="label">${escape(docs[x.doc] || x.doc)} · p. ${x.page}</span></li>`).join('')}</ul>` : '';
 // box: the SAVE button state ({key, saved}) once the answer is known, or null. source(q): the excerpt markup.
 // gloss (optional): {links, keyTerms} — the stem links allowed now and the Key terms drop-down.
@@ -202,8 +202,9 @@ export function studyHtml({session, bank, box, source, isFlagged, gloss = null})
   const number=session.pool.indexOf(q.id)+1,tries=tryLabel(session,c),retry=(c.wrongIds.length>0||c.resolved==='revealed')&&!reviewing;
   const status=retry&&!hard?'Retry queued':tries,tone=retry||!tries.startsWith('1st')?'try':'';
   // The Flag pennant shows only with the Source cell, at the row's right (the owner, 2026-11-08): the excerpts once the answer
-  // is known (correct or revealed) or the dashed held row after a miss. Before the answer neither shows.
-  const sourceCell=sourceVisible(c)?source(q):c.resolved&&!reviewing?'<p class="excerpt-held"><span class="label">Source · held<span class="held-more"> until review</span></span></p>':'';
+  // is known (correct or revealed) or the dashed held row after a miss. Before the answer neither shows. Back to an earlier
+  // appearance keeps the same row as the live view: a missed one shows the held row and Flag (the owner, 2026-11-16).
+  const sourceCell=sourceVisible(c)?source(q):c.resolved?'<p class="excerpt-held"><span class="label">Source · held<span class="held-more"> until review</span></span></p>':'';
   const answers=answersHtml(q,c,{assisted,reviewing});
   return `<h1 class="sr-only">Question ${number} of ${p.pool}</h1>${studyToolbar({mode:session.nextMode||c.mode||session.mode,modes:locked?[session.mode]:['Assisted','Unassisted'],locked:reviewing||locked,status,statusTone:tone})}${ledgerHtml(session)}<article class="panel q-sheet"><section class="question-focus" aria-label="Current question"><div class="question-heading qhead"><p class="qnum">#${number} <small>of ${p.pool}${repeat?' · Repeat':''}</small><span class="sr-only">Question ${number} of ${p.pool}</span></p><span class="unit-label${box?.missed?' with-tag':''}">${box?.missed?`${IN_MISSED}<span class="unit-text">${escape(questionUnitLabel(q,bank.blocks))}</span>`:escape(questionUnitLabel(q,bank.blocks))}</span></div><h2 id="stem" class="stem" tabindex="-1">${stem}</h2>${assisted&&!reviewing&&!hard?trackHtml(c,session.mode):''}</section><div class="answers">${answers}</div>${sourceRow(sourceCell,sourceCell?flagButton({id:'flag-question',question:q.id,flagged:isFlagged(q.id)}):'',revealed&&gloss?.keyTerms?keyTermsHtml(gloss.keyTerms):'',box?saveButton({id:'save-question',key:box.key,saved:box.saved}):'')}</article><div class="navrow actions question-actions"><button id="previous" ${!session.history?.length||session.viewIndex===0?'disabled':''}>${backLabel('Back')}</button><button id="next" class="primary" ${!reviewing&&!revealed?'disabled':''}>${nextLabel('Next')}</button></div><div class="tool-row">${!reviewing&&!assisted&&!locked?`<button id="hint" aria-controls="stem" ${c.hintUsed||c.resolved?'disabled':''}>${c.hintUsed?'Hint shown':'Hint'}</button>`:''}${!reviewing&&!locked?`<button id="show-answer" ${c.resolved?'disabled':''}>Show Answer</button>`:''}</div>`.replace('<div class="tool-row"></div>','');
 }
@@ -258,12 +259,19 @@ export function glossaryHtml({block, g, list, query, unit, entry, questionCount,
     <div class="navrow actions">${toCard ? `<button id="gloss-card">${backLabel(toCard)}</button>` : `<button id="back">${backLabel('Mode')}</button>`}</div>`;
 }
 
-// Term popover (desktop) / bottom sheet (phone). content: glossary.popover(); more: show the excerpts.
-export function termPopoverHtml(content, {more = false, docs = {}} = {}) {
-  const e = content.entry;
-  return `<div class="pop-head"><h2 id="term-pop-title">${escape(content.title)}</h2><button type="button" class="small" id="term-pop-close" aria-label="Close">✕</button></div>
+// A definition's first sentence and the rest ('' when it has one sentence). A dot after a capital letter (U.S.) does not end it.
+export function splitSummary(text) {
+  const m = /^(.*?[a-z0-9)\]][.!?])\s+(?=[A-Z0-9"(])/s.exec(text);
+  return m ? [m[1], text.slice(m[0].length)] : [text, ''];
+}
+// Term popover (desktop) / bottom sheet (phone). content: glossary.popover(). It opens on a short summary, the first sentence
+// of the definition; More expands the rest and the excerpts (the owner, 2026-11-16). save: the Save button for the term's
+// flash card, beside the close button, or ''.
+export function termPopoverHtml(content, {more = false, docs = {}, save = ''} = {}) {
+  const e = content.entry, [summary, rest] = e ? splitSummary(e.short) : ['', ''];
+  return `<div class="pop-head"><h2 id="term-pop-title">${escape(content.title)}</h2>${save}<button type="button" class="small" id="term-pop-close" aria-label="Close">✕</button></div>
     ${content.expansion ? `<p class="pop-expansion">${escape(content.expansion)}</p>` : ''}
-    ${e ? `${content.expansion ? `<p class="label">${escape(e.term)}</p>` : ''}<p>${escape(e.short)}</p>${more ? excerptsHtml(e, docs) : e.excerpts.length ? '<button type="button" class="link-button" id="term-pop-more">More</button>' : ''}` : ''}
+    ${e ? `${content.expansion ? `<p class="label">${escape(e.term)}</p>` : ''}<p class="pop-summary">${escape(more ? e.short : summary)}</p>${more ? excerptsHtml(e, docs) : rest || e.excerpts.length ? '<button type="button" class="link-button" id="term-pop-more">More</button>' : ''}` : ''}
     ${content.see.length ? `<p class="pop-see"><span class="label">See</span> ${content.see.map(x => `<button type="button" class="link-button" data-term="${escape(x.id)}">${escape(x.term)}</button>`).join(' · ')}</p>` : ''}`;
 }
 
@@ -298,7 +306,7 @@ export function cardBackHtml({entry, g, source = '', flagged = false, questionId
     ${sourceRow(questionId ? source || '' : '', questionId ? flagButton({id:'flag-card', question:questionId, label:'Flag card', flagged, card:true}) : '', keyTermsHtml(terms), save)}</section>`;
 }
 
-export const savedSetsScreenHtml = ({library, catalog, back}) => `${savedSetsHtml(library,catalog)}<div class="navrow actions"><button id="cards-home">${backLabel(back)}</button></div>`;
+export const savedSetsScreenHtml = ({library, catalog, back, blocks = [], block}) => `${savedSetsHtml(library,catalog,{blocks,block})}<div class="navrow actions"><button id="cards-home">${backLabel(back)}</button></div>`;
 
 // ---- Results, Previous Attempts, Marked review ----
 // Unit accuracy bars (Results and Previous Attempts): one shared name column; tag(row) adds the right-hand note.

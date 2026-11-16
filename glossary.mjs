@@ -28,37 +28,24 @@ export const entryOf = (g, id) => g.byId.get(id) || null;
 export const entryForCard = (g, card) => card && card.kind !== 'highlight' ? g.entries.find(e => e.sourceId === card.questionId) || null : null;
 const refEntry = (g, ref, block) => ref.startsWith('acr:') ? acronymOf(g, ref.slice(4), block)?.entry || null : ref;
 
-// Exposure rule. phase: 'live' (question not resolved yet) | 'resolved' | 'review' | 'exam' (exam not submitted).
-// mode: Assisted | Unassisted | Hard | Exam.
-// - Live exam: nothing. Live Hard: nothing (no help before the answer).
-// - Live Assisted / Unassisted: acronym expansions only, in the stem only, and only for acronyms that are not answer
-//   choices (no choice contains the acronym, and no choice maps to its entry), so no answer's term leaks, and only
-//   where the stem does not already spell the acronym out (the owner, 2026-11-10: "VM ... doesn't need to be explained in
-//   its own sentence where it's spelled out"; the first-occurrence rule writes "Expansion (ACR)" in every stem).
+// Exposure rule (the owner, 2026-11-16: no stem term is underlined or linked before a correct answer).
+// phase: 'live' (not resolved yet) | 'missed' (resolved by a miss, live) | 'resolved' (the correct answer is known: a correct
+// selection or a reveal) | 'review' (an earlier appearance or a review screen) | 'exam' (exam not submitted).
+// - Live, missed or a live exam: no stem links in any mode.
 // - Resolved / review: every stem link, full entries.
-// Returns stem spans [{start, end, ref, limited}] for the question.
-export function stemLinks(g, q, { phase, mode }) {
-  const spans = g.questionLinks[q.id]?.stem || [];
-  if (phase === 'exam') return [];
-  if (phase === 'resolved' || phase === 'review') return spans.map(([start, end, ref]) => ({ start, end, ref, limited: false }));
-  if (mode === 'Hard' || mode === 'Exam') return [];
-  const choiceTerms = new Set(Object.values(g.answerTerms[q.id] || {}));
-  return spans.filter(([, , ref]) => {
-    if (!ref.startsWith('acr:')) return false;
-    const acr = ref.slice(4), a = acronymOf(g, acr, q.block);
-    if (!a || q.stem.toLowerCase().includes(a.expansion.toLowerCase())) return false;
-    const inChoice = q.answers.some(x => new RegExp(`(?<![\\w-])${acr}s?(?![\\w-])`).test(x.text) || x.text.toLowerCase().includes(a.expansion.toLowerCase()));
-    return !inChoice && !(a.entry && choiceTerms.has(a.entry)) && !(a.see || []).some(id => choiceTerms.has(id));
-  }).map(([start, end, ref]) => ({ start, end, ref, limited: true }));
+// Returns stem spans [{start, end, ref}] for the question.
+export function stemLinks(g, q, { phase }) {
+  // The owner, 2026-11-16: links appear with the Key terms button, after any answer (right, wrong or revealed); never before.
+  if (phase !== 'resolved' && phase !== 'review' && phase !== 'missed') return [];
+  return (g.questionLinks[q.id]?.stem || []).map(([start, end, ref]) => ({ start, end, ref }));
 }
 
-// Popover content for one link. limited: the acronym expansion only. block: the block of the question (or card or
-// entry) the link is in; an acronym opens only that block's entry and See entries.
-export function popover(g, ref, { limited = false, block } = {}) {
+// Popover content for one link. block: the block of the question (or card or entry) the link is in; an acronym opens
+// only that block's entry and See entries.
+export function popover(g, ref, { block } = {}) {
   if (ref.startsWith('acr:')) {
     const acr = ref.slice(4), a = acronymOf(g, acr, block);
     if (!a) return null;
-    if (limited) return { title: acr, expansion: a.expansion, entry: null, see: [] };
     return { title: acr, expansion: a.expansion, entry: a.entry ? entryOf(g, a.entry) : null, see: (a.see || []).map(id => entryOf(g, id)).filter(Boolean) };
   }
   const e = entryOf(g, ref);

@@ -46,6 +46,12 @@ async function readRecord() {
 // Read-change-write steps on the record run one at a time (all tabs share this worker). A step that started
 // before the record was removed does not write it back.
 let turn = Promise.resolve(), epoch = 0;
+// "Last" in rule 3 is the order in which page answers reach the worker; its own steps (hashing, storage) never
+// reorder them. Each page answer gets the next number when it arrives, and the record never goes back to an earlier
+// one, whichever hash finishes first. A removal of the record takes a number too, so a page that arrived before the
+// removal cannot write the record back after it.
+let arrivals = 0, newest = 0;
+const passed = () => { newest = ++arrivals; };
 const inTurn = step => { const run = turn.then(step, step); turn = run.catch(() => {}); return run; };
 async function writeRecord(record, started) {
   if (started !== epoch) return false;
@@ -70,13 +76,16 @@ async function storeVerified(name, hash, response) {
   return true;
 }
 const isStored = async (name, hash) => !!(await (await caches.open(ASSETS)).match(keyUrl(name, hash)));
-// Records the build that this page text names; the caller gives this page to a tab. Returns {id, files}, or
-// null when the text names no build. Rejects when the record cannot be written.
-async function note(html) {
+// Records the build that this page text names; the caller gives this page to a tab. arrival: the number the page
+// answer got when it reached the worker. Returns {id, files}, or null when the text names no build. Rejects when
+// the record cannot be written. A page that arrived before one already recorded leaves the record alone.
+async function note(html, arrival) {
   const files = listedFiles(html);
   if (!files) return null;
   const id = (await digest(new TextEncoder().encode(html))).slice(0, 16);
   await inTurn(async () => {
+    if (arrival < newest) return;
+    newest = arrival;
     const started = epoch, record = await readRecord();
     if (record?.seen?.id === id) return;
     const next = { seen: { id, files, html, complete: false }, previous: record?.seen?.complete ? record.seen.files : record?.previous || {} };
@@ -106,17 +115,18 @@ async function fill(build) {
 async function page(event, settle) {
   let response = null, error = null;
   try { response = await fetch(event.request.url, { cache: 'no-cache' }); } catch (failure) { error = failure; }
+  const arrival = ++arrivals;
   if (response?.redirected) { settle(); return fetch(event.request); } // The browser follows a redirect itself.
   if (response?.ok) {
     // Before a tab gets this page, the record must name its build (rule 3). If that fails, the record goes.
     // The page text is read outside the storage time limit: a slow network is not a storage fault.
     let html = null;
     try { html = await response.clone().text(); } catch { /* handled as not recorded */ }
-    const noted = dead || html === null ? { failed: true } : await timed(note(html), STORAGE_MS * 2);
+    const noted = dead || html === null ? { failed: true } : await timed(note(html, arrival), STORAGE_MS * 2);
     if (noted.value) settle(fill(noted.value).catch(() => false));
     // Not recorded. A page with no file list at all (a network sign-in page) leaves the record alone.
     else if (noted.value === null && !/id="release-files"/.test(html)) settle();
-    else { const dropping = dropRecord().catch(() => {}); await timed(dropping); settle(dropping); }
+    else { passed(); const dropping = dropRecord().catch(() => {}); await timed(dropping); settle(dropping); }
     return response;
   }
   settle();
@@ -153,7 +163,7 @@ self.addEventListener('fetch', event => {
   const name = url.pathname.slice(new URL(scope).pathname.length), navigation = request.mode === 'navigate';
   if (dead) { // A page that the network gives now is not recorded, so the record must not outlive it.
     if (navigation && (name === '' || name === 'index.html')) event.respondWith(fetch(request).then(response => {
-      if (response.ok) event.waitUntil(dropRecord().catch(() => {}));
+      if (response.ok) { passed(); event.waitUntil(dropRecord().catch(() => {})); }
       return response;
     }));
     return;
@@ -182,11 +192,11 @@ self.addEventListener('message', event => {
       if (data.type === 'fill') return void await fill(record?.seen);
       if (!validFiles(data.files)) return;
       if (record?.seen && sameFiles(record.seen.files, data.files)) return void await fill(record.seen);
-      await dropRecord(); // First: the record does not name what this tab runs.
-      let html = null;
-      try { const response = await fetch(scope, { cache: 'no-cache' }); if (response.ok && !response.redirected) html = await response.text(); } catch { /* below */ }
+      passed(); await dropRecord(); // First: the record does not name what this tab runs.
+      let html = null, arrival = 0;
+      try { const response = await fetch(scope, { cache: 'no-cache' }); arrival = ++arrivals; if (response.ok && !response.redirected) html = await response.text(); } catch { /* below */ }
       const files = html && listedFiles(html);
-      if (files && sameFiles(files, data.files)) await fill(await note(html));
-    } catch { try { await dropRecord(); } catch { /* storage unavailable */ } }
+      if (files && sameFiles(files, data.files)) await fill(await note(html, arrival));
+    } catch { passed(); try { await dropRecord(); } catch { /* storage unavailable */ } }
   })());
 });

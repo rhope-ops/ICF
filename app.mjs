@@ -1,7 +1,7 @@
-import { previewCards, startCards, moveCards, restoreCardSets, removeSavedCard, cardsInSet, cardKey, MANUAL_ID, MISSED_ID, questionSaveBox, writeSetCard, manualHas, setHasCard, addCardToSet, cardForQuestion } from './flashcards.mjs';
+import { previewCards, startCards, moveCards, restoreCardSets, removeSavedCard, cardsInSet, ALL_BLOCKS, setsBlockValue, cardKey, MANUAL_ID, MISSED_ID, questionSaveBox, writeSetCard, manualHas, setHasCard, addCardToSet, cardForQuestion } from './flashcards.mjs';
 import { restoreStats, inspectStats, recordSession, prioritize, studyScores, toPoolKind, POOL_KINDS } from './analytics.mjs';
 import { EXAM, blueprint, standardPool, formsFor, formStatus, countExam, restoreCycles, startExam, examEvent, examLive, examCounts, examResults, examSession, withStudySnapshot, historyEntry, addHistory, restoreHistory, restoreExam, settleExam, remainingMs, REVIEW_FILTERS } from './exam.mjs';
-import { escape, toolsMenu, assistanceTimer, poolShortfall, answersHtml, saveButton, sourceRow, flagButton } from './presentation.mjs';
+import { escape, toolsMenu, assistanceTimer, poolShortfall, answersHtml, saveButton, sourceRow, flagButton, sourceVisible } from './presentation.mjs';
 import { APP_VERSION, diagnosticReport } from './diagnostics.mjs';
 import { eligible, sample, shuffle, start, transition, questionsForMode } from './engine.mjs';
 import { restoreUnderstanding, markMissed, assessUnderstanding, understandingRecord, notUnderstoodQuestions, sessionMissedIds, newMissedIds, reviewIds, restoreReview } from './learning.mjs';
@@ -48,6 +48,11 @@ let targetedPoolSize='all';
 let flashPreview = null, flashSetId = null, flashMessage = '', cardSets;
 // Card source on setup, Saved-sets screen state and Dynamic Flash Cards.
 let pickSetId = null, setsReturn = 'blocks', pendingCard = null, cardCatalog = null;
+// Saved sets block filter (the owner, 2026-11-16): the current block by default; a choice holds while that block stays current.
+let setsView = null;
+const setsBlock = () => setsView && setsView.for === blockId ? setsView.value : blockId ?? ALL_BLOCKS;
+function bindSetsBlock(id) { const select = $(`#${id}`); if (!select) return;
+  select.onchange = () => { setsView = {for:blockId, value:setsBlockValue(select.value)}; keepScroll(render); $(`#${id}`)?.focus({preventScroll:true}); }; }
 let dynamicCards = read('dynamicCards', true) !== false;
 // Card sets (2.0.0): Missed Questions and Manual. An older library (schema 1 or 2) migrates on load and is saved at once
 // as schema 3; damaged data is left in storage untouched until the next card change.
@@ -144,14 +149,23 @@ const inMissed=card=>setHasCard(cardSets.sets.find(s=>s.id===MISSED_ID),card);
 // SAVE (2.0.0): the button toggles the card in Manual. The polite status line announces the change; a short
 // viewport toast shows it (aria-hidden, fixed near the bottom, so it covers no content beside the button) and hides after 2 s.
 let saveNoteTimer=0;
+// One Manual toggle for every Save button. The screen re-renders and every Save button of the card on the page, the term
+// pop-up's included, shows the new state at once (the owner, 2026-11-16: the pop-up and question Save share one state).
+// Returns the announced line, or null when the write failed.
+function toggleManual(card){
+  const on=!manualHas(cardSets,card);
+  if(!writeSetCard(cardStore,MANUAL_ID,card,on))return null;
+  const text=on?'Saved as a Flash Card':'Removed from flash cards',status=$('#answer-status');
+  status.textContent='';requestAnimationFrame(()=>{status.textContent=text;});
+  keepScroll(render);
+  const saved=manualHas(cardSets,card);
+  document.querySelectorAll(`[data-save-card="${CSS.escape(cardKey(card))}"]`).forEach(b=>{b.setAttribute('aria-pressed',String(saved));b.setAttribute('aria-label',saved?'Saved as a flash card':'Save as a flash card');});
+  return text;
+}
 function bindSave(card,scope=main){
   const button=scope.querySelector(`[data-save-card="${CSS.escape(cardKey(card))}"]`);if(!button)return;
   button.onclick=()=>{
-    const on=button.getAttribute('aria-pressed')!=='true';
-    if(!writeSetCard(cardStore,MANUAL_ID,card,on))return;
-    const text=on?'Saved as a Flash Card':'Removed from flash cards',status=$('#answer-status');
-    status.textContent='';requestAnimationFrame(()=>{status.textContent=text;});
-    keepScroll(render);
+    const text=toggleManual(card);if(!text)return;
     const again=main.querySelector(`[data-save-card="${CSS.escape(cardKey(card))}"]`);again?.focus({preventScroll:true});
     const row=again?.closest('.source-row');if(!row)return;
     flashToast(text,row);
@@ -208,11 +222,12 @@ function mountNavigationBar() {
 }
 // Wide screens: centre the sheet (first) through its navigation row (last) under the sticky bars. Phones and short
 // windows use resetNavigationView and positionQuestion instead.
-function centreSheet(first, last, cover = headerHeight()) {
+// instant: no smooth scroll (entering a quiz replaces the whole screen, so there is nothing to follow).
+function centreSheet(first, last, {cover = headerHeight(), instant = false} = {}) {
   if (window.matchMedia('(max-width: 760px), (max-height: 500px)').matches) return;
   const a = main.querySelector(first), b = main.querySelector(last) || a; if (!a) return;
   const top = screens.centredScroll({top:a.getBoundingClientRect().top, bottom:b.getBoundingClientRect().bottom, scrollY:window.scrollY, coverTop:cover, viewHeight:window.innerHeight, maxScroll:document.documentElement.scrollHeight-window.innerHeight});
-  window.scrollTo({top, behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+  window.scrollTo({top, behavior:instant||window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
 }
 // Programmatic focus target: a heading takes tabindex=-1 so screen readers hear the screen or entry name (UX review 2026-11-11, M6/M7).
 function focusHeading(h) { if (!h) return false; h.tabIndex = -1; h.focus({preventScroll:true}); return true; }
@@ -493,21 +508,27 @@ function render() {if(['study','flash-card','glossary'].includes(step))lastStudy
     if (target) (target.disabled ? main.querySelector('[data-answer]:not(:disabled)') || $('#stem') : target)?.focus({preventScroll:true});
   }
 
-  if (screens.repositionStudy({screen:oldScreen,question:oldQuestion,appearance:oldAppearance},{step,question:nextQuestion,appearance})) positionStudyQuestion();
+  // Entering the question screen (Start, Retry, Practice, a Glossary pool, Study resume) places the question as Next and
+  // Back do: phones put it under the header, wide screens centre the sheet through Back/Next (the owner, 2026-11-16).
+  if (screens.repositionStudy({screen:oldScreen,question:oldQuestion,appearance:oldAppearance},{step,question:nextQuestion,appearance})) {
+    positionStudyQuestion();
+    if (oldScreen !== 'study') centreSheet('.q-sheet','.question-actions',{instant:true});
+  }
   if (nextQuestion && oldQuestion === nextQuestion && oldAppearance === appearance) {const tile=anchorId?main.querySelector(`[data-answer="${CSS.escape(anchorId)}"]`):null;window.scrollTo({top:Math.max(0,savedScroll+(tile&&Number.isFinite(anchorTop)?tile.getBoundingClientRect().top-anchorTop:0)),behavior:'instant'});}
 }
 function renderSavedCardSets() {
   const catalog = catalogCards();
-  main.innerHTML = screens.savedSetsScreenHtml({library:cardSets, catalog, back:setsReturn==='units'?'Flash cards':'Blocks'});
+  main.innerHTML = screens.savedSetsScreenHtml({library:cardSets, catalog, back:setsReturn==='units'?'Flash cards':'Blocks', blocks:bank.blocks, block:setsBlock()});
+  bindSetsBlock('sets-block');
   $('#cards-home').onclick = () => navigate(setsReturn === 'units' && blockId ? 'cards-setup' : 'blocks');
   main.querySelectorAll('[data-open-set]').forEach(button => button.onclick = () => {
     const set = cardSets.sets.find(s => s.id === button.dataset.openSet);
-    const cards = cardsInSet(set,catalog);
+    const cards = cardsInSet(set,catalog,setsBlock());
     if (!cards.length) return;
     flashSetId = set.id; flashPreview = startCards(cards); flashMessage = ''; navigate('flash-card');
   });
   main.querySelectorAll('[data-remove-card]').forEach(button => button.onclick = () => {
-    const setId = button.dataset.set, list = button.closest('ul'), index = [...list.children].indexOf(button.closest('li'));
+    const setId = button.dataset.set, index = [...button.closest('details').querySelectorAll('[data-remove-card]')].indexOf(button);
     if (!persistCardSets(removeSavedCard(cardSets,setId,button.dataset.removeCard))) return;
     render();
     // Keep the editor open and focus the next Remove button (or the set's summary).
@@ -563,8 +584,8 @@ function countdown() { return assistanceTimer(session?.current,session?.mode); }
 // Glossary context for the question on screen (exposure rule in glossary.stemLinks).
 function studyGloss(c,q,reviewing){
   if(!glossary)return null;
-  const phase=reviewing?'review':c.resolved?'resolved':'live',m=c.mode||session.mode;
-  const links=stemLinks(glossary,q,{phase,mode:m});
+  const phase=reviewing?'review':sourceVisible(c)?'resolved':c.resolved?'missed':'live';
+  const links=stemLinks(glossary,q,{phase});
   if(phase==='live')return {phase,links};
   const terms=keyTerms(glossary,q).map(id=>glossary.byId.get(id)).filter(Boolean);
   return {phase,links,keyTerms:terms};
@@ -710,10 +731,12 @@ function renderHub() {
 }
 function renderCardsSetup() {
   const pick = cardSets.sets.find(set => set.id === pickSetId) || null;
-  if (!pick) pickSetId = null;
+  // A set with no cards in the chosen block cannot stay picked (its radio is disabled).
+  if (!pick || !cardsInSet(pick,catalogCards(),setsBlock()).length) pickSetId = null;
   if (pickSetId) units = []; else if (!units.length) units = allUnits();
-  main.innerHTML = screens.cardsSetupHtml({block:currentBlock(), library:cardSets, pickSetId, catalog:catalogCards(), units, counts:unitCounts(true)});
-  const cardPool = () => pickSetId ? cardsInSet(cardSets.sets.find(set => set.id === pickSetId),catalogCards()) : previewCards(available('Unassisted'));
+  main.innerHTML = screens.cardsSetupHtml({block:currentBlock(), blocks:bank.blocks, library:cardSets, pickSetId, catalog:catalogCards(), units, counts:unitCounts(true), setsBlock:setsBlock()});
+  bindSetsBlock('setup-sets-block');
+  const cardPool = () => pickSetId ? cardsInSet(cardSets.sets.find(set => set.id === pickSetId),catalogCards(),setsBlock()) : previewCards(available('Unassisted'));
   const count = () => {
     if (units.length && pickSetId) { pickSetId = null; main.querySelectorAll('[name="card-set"]').forEach(r => { r.checked = false; }); }
     const n = cardPool().length;
@@ -798,13 +821,17 @@ function placeTermPop(){
 // block: the block of the question, card or entry the link is in; a link opens only that block's entries (decision 7).
 function openTermPop(button,{phase,ref:seeRef=null,block=blockId}){
   if(!glossary)return;
-  const ref=seeRef??button.dataset.term,limited=!seeRef&&button.dataset.limited==='true';
-  const content=popover(glossary,ref,{limited,block});if(!content)return;
+  const ref=seeRef??button.dataset.term;
+  const content=popover(glossary,ref,{block});if(!content)return;
   closeTermPop();
   const el=document.createElement('div');el.className='term-pop';el.setAttribute('role','dialog');el.setAttribute('aria-labelledby','term-pop-title');
+  // Save beside the close button: the term's flash card in Manual (the owner, 2026-11-16). A glossary-only term has no card.
+  const card=content.entry?cardForQuestion(catalogCards(),content.entry.sourceId):null;
   const draw=(more=false)=>{
-    el.innerHTML=screens.termPopoverHtml(content,{more,docs:glossary.docs});
+    const save=card?saveButton({id:'term-pop-save',key:cardKey(card),saved:manualHas(cardSets,card)}):'';
+    el.innerHTML=screens.termPopoverHtml(content,{more,docs:glossary.docs,save});
     el.querySelector('#term-pop-close').onclick=closeTermPop;
+    if(card)el.querySelector('#term-pop-save').onclick=()=>{const text=toggleManual(card);if(!text)return;el.querySelector('#term-pop-save').focus({preventScroll:true});flashToast(text,el);};
     el.querySelector('#term-pop-more')?.addEventListener('click',()=>{draw(true);el.querySelector('#term-pop-close').focus();});
     el.querySelectorAll('[data-term]').forEach(b=>b.onclick=()=>openTermPop(termAnchor(termPop?.from)||button,{phase,ref:b.dataset.term,block}));
   };
@@ -914,7 +941,7 @@ function showExamQuestion(){
   const sheet=main.querySelector('.exam-sheet');if(!sheet)return;
   // The clock bar is sticky under the top bar, so both cover the page.
   const bar=$('.exam-top'),head=headerHeight()+(bar?bar.getBoundingClientRect().height:0),top=sheet.getBoundingClientRect().top;
-  if(!window.matchMedia('(max-width: 760px), (max-height: 500px)').matches){centreSheet('.exam-sheet','.question-actions',head);return;}
+  if(!window.matchMedia('(max-width: 760px), (max-height: 500px)').matches){centreSheet('.exam-sheet','.question-actions',{cover:head});return;}
   if(top<head||top>window.innerHeight*0.5)window.scrollTo({top:Math.max(0,top+window.scrollY-head-8),behavior:'instant'});
 }
 function openSubmitCheck(){

@@ -4,6 +4,9 @@
 const DOC = /^[A-Z0-9-]{1,20}$/, ID = /^[\w-]{1,100}$/, ERRATUM = /^[A-Z0-9-]{1,30}$/;
 const isInt = (n, min = 0) => Number.isInteger(n) && n >= min;
 const text = (s, max) => typeof s === 'string' && s.length > 0 && s.length <= max;
+// Optional list structure: paragraphs {p} and lists {ul: [{t, sub?: [string]}]}.
+const blocksOk = b => b === undefined || Array.isArray(b) && b.length > 0 && b.length <= 200 && b.every(x => x && (text(x.p, 4000) && Object.keys(x).length === 1 ||
+  Array.isArray(x.ul) && Object.keys(x).length === 1 && x.ul.length > 0 && x.ul.every(i => i && text(i.t, 4000) && (i.sub === undefined || Array.isArray(i.sub) && i.sub.every(t => text(t, 4000))))));
 
 export function validateLinks(raw) {
   const fail = () => { throw Error('Source excerpts could not be read.'); };
@@ -13,7 +16,7 @@ export function validateLinks(raw) {
     if (!ID.test(id) || !Array.isArray(rows) || !rows.length || rows.length > 3) fail();
     for (const row of rows)
       if (!Object.hasOwn(raw.documents, row?.doc) || !isInt(row.page, 1) || !isInt(row.start) || !isInt(row.end, row.start + 1) ||
-          !text(row.text, 4000) || row.text.length !== row.end - row.start ||
+          !text(row.text, 4000) || row.text.length !== row.end - row.start || !blocksOk(row.blocks) ||
           (row.corrections !== undefined && (!Array.isArray(row.corrections) || !row.corrections.every(c => ERRATUM.test(c?.id ?? '') && text(c.printed, 400))))) fail();
   }
   return raw;
