@@ -5,7 +5,7 @@ import { escape, toolsMenu, assistanceTimer, poolShortfall, answersHtml, saveBut
 import { APP_VERSION, diagnosticReport } from './diagnostics.mjs';
 import { eligible, sample, shuffle, start, transition, questionsForMode } from './engine.mjs';
 import { restoreUnderstanding, markMissed, assessUnderstanding, understandingRecord, notUnderstoodQuestions, sessionMissedIds, newMissedIds, reviewIds, restoreReview } from './learning.mjs';
-import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview, removeOfflineCache } from './storage.mjs';
+import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview } from './storage.mjs';
 import * as screens from './screens.mjs';
 import { restoreGlossary, entryForCard, stemLinks, popover, keyTerms, searchEntries, restoreBookmarks } from './glossary.mjs';
 const $ = s => document.querySelector(s);
@@ -966,8 +966,11 @@ function renderExamResults(){
     item.querySelectorAll('[data-flag-question]').forEach(b=>b.onclick=()=>flagQuestion(q));
   });
 }
-// ---- Source excerpts. The excerpt asset is network-only and loads on demand. ----
-async function fetchJson(path){const response=await fetch(path,{cache:'no-store'});if(!response.ok)throw Error(`${path} ${response.status}`);return response.json();}
+// ---- Data files and source excerpts. The excerpt asset loads on demand. ----
+// Each data URL carries this build's content hash (index.html, #release-files), so code and data always match and
+// sw.js can keep a checked offline copy. Without the list (the test artifact) the plain path is used.
+const releaseFiles=(()=>{try{return JSON.parse(document.getElementById('release-files').textContent);}catch{return {};}})();
+async function fetchJson(path){const tag=releaseFiles[path.slice(2)],response=await fetch(tag?`${path}?v=${tag}`:path,{cache:'no-store'});if(!response.ok)throw Error(`${path} ${response.status}`);return response.json();}
 function loadExcerptKit(){
   return excerptKitLoad ||= Promise.all([import('./sources.mjs'),import('./reader.mjs')]).then(([logic,view])=>(excerptKit={logic,view})).catch(error=>{excerptKitLoad=null;throw error;});
 }
@@ -996,7 +999,14 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('pagehide',()=>{if(session){session=transition(session,{type:'pause'});save();}});
 try {
-  try { await removeOfflineCache({serviceWorker:navigator.serviceWorker,cacheStorage:window.caches,scope:new URL('./',window.location.href).href}); } catch { notice('Old offline storage could not be fully removed; a normal reload will retry.'); }
+  // Offline copy (2.1.68): not awaited, never blocks or fails the start. Where workers are unavailable (the test
+  // artifact, private modes) the app runs from the network as before.
+  // A page that started without the worker (first visit, after the recovery page, a reload past the worker) tells
+  // it which build runs here. When the network returns or the tab is shown again, the page asks the worker to
+  // complete or repair its copy.
+  try { const fresh=!navigator.serviceWorker.controller,tell=message=>navigator.serviceWorker.ready.then(r=>r.active?.postMessage(message)).catch(()=>{});
+    navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(()=>{if(fresh)tell({type:'stage',files:releaseFiles});}).catch(()=>{});
+    window.addEventListener('online',()=>tell({type:'fill'}));document.addEventListener('visibilitychange',()=>{if(!document.hidden)tell({type:'fill'});}); } catch {}
   bank=validateBank(await fetchJson('./questions.json'));
   // Only blocks with questions show anywhere in the app (the owner, 2026-11-10: "all blocks should only show up if they have questions").
   bank.blocks=bank.blocks.filter(b=>bank.questions.some(q=>q.block===b.id));

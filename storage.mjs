@@ -257,15 +257,3 @@ export function migrateCardSets(raw) {
   for(const c of ordered.flatMap(s=>s.cards||[]))if(!seen.has(c.id)){seen.add(c.id);cards.push(structuredClone(c));}
   return {schema:3,sets:[{...MISSED_SET,questionIds:[...(missed?.questionIds||[])],cards:structuredClone(missed?.cards||[])},{...MANUAL_SET,questionIds,cards}]};
 }
-
-// Retire only this app's registration/cache, never browser history or saved progress.
-export async function removeOfflineCache({serviceWorker,cacheStorage,scope}) {
-  if(serviceWorker){
-    const registration=await serviceWorker.getRegistration(scope);
-    if(registration?.scope===scope)await registration.unregister();
-  }
-  if(cacheStorage){
-    const names=await cacheStorage.keys();
-    await Promise.all(names.filter(name=>name.startsWith('icf-')).map(name=>cacheStorage.delete(name)));
-  }
-}

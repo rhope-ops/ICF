@@ -254,7 +254,7 @@ export function glossaryHtml({block, g, list, query, unit, entry, questionCount,
     <fieldset class="gloss-group"><legend class="sr-only">Group terms</legend><div class="seg">${[['unit','By unit'],['az','A–Z']].map(([v,t]) => `<label><input type="radio" name="gloss-group" value="${v}" ${group===v?'checked':''}>${t}</label>`).join('')}</div></fieldset>
     ${jump}</div>
     <p class="status count" role="status">${plural(list.length,'term')}</p>
-    <div class="gloss-list">${sections}</div>
+    <div class="gloss-list">${sections || `<p class="muted gloss-empty">No terms match. Try a shorter word${unit ? ', or set Unit to All units' : ''}.</p>`}</div>
     <div class="navrow actions">${toCard ? `<button id="gloss-card">${backLabel(toCard)}</button>` : `<button id="back">${backLabel('Mode')}</button>`}</div>`;
 }
 
