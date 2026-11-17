@@ -18,8 +18,8 @@ const apply=()=>{const resolved=choice==='system'?(media.matches?'dark':'light')
 window.icfTheme={defaultChoice,get choice(){return choice;},set(value){choice=choices.includes(value)?value:defaultChoice;apply();}};
 apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})();
 </script>
-<script type="application/json" id="release-files">{"analytics.mjs":"5538116f1abd","app.mjs":"594e374dfa01","diagnostics.mjs":"08e067f97299","engine.mjs":"a6c9f176629d","exam.mjs":"31401d7547ae","flashcards.mjs":"e4c802d397d3","font-display-500.woff2":"460f141ec8f6","font-display-600.woff2":"215a93c696f4","font-display-700.woff2":"3787a5a41917","font-display-italic-500.woff2":"ff26c7788041","glossary.json":"ae6016f301d5","glossary.mjs":"051641d47907","learning.mjs":"f53485b76ccc","pictures.mjs":"ad66bd799021","presentation.mjs":"cf2a2e216f9b","questions.json":"7f6b5ea6fcb5","reader.mjs":"5d639038e73b","scholar-B3.json":"1ec6b60523ca","scholar-B5.json":"73126533f3e2","scholar.json":"f878ff3e1f98","scholar.mjs":"52a0b79117d8","screens.mjs":"7607c2b828c2","source-links.json":"1f853fda4b03","sources.mjs":"ce4197759dce","storage.mjs":"3bf10923c4a8","styles.css":"9c0f6c480a48","usaf-comm-badge.webp":"98f0f038021a"}</script>
-<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=5538116f1abd","./app.mjs":"./app.mjs?v=594e374dfa01","./diagnostics.mjs":"./diagnostics.mjs?v=08e067f97299","./engine.mjs":"./engine.mjs?v=a6c9f176629d","./exam.mjs":"./exam.mjs?v=31401d7547ae","./flashcards.mjs":"./flashcards.mjs?v=e4c802d397d3","./glossary.mjs":"./glossary.mjs?v=051641d47907","./learning.mjs":"./learning.mjs?v=f53485b76ccc","./pictures.mjs":"./pictures.mjs?v=ad66bd799021","./presentation.mjs":"./presentation.mjs?v=cf2a2e216f9b","./reader.mjs":"./reader.mjs?v=5d639038e73b","./scholar.mjs":"./scholar.mjs?v=52a0b79117d8","./screens.mjs":"./screens.mjs?v=7607c2b828c2","./sources.mjs":"./sources.mjs?v=ce4197759dce","./storage.mjs":"./storage.mjs?v=3bf10923c4a8"}}</script>
+<script type="application/json" id="release-files">{"analytics.mjs":"5538116f1abd","app.mjs":"594e374dfa01","diagnostics.mjs":"8362a57e783f","engine.mjs":"a6c9f176629d","exam.mjs":"31401d7547ae","flashcards.mjs":"e4c802d397d3","font-display-500.woff2":"460f141ec8f6","font-display-600.woff2":"215a93c696f4","font-display-700.woff2":"3787a5a41917","font-display-italic-500.woff2":"ff26c7788041","glossary.json":"7895d9526c53","glossary.mjs":"051641d47907","learning.mjs":"f53485b76ccc","pictures.mjs":"ad66bd799021","presentation.mjs":"cf2a2e216f9b","questions.json":"495e3e01fa4f","reader.mjs":"5d639038e73b","scholar-B3.json":"1ec6b60523ca","scholar-B5.json":"73126533f3e2","scholar.json":"f878ff3e1f98","scholar.mjs":"52a0b79117d8","screens.mjs":"7607c2b828c2","source-links.json":"1f853fda4b03","sources.mjs":"ce4197759dce","storage.mjs":"3bf10923c4a8","styles.css":"9c0f6c480a48","usaf-comm-badge.webp":"98f0f038021a"}</script>
+<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=5538116f1abd","./app.mjs":"./app.mjs?v=594e374dfa01","./diagnostics.mjs":"./diagnostics.mjs?v=8362a57e783f","./engine.mjs":"./engine.mjs?v=a6c9f176629d","./exam.mjs":"./exam.mjs?v=31401d7547ae","./flashcards.mjs":"./flashcards.mjs?v=e4c802d397d3","./glossary.mjs":"./glossary.mjs?v=051641d47907","./learning.mjs":"./learning.mjs?v=f53485b76ccc","./pictures.mjs":"./pictures.mjs?v=ad66bd799021","./presentation.mjs":"./presentation.mjs?v=cf2a2e216f9b","./reader.mjs":"./reader.mjs?v=5d639038e73b","./scholar.mjs":"./scholar.mjs?v=52a0b79117d8","./screens.mjs":"./screens.mjs?v=7607c2b828c2","./sources.mjs":"./sources.mjs?v=ce4197759dce","./storage.mjs":"./storage.mjs?v=3bf10923c4a8"}}</script>
 <link rel="preload" href="./font-display-500.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-700.woff2" as="font" type="font/woff2" crossorigin>
@@ -36,7 +36,7 @@ apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})(
 <link rel="modulepreload" href="./pictures.mjs?v=ad66bd799021">
 <link rel="modulepreload" href="./learning.mjs?v=f53485b76ccc">
 <link rel="modulepreload" href="./exam.mjs?v=31401d7547ae">
-<link rel="modulepreload" href="./diagnostics.mjs?v=08e067f97299">
+<link rel="modulepreload" href="./diagnostics.mjs?v=8362a57e783f">
 </head>
 <body>
 <a class="skip" href="#main">Skip to study content</a>
@@ -62,7 +62,7 @@ apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})(
 <p id="answer-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 <p id="storage-notice" role="status"></p>
 <footer>
-<span id="app-version">ICF Companion v2.6.0 · 17 Nov 2026</span>
+<span id="app-version">ICF Companion v2.6.1 · 17 Nov 2026</span>
 </footer>
 <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
 <script type="module" src="./app.mjs?v=594e374dfa01"></script>
