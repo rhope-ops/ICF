@@ -7,7 +7,8 @@ import { understandingRecord, notUnderstoodQuestions, sessionMissedIds, reviewId
 import { unitScores, missedUnits, scoreTone, POOL_LABEL } from './analytics.mjs';
 import { EXAM, passMark, examCounts, reviewItems, REVIEW_FILTERS, examLabel, formsFor } from './exam.mjs';
 import { cardHtml, cardsInSet, savedSetsHtml, setsBlockHtml, cardKey, MISSED_ID } from './flashcards.mjs';
-import { pictureHtml } from './pictures.mjs';
+import { pictureHtml, tapBoardHtml } from './pictures.mjs';
+import { typeOf, resolved as scholarResolved, right as scholarRight, currentDecision, decisionDone, checkMarks } from './scholar.mjs';
 
 // m:ss, or h:mm:ss from one hour.
 export const duration = ms => { const n = Math.floor(ms/1000); return n >= 3600 ? `${Math.floor(n/3600)}:${String(Math.floor(n/60)%60).padStart(2,'0')}:${String(n%60).padStart(2,'0')}` : `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
@@ -305,12 +306,17 @@ export function scholarListHtml({block, units, unit, items, done = {}}) {
 }
 // Scholar question in the shape of a bank question, so its answers are the same tiles as in the other modes (answersHtml).
 export const scholarQuestion = qn => ({ id: qn.id, correctAnswerId: String(qn.key), answers: qn.answers.map((a, i) => ({ id: String(i), text: a.text, rationale: a.why })) });
+// The tiles of a Scholar question: the other modes' tiles, except that after the reveal a choice nobody picked stays neutral
+// (2.3.0 polish, the owner 2026-11-16) and keeps its why.
+const scholarTiles = (qn, st) => answersHtml(scholarQuestion(qn), st, { assisted: true, neutralUnpicked: true });
 // tries: this question's picks in order. As in the other modes, a wrong pick flips with its own why (the Assisted flip);
 // the right pick or a second wrong one resolves the question and shows every why (the owner, 2026-11-16, "3b").
-export const scholarAnswerState = (qn, tries = []) => {
+export const scholarAnswerState = (qn, tries = [], max = 2) => {
   const wrong = tries.filter(i => i !== qn.key).map(String);
-  return { order: ['0', '1', '2', '3'], resolved: tries.includes(qn.key) ? 'correct' : tries.length >= 2 ? 'revealed' : null, stage: 0, eliminated: [], flippedWrong: wrong, wrongIds: wrong };
+  return { order: qn.answers.map((_, i) => String(i)), resolved: tries.includes(qn.key) ? 'correct' : tries.length >= max ? 'revealed' : null, stage: 0, eliminated: [], flippedWrong: wrong, wrongIds: wrong };
 };
+// One branch decision in the answer-tile shape (2-3 choices; it ends after min(2, choices - 1) wrong picks).
+export const decisionQuestion = (qn, k) => ({ id: `${qn.id}-D${k}`, key: qn.steps[k].key, answers: qn.steps[k].choices });
 // One term. The sections form one connected accordion (the owner, 2026-11-16: "linked together rather than ... separate
 // pills"), each open unless the reader closed it (open: {section: false}). The guided question mirrors the question
 // screen (q-sheet, #N heading, stem, answers, navrow with Next at the right, tool-row with Hint) and teaches: a Hint before
@@ -325,22 +331,73 @@ export const seeLabel = (see, picture) => { const [part, n] = see.split(':'); re
 // Only the "In the course" line goes into the attribution figure; the illustration before it stays plain text (review 2026-11-16).
 export const exampleHtml = text => { const m = /^(.*?)\s*(In the course: .*), ([^,]+) p\.(\d+)\.$/s.exec(text);
   return m ? `${m[1] ? `<p>${escape(m[1])}</p>` : ''}<div class="excerpt scholar-example"><figure><p>${escape(m[2])}.</p><figcaption>${escape(m[3])} · p. ${m[4]}</figcaption></figure></div>` : `<p>${escape(text)}</p>`; };
-export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, done, back = '', pic = {}, open = {}}) {
-  const qn = item.questions[q], st = scholarAnswerState(qn, tries), over = Boolean(st.resolved), n = item.questions.length;
+// Hands-on task labels (2.3.0): the type tag above the stem of question 2.
+const TASK_LABEL = { tap: 'Tap the picture', order: 'Put in order', sort: 'Sort', branch: 'Scenario' };
+// The body of the guided question by type. draft: the arrangement being built (order: shown indexes in the current order;
+// sort: a group 0/1 or null per item). Returns {body, over, feedback, wrongNow, check}.
+function guidedBody(item, qn, tries, draft) {
+  const t = typeOf(qn);
+  draft ??= tries.length ? tries[tries.length - 1] : t === 'order' ? (qn.steps || []).map((_, i) => i) : t === 'sort' ? qn.items.map(() => null) : null;
+  const over = scholarResolved(qn, tries), ok = scholarRight(qn, tries);
+  const end = over ? (ok ? 'Correct.' : 'Answer revealed. Read why each part is right or wrong.') : '';
+  if (t === 'choose' || t === 'tap') {
+    const st = scholarAnswerState(qn, tries);
+    const board = t === 'tap' && item.picture ? tapBoardHtml(item.picture, qn.answers, { wrong: tries.filter(i => i !== qn.key), right: over ? qn.key : null, done: over }) + '<p class="muted scholar-tap-help">Tap the picture, or choose below.</p>' : '';
+    return { body: `${board}<div class="answers scholar-answers" role="group" aria-label="Answers">${scholarTiles(qn, st)}</div>`, over, wrongNow: tries.length > 0 && !over,
+      feedback: !tries.length ? '' : over ? end : 'Incorrect. Read why, then pick again.' };
+  }
+  if (t === 'order' || t === 'sort') {
+    const last = tries[tries.length - 1], shown = over ? (t === 'order' ? qn.key : qn.key) : draft;
+    // Over: solved = every row green; revealed (two wrong checks) = the right arrangement in neutral rows under a visible
+    // "Answer revealed" line, never green (fresh review 2026-11-16, MAJOR 2).
+    const marks = over ? null : last && same(last, draft) ? checkMarks(qn, last) : null, done = over ? (ok ? 'right' : 'revealed') : '';
+    const mark = i => marks ? (marks[i] ? 'right' : 'wrong') : done;
+    const markText = i => mark(i) === 'right' ? (over ? '' : 'In the right place') : mark(i) === 'wrong' ? 'Not here' : '';
+    let rows;
+    if (t === 'order') {
+      rows = shown.map((si, pos) => { const s0 = qn.steps[si], m = mark(pos);
+        return `<li class="scholar-row${m ? ` is-${m}` : ''}" data-step="${si}"><span class="scholar-pos" aria-hidden="true">${pos + 1}</span><span class="scholar-row-text"><span>${escape(s0.text)}</span>${marks && !over ? `<span class="feedback-label">${markText(pos)}</span>` : ''}${over ? `<span class="back"><em>${escape(s0.why)}</em></span>` : ''}</span>${over ? '' : `<span class="scholar-move"><button type="button" class="small" data-move="${pos}" data-dir="-1" aria-label="Move up: ${escape(s0.text)}"${pos === 0 ? ' disabled' : ''}>${ICON.up}</button><button type="button" class="small" data-move="${pos}" data-dir="1" aria-label="Move down: ${escape(s0.text)}"${pos === shown.length - 1 ? ' disabled' : ''}>${ICON.down}</button></span>`}</li>`; }).join('');
+      rows = `<ol class="scholar-rows scholar-order" aria-label="Steps, first to last">${rows}</ol>`;
+    } else {
+      rows = qn.items.map((x, i) => { const g = shown[i], m = mark(i);
+        const seg = qn.groups.map((name, k) => `<label><input type="radio" name="sort-${i}" value="${k}"${g === k ? ' checked' : ''}${over ? ' disabled' : ''}>${escape(name)}</label>`).join('');
+        return `<li class="scholar-row${m ? ` is-${m}` : ''}"><fieldset><legend class="scholar-row-text"><span>${escape(x.text)}</span>${marks && !over ? `<span class="feedback-label">${m === 'right' ? 'Right group' : 'Wrong group'}</span>` : ''}${over ? `<span class="feedback-label">${escape(qn.groups[qn.key[i]])}</span><span class="back"><em>${escape(x.why)}</em></span>` : ''}</legend><div class="seg scholar-sort-seg" data-sort="${i}">${seg}</div></fieldset></li>`; }).join('');
+      rows = `<ul class="scholar-rows scholar-sort">${rows}</ul>`;
+    }
+    const ready = !over && (t === 'order' || draft.every(g => g === 0 || g === 1)) && !tries.some(x => same(x, draft));
+    if (done === 'revealed') rows = `<p class="feedback-label scholar-revealed">Answer revealed: ${t === 'order' ? 'the right order' : 'the right groups'}</p>` + rows;
+    return { body: rows, over, wrongNow: tries.length > 0 && !over, check: over ? '' : `<button id="scholar-check" class="primary" data-tone="scholar"${ready ? '' : ' disabled'}>${t === 'order' ? 'Check order' : 'Check'}</button>`,
+      feedback: !tries.length ? '' : over ? end : `${checkMarks(qn, last).filter(Boolean).length} of ${qn.key.length} right. Change the ones marked, then check again.` };
+  }
+  // Branch: decisions so far, each with the picks made; the current one takes answers.
+  const k = currentDecision(qn, tries);
+  const parts = qn.steps.slice(0, Math.min(k + 1, qn.steps.length)).map((d, j) => {
+    const dq = decisionQuestion(qn, j), picks = tries[j] || [], st = scholarAnswerState(dq, picks, Math.min(2, d.choices.length - 1));
+    return `<div class="scholar-decision${j < k || over ? ' is-done' : ''}" data-decision="${j}"><p class="scholar-prompt"><span class="label">Decision ${j + 1} of ${qn.steps.length}</span> ${escape(d.prompt)}</p><div class="answers scholar-answers" role="group" aria-label="Choices for decision ${j + 1}">${scholarTiles(dq, st)}</div></div>`; }).join('');
+  const now = tries[k] || [], d = qn.steps[k];
+  return { body: parts, over, wrongNow: now.length > 0 && !decisionDone(d, now),
+    feedback: !tries.length ? '' : over ? end : now.length ? 'Incorrect. Read why, then pick again.' : `${(tries[k - 1] || []).includes(qn.steps[k - 1]?.key) ? 'Correct.' : 'Answer revealed.'} Decision ${k + 1} of ${qn.steps.length}.` };
+}
+const same = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]);
+
+// started: some guided question of this term has a pick (the Reset questions link shows).
+export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, done, back = '', pic = {}, open = {}, draft = null, started = false}) {
+  const qn = item.questions[q], n = item.questions.length, t = typeOf(qn);
   const section = (kind, label, body) => `<details class="scholar-drop" data-section="${kind}"${open[kind] === false ? '' : ' open'}><summary><span class="label">${label}</span></summary><div class="scholar-drop-body">${body}</div></details>`;
-  const text = t => `<p>${escape(t)}</p>`;
-  const wrongNow = tries.length && !over;
-  // The tiles show Correct / Incorrect; this line is for screen readers only (the owner, 2026-11-16: the visible line went).
-  const feedback = !tries.length ? '' : st.resolved === 'correct' ? 'Correct.' : over ? 'Answer revealed. Read why each choice is right or wrong.' : 'Incorrect. Read why, then pick again.';
-  const quiz = `<div class="q-sheet scholar-q"><section class="question-focus" aria-label="Guided question"><div class="question-heading qhead"><p class="qnum">#${q + 1} <small>of ${n}</small></p><span class="unit-label">Guided question</span></div>
+  const text = t0 => `<p>${escape(t0)}</p>`;
+  const g = guidedBody(item, qn, tries, draft), over = g.over;
+  // One counter (2.3.0 polish): the section title says "Guided question N of M"; the sheet shows only the task type of a
+  // hands-on question. The tiles show Correct / Incorrect; the status line is for screen readers only.
+  const quiz = `<div class="scholar-q" data-type="${t}"><section class="question-focus" aria-label="Guided question">${TASK_LABEL[t] ? `<p class="label scholar-task">${TASK_LABEL[t]}</p>` : ''}
       <h2 id="scholar-stem" class="stem" tabindex="-1">${escape(qn.stem)}</h2>
       ${hint ? `<p class="scholar-hint" id="scholar-hint-text" tabindex="-1"><span class="label">Hint</span> ${escape(qn.hint)}</p>` : ''}</section>
-      <div class="answers scholar-answers" role="group" aria-label="Answers">${answersHtml(scholarQuestion(qn), st, { assisted: true })}</div>
-      <p class="sr-only" role="status" data-say="${escape(feedback)}"></p>
-      ${wrongNow ? `<p class="scholar-see"><span class="label">Look again</span> <button type="button" class="link-button" id="scholar-see" data-see="${escape(qn.see)}">${escape(seeLabel(qn.see, item.picture))}</button></p>` : ''}
+      ${g.body}
+      <p class="sr-only" role="status" data-say="${escape(g.feedback)}"></p>
+      ${g.wrongNow ? `<p class="scholar-see"><span class="label">Look again</span> <button type="button" class="link-button" id="scholar-see" data-see="${escape(qn.see)}">${escape(seeLabel(qn.see, item.picture))}</button></p>` : ''}
       ${over ? `<p class="scholar-takeaway"><span class="label">Takeaway</span> ${escape(qn.takeaway)}</p>` : ''}
+      <div class="tool-row scholar-tools"><button id="scholar-hint" aria-controls="scholar-stem"${hint || over ? ' disabled' : ''}>${hint ? 'Hint shown' : 'Hint'}</button>${g.check || ''}</div>
       <div class="navrow actions scholar-q-nav">${q > 0 ? `<button id="scholar-prev-q">${backLabel('Previous question')}</button>` : ''}${q < n - 1 ? `<button id="scholar-next-q"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Next question')}</button>` : ''}</div>
-      <div class="tool-row"><button id="scholar-hint" aria-controls="scholar-stem"${hint || over ? ' disabled' : ''}>${hint ? 'Hint shown' : 'Hint'}</button></div></div>`;
+      ${started ? '<p class="scholar-reset"><button type="button" class="link-button" id="scholar-reset">Reset this term\'s questions</button></p>' : ''}</div>`;
   // Term nav (the owner, 2026-11-16): Next term always at the right; All terms takes Previous term's place on the first
   // term; the way back (Glossary / Card N) under them.
   const first = nav.previous ? `<button id="scholar-prev" data-scholar-item="${escape(nav.previous.id)}">${backLabel('Previous term')}</button>` : `<button id="scholar-list">${backLabel('All terms')}</button>`;

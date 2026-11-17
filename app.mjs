@@ -8,7 +8,7 @@ import { restoreUnderstanding, markMissed, assessUnderstanding, understandingRec
 import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview } from './storage.mjs';
 import * as screens from './screens.mjs';
 import { restoreGlossary, entryForCard, stemLinks, popover, keyTerms, searchEntries, restoreBookmarks } from './glossary.mjs';
-import { restoreScholar, restoreScholarState, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right } from './scholar.mjs';
+import { restoreScholar, restoreScholarState, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey } from './scholar.mjs';
 import { pictureHtml } from './pictures.mjs';
 const $ = s => document.querySelector(s);
 const main = $('#main'), dialog = $('#dialog');
@@ -61,6 +61,11 @@ let scholarPic={item:null,index:0,prev:null};
 let scholarOpen={};
 // Guided-question hints shown (question ids), until the page closes; a hint is help, not a score.
 const scholarHints=new Set();
+// Order and sort tasks (2.3.0): the arrangement being built, per question id (not saved; a check is saved as a try).
+const scholarDraft=new Map();
+// The term whose section state was set: on a term's first visit every section is open, on later visits the reading
+// sections start closed so the guided question sits near the top (the owner, 2026-11-16).
+let scholarOpenFor=null;
 // Set by a pick, so that the next render announces the answer line once.
 let scholarSay=false;
 // Picture loop (the owner, 2026-11-16: "animations automatically loop with a small button to cancel it"): on unless the
@@ -341,7 +346,7 @@ function resetLocalData() {
   theme=window.icfTheme.defaultChoice;window.icfTheme.set(theme);syncThemeSwitch();
   pinQuestion=true;document.documentElement.dataset.pinQuestion='true';$('#settings-pin-question').checked=true;
   profile={nickname:'',visited:false};flags={};session=null;understanding={};stats=restoreStats(null);poolKind='random';missedReview=null;modalWasRunning=false;
-  cardSets=restoreCardSets();flashPreview=null;flashSetId=null;flashMessage='';dynamicCards=true;pickSetId=null;pendingCard=null;glossReturn=null;glossEntry=null;glossQuery='';glossUnit=0;closeTermPop();scholarState=null;scholarReturn=null;lastPlace=null;
+  cardSets=restoreCardSets();flashPreview=null;flashSetId=null;flashMessage='';dynamicCards=true;pickSetId=null;pendingCard=null;glossReturn=null;glossEntry=null;glossQuery='';glossUnit=0;closeTermPop();scholarState=null;scholarReturn=null;lastPlace=null;scholarDraft.clear();scholarOpenFor=null;
   exam=null;examHistory=[];examCycles={schema:1,blocks:{}};lastBlock=null;examFilter='missed';resultsKind='study';
   navigate('welcome');
 }
@@ -495,7 +500,7 @@ document.addEventListener('click', e => {
   const open = toggle.getAttribute('aria-expanded') !== 'true', key = dropKey(toggle);
   setDrop(toggle, open); if (open) openDrops.add(key); else openDrops.delete(key);
 });
-function render() {if(['study','flash-card','glossary'].includes(step))lastStudy=step;if(step==='study')lastPlace='quiz';else if(step==='scholar')lastPlace='scholar';
+function render() {if(['study','flash-card','glossary'].includes(step))lastStudy=step;if(step!=='scholar')scholarOpenFor=null;if(step==='study')lastPlace='quiz';else if(step==='scholar')lastPlace='scholar';
   if (!bank) return;
   syncScreens();
   const oldScreen=main.dataset.screen;
@@ -661,10 +666,9 @@ let answerHold = null;
 const perTileHold = () => window.matchMedia('(max-width: 640px)').matches;
 function holdAnswerHeights() {
   const answers = main.querySelector('.answers');
-  // Scholar (2.2.0, the owner 2026-11-16: "adopt this for scholar"): its answers take the same hold.
-  const sq = step === 'scholar' && scholarState?.item ? itemById(scholar, scholarState.item)?.questions[scholarState.q] : null;
-  if (!answers || !(step === 'study' && session || sq)) return;
-  const c = sq ? {order:['0','1','2','3']} : viewed(), q = sq ? screens.scholarQuestion(sq) : session.questions.find(x => x.id === c?.id);if (!q) return;
+  // Scholar answers do not take the hold since 2.3.0: its tiles grow only when a why shows (the owner, 2026-11-16, polish).
+  if (!answers || !(step === 'study' && session)) return;
+  const c = viewed(), q = session.questions.find(x => x.id === c?.id);if (!q) return;
   const perTile = perTileHold(), width = answers.getBoundingClientRect().width, key = `${q.id}|${width}|${document.documentElement.dataset.theme}|${perTile}`;
   if (answerHold?.key !== key) {
     const probe = document.createElement('div');
@@ -684,6 +688,28 @@ function holdAnswerHeights() {
   } else {
     answers.querySelectorAll('[data-answer]').forEach(tile => tile.style.removeProperty('--answer-hold'));
     answers.style.setProperty('--answer-hold', `${answerHold.height}px`);
+  }
+}
+// Scholar answer heights (the owner, 2026-11-16: "adjust answer height on desktop as before"): on wide screens every tile
+// of a group already has the tallest answered height, so a reveal moves nothing; phones keep each tile as tall as its text
+// until a why shows.
+const scholarHold=new Map();
+function holdScholarHeights(qn){
+  const groups=[...main.querySelectorAll('.scholar-answers')];if(!qn||!groups.length)return;
+  for(const g of groups){
+    if(perTileHold()){g.style.removeProperty('--answer-hold');continue;}
+    const d=g.closest('[data-decision]'),q=d?screens.scholarQuestion(screens.decisionQuestion(qn,Number(d.dataset.decision))):screens.scholarQuestion(qn);
+    const width=g.getBoundingClientRect().width,key=`${q.id}|${width}|${document.documentElement.dataset.theme}`;
+    if(!scholarHold.has(key)){
+      const probe=document.createElement('div');probe.className='answers scholar-answers';probe.setAttribute('aria-hidden','true');probe.inert=true;
+      Object.assign(probe.style,{position:'absolute',left:'0',top:'0',width:`${width}px`,visibility:'hidden',pointerEvents:'none'});
+      // The probe shows every tile in its tallest state: every wrong tile with its Incorrect line and why (a picked wrong
+      // answer), the key with its label (fourth fresh review 2026-11-16: a neutral probe was too short).
+      probe.innerHTML=answersHtml(q,{order:q.answers.map(a=>a.id),resolved:'revealed',stage:0,eliminated:[],flippedWrong:[],wrongIds:[]},{assisted:false});
+      probe.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));main.append(probe);
+      try{scholarHold.set(key,Math.max(0,...[...probe.children].map(t=>{t.style.minHeight='0';return Math.ceil(t.getBoundingClientRect().height);})));}finally{probe.remove();}
+    }
+    g.style.setProperty('--answer-hold',`${scholarHold.get(key)}px`);
   }
 }
 function updateTrack() {
@@ -805,15 +831,20 @@ function openScholar(itemId=null,ret=null){
   scholarReturn=ret;saveScholar(st);navigate('scholar');
 }
 function saveScholar(st){scholarState=st;persist('scholar',st);}
+// A message in the guided question's live region, after the render (so it is heard as a change).
+function sayScholar(text){setTimeout(()=>{const say=main.querySelector('.scholar-q [data-say]');if(say&&say.isConnected)say.textContent=text;},150);}
+// The arrangement on screen: the one being built, else the last check, else the shown order (order) or no groups (sort).
+function draftOf(qn,tries=[]){const t=typeOf(qn);if(t!=='order'&&t!=='sort')return null;
+  return scholarDraft.get(qn.id)||(tries.length?[...tries[tries.length-1]]:t==='order'?qn.steps.map((_,i)=>i):qn.items.map(()=>null));}
 function renderScholar(){
   clearTimeout(picTimer);
   if(!scholar||!scholarState){navigate('units');return;}
   if(scholarReturn?.to==='flash-card'&&!flashPreview)scholarReturn=null;
   const st=scholarState,block=bank.blocks.find(b=>b.id===st.block)||currentBlock(),item=itemById(scholar,st.item);
   const open=id=>{saveScholar(moveScholar(scholarState,{type:'item',id},scholar));render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#scholar-term'));};
-  if(!item){
+  if(!item){scholarOpenFor=null;
     const units=unitsOf(scholar,st.block),items=itemsFor(scholar,st.block,st.unit);
-    const counts=Object.fromEntries(items.map(it=>[it.id,it.questions.filter(q=>right(q,st.picks[q.id])).length]));
+    const counts=Object.fromEntries(items.map(it=>[it.id,it.questions.filter(q=>right(q,triesOf(st,q))).length]));
     main.innerHTML=screens.scholarListHtml({block,units,unit:st.unit,items,done:counts});
     main.querySelectorAll('[name="scholar-unit"]').forEach(r=>r.onchange=()=>{saveScholar(moveScholar(scholarState,{type:'unit',unit:Number(r.value)},scholar));keepScroll(render);main.querySelector(`[name="scholar-unit"][value="${r.value}"]`)?.focus({preventScroll:true});});
     main.querySelectorAll('[data-scholar-item]').forEach(b=>b.onclick=()=>open(b.dataset.scholarItem));
@@ -821,13 +852,31 @@ function renderScholar(){
     return;
   }
   if(scholarPic.item!==item.id)scholarPic={item:item.id,index:item.picture?.kind==='explore'?-1:0,prev:null,manual:false};
+  if(scholarOpenFor!==item.id){scholarOpenFor=item.id;const seen=(st.seen||[]).includes(item.id);
+    scholarOpen=seen?{picture:false,deeper:false,analogy:false,scenario:false,example:false}:{};if(!seen)saveScholar(moveScholar(st,{type:'seen',id:item.id},scholar));}
   const back=scholarReturn?.to==='glossary'?'Glossary':scholarReturn?.to==='flash-card'?`Card ${flashPreview.index+1}`:'';
-  main.innerHTML=screens.scholarItemHtml({block,item,q:st.q,tries:st.picks[item.questions[st.q].id]||[],hint:scholarHints.has(item.questions[st.q].id),nav:neighbours(scholar,st),done:x=>resolved(x,st.picks[x.id]),back,pic:picOptions(),open:scholarOpen});
+  const qn=item.questions[st.q],tries=triesOf(scholarState,qn);
+  main.innerHTML=screens.scholarItemHtml({block,item,q:st.q,tries,started:item.questions.some(x=>triesOf(scholarState,x).length),hint:scholarHints.has(qn.id),nav:neighbours(scholar,st),done:x=>resolved(x,triesOf(scholarState,x)),back,pic:picOptions(),open:scholarOpen,draft:draftOf(qn,tries)});
   scholarPic.prev=null;
   main.querySelectorAll('.scholar-drop').forEach(d=>d.ontoggle=()=>{scholarOpen[d.dataset.section]=d.open;if(d.dataset.section==='picture')picLoop(item);});
   const move=(event,focus)=>{saveScholar(moveScholar(scholarState,event,scholar));keepScroll(render);(focus?.()||$('#scholar-stem'))?.focus({preventScroll:true});};
-  main.querySelectorAll('.scholar-answers [data-answer]').forEach(b=>b.onclick=()=>{if(b.getAttribute('aria-disabled')==='true')return;const id=b.dataset.answer;scholarSay=true;move({type:'answer',index:Number(id)},()=>main.querySelector(`.scholar-answers [data-answer="${id}"]`));});
-  bindPicture(item);picLoop(item);
+  // A pick: a tile (A-D, tap, the current branch decision) or a tap on the picture's target (tap).
+  // Focus after a pick: the tile just picked; in a branch, a new decision takes focus on its first tile.
+  const pick=id=>{scholarSay=true;const n0=main.querySelectorAll('.scholar-decision').length;move({type:'answer',index:Number(id)},()=>{const ds=main.querySelectorAll('.scholar-decision'),last=ds[ds.length-1];
+    if(last)return (ds.length>n0?last.querySelector('[data-answer]:not([aria-disabled="true"])'):null)||last.querySelector(`[data-answer="${id}"]`);
+    return main.querySelector(`.scholar-answers [data-answer="${id}"]`)||$('#scholar-stem');});};
+  main.querySelectorAll('.scholar-answers [data-answer]').forEach(b=>b.onclick=()=>{if(b.getAttribute('aria-disabled')==='true'||b.closest('.scholar-decision.is-done'))return;pick(b.dataset.answer);});
+  { const board=main.querySelector('.scholar-tap:not(.is-done) svg');if(board)board.onclick=e=>{const t=e.target.closest('[data-tap]');if(t&&!t.dataset.tapState)pick(t.dataset.tap);}; }
+  // Order: Move up / Move down (buttons, no drag). Sort: one radio group per item. Check saves the arrangement as a try.
+  main.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{const d=[...draftOf(qn,tries)],i=Number(b.dataset.move),j=i+Number(b.dataset.dir);[d[i],d[j]]=[d[j],d[i]];scholarDraft.set(qn.id,d);keepScroll(render);
+    const again=main.querySelector(`[data-move="${j}"][data-dir="${b.dataset.dir}"]`);(again&&!again.disabled?again:main.querySelector(`[data-move="${j}"]:not(:disabled)`))?.focus({preventScroll:true});
+    // Say where the step went (the place number is drawn for sight only; fresh review 2026-11-16).
+    sayScholar(`${qn.steps[d[j]].text} Moved to place ${j+1} of ${d.length}.`);});
+  main.querySelectorAll('.scholar-sort-seg input').forEach(r=>r.onchange=()=>{const d=[...draftOf(qn,tries)],i=Number(r.closest('[data-sort]').dataset.sort);d[i]=Number(r.value);scholarDraft.set(qn.id,d);keepScroll(render);main.querySelector(`[name="sort-${i}"][value="${r.value}"]`)?.focus({preventScroll:true});});
+  if($('#scholar-reset'))$('#scholar-reset').onclick=()=>{for(const x of item.questions){scholarHints.delete(x.id);scholarDraft.delete(x.id);}
+    saveScholar(moveScholar(scholarState,{type:'reset',item:item.id},scholar));keepScroll(render);$('#scholar-stem')?.focus({preventScroll:true});sayScholar('This term\'s questions start over.');};
+  if($('#scholar-check'))$('#scholar-check').onclick=()=>{scholarSay=true;move({type:'answer',value:draftOf(qn,tries)},()=>main.querySelector('.scholar-row.is-wrong :is(button:not(:disabled),input)')||$('#scholar-stem'));};
+  bindPicture(item);picLoop(item);holdScholarHeights(qn);
   main.querySelectorAll('[data-scholar-q]').forEach(b=>b.onclick=()=>move({type:'question',index:Number(b.dataset.scholarQ)}));
   if($('#scholar-next-q'))$('#scholar-next-q').onclick=()=>move({type:'question',index:st.q+1});
   if($('#scholar-prev-q'))$('#scholar-prev-q').onclick=()=>move({type:'question',index:st.q-1});
@@ -842,7 +891,6 @@ function renderScholar(){
   main.querySelectorAll('.scholar-nav [data-scholar-item]').forEach(b=>b.onclick=()=>open(b.dataset.scholarItem));
   $('#scholar-list').onclick=()=>{const id=item.id;scholarReturn=null;saveScholar(moveScholar(scholarState,{type:'list'},scholar));render();window.scrollTo({top:0,behavior:'instant'});main.querySelector(`[data-scholar-item="${CSS.escape(id)}"]`)?.focus({preventScroll:false});};
   if($('#scholar-return'))$('#scholar-return').onclick=()=>{const r=scholarReturn;scholarReturn=null;if(r.to==='glossary'){glossEntry=r.entry;navigate('glossary');}else navigate('flash-card');};
-  holdAnswerHeights();
 }
 const picOptions=()=>({index:scholarPic.index,motion:{prev:scholarPic.prev,still:window.matchMedia('(prefers-reduced-motion: reduce)').matches},playing:scholarPlay&&!scholarPic.manual&&scholarOpen.picture!==false});
 // Redraw only the picture (a loop tick or a picture control), keeping focus on the control that had it.
@@ -1193,7 +1241,7 @@ try {
     if(exam.submitted){finalizeExam();resultsKind=sessionDone()&&!wasLive?'study':'exam';if(wasLive){step='exam-results';examFilter='missed';blockId=exam.block;units=allUnits();}}
     else{step='exam';blockId=exam.block;units=allUnits();}
   }
-  $('#app-version').textContent=`ICF Companion v${APP_VERSION} · 16 Nov 2026`;
+  $('#app-version').textContent=`ICF Companion v${APP_VERSION} · 17 Nov 2026`;
   render();
 
 } catch (error) {
@@ -1204,5 +1252,5 @@ try {
   document.querySelectorAll('[data-screen-link]').forEach(b=>b.setAttribute('aria-disabled','true'));
 }
 
-if('ResizeObserver' in window)new ResizeObserver(()=>holdAnswerHeights()).observe(main);
-document.fonts?.ready.then(()=>{answerHold=null;holdAnswerHeights();});
+if('ResizeObserver' in window)new ResizeObserver(()=>{holdAnswerHeights();if(step==='scholar'&&scholarState?.item){const it=itemById(scholar,scholarState.item);holdScholarHeights(it?.questions[scholarState.q]);}}).observe(main);
+document.fonts?.ready.then(()=>{answerHold=null;scholarHold.clear();holdAnswerHeights();if(step==='scholar'&&scholarState?.item){const it=itemById(scholar,scholarState.item);holdScholarHeights(it?.questions[scholarState.q]);}});

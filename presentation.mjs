@@ -37,6 +37,9 @@ const ICON_STROKE = 'fill="none" stroke="currentColor" stroke-width="2.25" strok
 export const ICON = {
   back: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M14.5 8H2M7.5 2.5 2 8l5.5 5.5" ${ICON_STROKE}/></svg>`,
   next: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M1.5 8H14M8.5 2.5 14 8l-5.5 5.5" ${ICON_STROKE}/></svg>`,
+  // Up / down (2.3.0): move a step in a Scholar order task (buttons, no drag; WCAG 2.5.7).
+  up: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M8 14.5V2M2.5 7.5 8 2l5.5 5.5" ${ICON_STROKE}/></svg>`,
+  down: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M8 1.5V14M2.5 8.5 8 14l5.5-5.5" ${ICON_STROKE}/></svg>`,
   // Swap (the owner, 2026-11-16): a right arrow over a left arrow, before "Quiz" / "Scholar" on the nav context button.
   swap: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M2 4.75H14M11 1.75 14 4.75 11 7.75M14 11.25H2M5 8.25 2 11.25 5 14.25" ${ICON_STROKE}/></svg>`,
   // Play / pause of the Scholar picture loop (the owner, 2026-11-16): Flag-sized button, filled triangle or two bars.
@@ -78,14 +81,15 @@ export const sourceRow = (source, flag, terms = '', save = '') => source || term
 export const backLabel = text => `<span class="lbl">${ICON.back}${escape(text)}</span>`;
 export const nextLabel = text => `<span class="lbl">${escape(text)}${ICON.next}</span>`;
 
-export function answersHtml(q,c,{assisted,reviewing=false}) {
+// neutralUnpicked (Scholar, 2.3.0): after the reveal, a wrong choice nobody picked keeps its why but is not marked red.
+export function answersHtml(q,c,{assisted,reviewing=false,neutralUnpicked=false}) {
   const revealed=['correct','revealed'].includes(c.resolved)||assisted&&c.stage>=4;
   return c.order.map((id,i)=>{
     const a=q.answers.find(a=>a.id===id),correct=revealed&&id===q.correctAnswerId;
     const eliminated=assisted&&(c.eliminated.includes(id)||c.stage===5&&id!==q.correctAnswerId);
     const wrong=assisted&&c.flippedWrong.includes(id)&&!correct&&!eliminated;
     const chosenWrong=c.wrongIds.includes(id);
-    const incorrect=chosenWrong||(revealed&&!correct);
+    const incorrect=chosenWrong||(revealed&&!correct&&!neutralUnpicked);
     const marker=correct||incorrect?`<svg class="answer-marker" data-marker="${correct?'correct':'incorrect'}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${correct?'M5 12l4 4L19 8':'M7 7l10 10M17 7L7 17'}"/></svg>`:'ABCDEFGH'[i];
     const label=correct?(c.resolved==='revealed'?'Answer revealed':'Correct'):incorrect?'Incorrect':'';
     return `<button class="item${correct?' correct':''}${incorrect?' wrong':''}${eliminated&&!revealed?' eliminated':''}" data-answer="${escape(id)}" ${reviewing||c.resolved?'aria-disabled="true"':eliminated?'disabled':''}>

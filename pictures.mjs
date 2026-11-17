@@ -87,7 +87,7 @@ function nodeSvg(n, st) {
 
 function linkSvg(l, nodes, st) {
   const [x1, y1] = centre(nodes.get(l.from)), [x2, y2] = centre(nodes.get(l.to));
-  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${l.label ? label(x1 + (x2 - x1) * (l.labelAt ?? 0.5), y1 + (y2 - y1) * (l.labelAt ?? 0.5) - (l.kind === 'trunk' ? 16 : 7), l.label, ' pic-small') : ''}</g>`;
+  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${l.label ? label(x1 + (x2 - x1) * (l.labelAt ?? 0.5), y1 + (y2 - y1) * (l.labelAt ?? 0.5) - (l.kind === 'trunk' ? 16 : 7), l.label, ' pic-small') : ''}</g>`;
 }
 
 function groupSvg(g, nodes, st, i) {
@@ -110,9 +110,10 @@ function packetSvg(k, links, nodes, from = null) {
 // Animation (the owner, 2026-11-16, "1 a"): prev is the state shown before (null on first draw); packets glide from their
 // previous place and newly lit parts fade in. still: reduced motion, so nothing moves or fades.
 const stateOf = (p, index) => p.kind === 'steps' ? p.steps[Math.min(Math.max(index, 0), p.steps.length - 1)] : (p.parts[index] || {});
-export function pictureSvg(p, index = 0, { prev = null, still = false } = {}) {
+// fixed: a state to draw instead of a step or part ({light, hide}; the tap board of a guided question, 2.3.0).
+export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = null } = {}) {
   const nodes = new Map(p.scene.nodes.map(n => [n.id, n])), links = new Map((p.scene.links || []).map(l => [l.id, l]));
-  const s = stateOf(p, index), before = prev === null || still || prev === index ? null : stateOf(p, prev);
+  const s = fixed || stateOf(p, index), before = fixed || prev === null || still || prev === index ? null : stateOf(p, prev);
   const on = new Set(s.light || []), off = new Set(s.hide || []);
   const st = { on, off, fresh: before ? new Set([...on].filter(id => !(before.light || []).includes(id))) : new Set() };
   const from = k => !before ? null : ((before.packets || []).find(b => b.on === k.on)?.at ?? 0);
@@ -138,4 +139,21 @@ export function pictureHtml(p, index = 0, { motion = {}, playing = false } = {})
     ? `<div class="pic-controls"><button type="button" id="pic-back" class="flag-btn pic-nav" aria-label="Previous step" title="Previous step"${i === 0 ? ' disabled' : ''}>${ICON.rewind}</button><button type="button" id="pic-next" class="flag-btn pic-nav" aria-label="Next step" title="Next step"${i === list.length - 1 ? ' disabled' : ''}>${ICON.forward}</button>${play}</div>`
     : `<div class="pic-controls"><div class="pic-parts" role="group" aria-label="Parts of the picture">${list.map((s, k) => `<button type="button" class="small pic-part" data-pic-part="${k}" aria-pressed="${k === i}">${escape(s.label)}</button>`).join('')}</div>${play}</div>`;
   return `<div class="pic-body"><div class="pic-frame">${pictureSvg(p, i, motion)}</div>${controls}<div class="pic-captions"${playing ? ' aria-live="off"' : ' role="status"'}>${captions}</div></div>`;
+}
+
+// ---- Tap board (2.3.0, the owner 2026-11-16: "tap the picture") ----
+// The ids an answer's at names: a node, link, group, segment or panel line, or part:<n> (the ids that part lights).
+// A group also covers its members, so a tap on a computer inside a VLAN box answers with that box (fresh review 2026-11-16).
+export const tapIds = (p, at) => /^part:\d+$/.test(at) ? (p.parts?.[Number(at.slice(5))]?.light || [])
+  : [at, ...((p.scene.groups || []).find(g => g.id === at)?.members || [])];
+// The term's picture with no step or part lit; each answer's target carries data-tap="<answer index>" and, after a pick,
+// data-tap-state="wrong" (a wrong pick) or "right" (the key, once found or revealed). The drawing is a pointer shortcut;
+// the answer tiles under it are the keyboard and screen-reader way to answer (WCAG 2.5.7: no drag, no picture-only input).
+export function tapBoardHtml(p, answers, { wrong = [], right = null, done = false } = {}) {
+  let svg = pictureSvg(p, -1, { fixed: { light: [] } });
+  answers.forEach((a, i) => {
+    const state = i === right ? 'right' : wrong.includes(i) ? 'wrong' : '';
+    for (const id of tapIds(p, a.at)) svg = svg.split(`data-pic-id="${escape(id)}"`).join(`data-pic-id="${escape(id)}" data-tap="${i}"${state ? ` data-tap-state="${state}"` : ''}`);
+  });
+  return `<div class="pic-frame scholar-tap${done ? ' is-done' : ''}">${svg}</div>`;
 }

@@ -15,11 +15,11 @@
 @font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url("./font-display-700.woff2") format("woff2")}
 @font-face{font-family:"Barlow Condensed";font-style:italic;font-weight:500;font-display:swap;src:url("./font-display-italic-500.woff2") format("woff2")}
 @layer tokens{
-:root{--paper:#EDF1F5;--sheet:#FFF;--ink:#0E1A2B;--muted:#4A586B;--rule:#C9D2DD;--blue:#0B3D91;--blue-ink:#FFF;--blue-soft:#DCE6F7;--violet:#5B3FB8;--violet-soft:#E9E3FA;--good:#11683A;--good-soft:#E0F2E7;--bad:#A3201B;--bad-soft:#FBE4E2;--gold:#8A5A00;--gold-soft:#FFF1CC;--scholar:#0E6470;--scholar-soft:#DCF1F2;--focus:#C2410C;--control:#7D8A9C;--shadow:0 16px 36px -16px rgba(14,26,43,.45);
+:root{--paper:#EDF1F5;--sheet:#FFF;--ink:#0E1A2B;--muted:#4A586B;--rule:#C9D2DD;--blue:#0B3D91;--blue-ink:#FFF;--blue-soft:#DCE6F7;--violet:#5B3FB8;--violet-soft:#E9E3FA;--good:#11683A;--good-soft:#E0F2E7;--bad:#A3201B;--bad-soft:#FBE4E2;--gold:#8A5A00;--gold-soft:#FFF1CC;--scholar:#0E6470;--scholar-soft:#DCF1F2;--scholar-good-soft:#F1F8F3;--scholar-good-line:#7FB896;--scholar-bad-soft:#FDF3F2;--scholar-bad-line:#DA9F9B;--scholar-good-mark:#3E8A5E;--scholar-bad-mark:#C25A54;--focus:#C2410C;--control:#7D8A9C;--shadow:0 16px 36px -16px rgba(14,26,43,.45);
   --warn:var(--bad);--tone:var(--blue);--tone-soft:var(--blue-soft);--tone-ink:var(--blue-ink);
   --t1:.75rem;--t2:.875rem;--t3:1rem;--t4:1.125rem;--t5:1.25rem;--t6:1.5rem;--t7:2rem;--t8:3rem;--r1:4px;--r2:8px;--r3:12px;--rp:999px;--review-gap:8px;
   --f:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--header-height:64px;--header-cover:var(--header-height);--col:46rem;--gutter:max(16px,calc((100% - var(--col))/2));@media (max-width:640px){--gutter:max(11px,env(safe-area-inset-left,0px))}color-scheme:light}
-:root[data-theme="dark"]{--paper:#0A111C;--sheet:#121C2B;--ink:#E6ECF4;--muted:#9AA8BA;--rule:#2A384C;--blue:#7FA8F0;--blue-ink:#07101C;--blue-soft:#1A2B47;--violet:#B39DFF;--violet-soft:#2A2147;--good:#5FD08E;--good-soft:#123222;--bad:#FF8A80;--bad-soft:#3A1715;--gold:#F2C14E;--gold-soft:#3A2D0E;--scholar:#5CC8D0;--scholar-soft:#123338;--focus:#FFA463;--control:#64758E;--shadow:0 16px 36px -16px rgba(0,0,0,.7);color-scheme:dark}
+:root[data-theme="dark"]{--paper:#0A111C;--sheet:#121C2B;--ink:#E6ECF4;--muted:#9AA8BA;--rule:#2A384C;--blue:#7FA8F0;--blue-ink:#07101C;--blue-soft:#1A2B47;--violet:#B39DFF;--violet-soft:#2A2147;--good:#5FD08E;--good-soft:#123222;--bad:#FF8A80;--bad-soft:#3A1715;--gold:#F2C14E;--gold-soft:#3A2D0E;--scholar:#5CC8D0;--scholar-soft:#123338;--scholar-good-soft:#16271F;--scholar-good-line:#3F8C62;--scholar-bad-soft:#2A1B1F;--scholar-bad-line:#A0605B;--scholar-good-mark:#4FA374;--scholar-bad-mark:#C46A63;--focus:#FFA463;--control:#64758E;--shadow:0 16px 36px -16px rgba(0,0,0,.7);color-scheme:dark}
 [data-tone="blue"]{--tone:var(--blue);--tone-soft:var(--blue-soft)}
 [data-tone="violet"]{--tone:var(--violet);--tone-soft:var(--violet-soft)}
 [data-tone="gold"]{--tone:var(--gold);--tone-soft:var(--gold-soft)}
@@ -308,7 +308,8 @@ footer{text-align:center;color:var(--muted);font-size:var(--t1);padding:0 16px m
 /* Question sheet */
 .q-sheet{gap:16px}
 .question-focus{display:grid;gap:12px;background:var(--sheet);border-bottom:1px solid var(--rule);margin:-18px -20px 0;padding:14px 20px;border-radius:var(--r3) var(--r3) 0 0;@media (max-width:640px){gap:8px;margin:-14px -13px 0;padding:10px 13px 12px}}
-html[data-pin-question="true"]:not([data-exam="live"]) .question-focus{position:sticky;top:var(--header-cover);z-index:3}
+/* Only a question sheet pins its header; the Scholar guided question never does (its task label covered the controls). */
+html[data-pin-question="true"]:not([data-exam="live"]) .q-sheet > .question-focus{position:sticky;top:var(--header-cover);z-index:3}
 .question-heading{display:flex;gap:12px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;@media (max-width:640px){flex-wrap:nowrap;align-items:center}}
 .qnum{font-size:var(--t7);font-weight:700;line-height:1;& small{font-size:var(--t3);color:var(--muted);font-weight:500}@media (max-width:640px){font-size:var(--t6)}}
 .unit-label,.flash-unit{font-weight:600;font-size:var(--t2);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
@@ -494,7 +495,40 @@ dialog .dialog-head h2{font-size:1.75rem}
    Previous term's place on the first term). */
 .scholar-nav{& #scholar-next{grid-column:2;grid-row:1}& >:first-child{grid-column:1;grid-row:1}}
 .scholar-q-nav{& #scholar-next-q{grid-column:2}& #scholar-prev-q{grid-column:1}&:empty{display:none}}
+/* 2.3.0 polish (the owner, 2026-11-16): no inner box around the guided question; tiles only as tall as their text until a
+   why shows; Hint at the left of the tool row as on the question screen, Check at the right. */
+.scholar-q{& .scholar-task{color:var(--scholar);margin:0 0 4px}& .stem{margin:0}}
+.scholar-answers .item{min-height:max(48px,var(--answer-hold,48px))}
+/* Gentler right / wrong in Scholar (the owner, 2026-11-16): a lighter fill and a softer border; the icon and the label still
+   say Correct / Incorrect, and the label text keeps 4.5:1 or more on the fill (site/tests/scholar.test.mjs). */
+.scholar-q{& .item.correct,& .scholar-row.is-right{background:var(--scholar-good-soft);border-color:var(--scholar-good-line)}
+  & .item.wrong,& .scholar-row.is-wrong{background:var(--scholar-bad-soft);border-color:var(--scholar-bad-line)}}
+.scholar-revealed{margin:0;color:var(--scholar)}
+.scholar-row.is-revealed{border-color:var(--scholar);background:var(--sheet)}
+.scholar-reset{margin:0;text-align:center;& .link-button{color:var(--muted);font-size:var(--t2)}}
+.scholar-tools{justify-content:space-between;& >#scholar-hint:only-child{margin-left:0}& >#scholar-check{margin-left:auto}}
+/* Hands-on rows (order, sort): a row per step or item; a check marks each row right or wrong. */
+.scholar-rows{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.scholar-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 10px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);
+  &.is-right{border-color:var(--good);background:var(--good-soft);& .feedback-label{color:var(--good)}}
+  &.is-wrong{border-color:var(--bad);background:var(--bad-soft);& .feedback-label{color:var(--bad)}}
+  & .scholar-row-text{display:grid;gap:2px;font-weight:600;line-height:1.3;padding:0;& .feedback-label{font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:var(--t1)}& .back{font-weight:400;font-style:italic;font-size:var(--t2);color:var(--muted);line-height:1.38;& em{font-style:inherit}}}
+  & fieldset{grid-column:1/-1;border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}
+  @media (max-width:640px){padding:8px}}
+.scholar-pos{width:1.75rem;height:1.75rem;display:grid;place-items:center;border:1px solid var(--rule);border-radius:var(--r1);font-size:var(--t2);color:var(--muted)}
+.scholar-move{display:flex;gap:6px;& button{min-width:44px;min-height:44px;padding:0;display:grid;place-items:center}@media (max-width:640px){flex-direction:column;gap:4px;& button{min-height:40px}}}
+.scholar-sort-seg{--tone:var(--scholar);width:100%;& label{flex:1 1 0;min-height:44px;display:grid;place-items:center;text-align:center;padding:4px 8px;font-size:var(--t2);line-height:1.2}}
+/* Branch: decisions one under another; a finished one keeps its tiles and whys. */
+.scholar-decision{display:grid;gap:8px;& .scholar-prompt{margin:0;font-weight:600;line-height:1.35;& >.label{display:block;color:var(--scholar);margin-bottom:2px}}}
+/* Tap board: the targets of the answers take a pointer; after a pick, wrong targets go red and the key green. */
+.scholar-tap{& [data-tap]{cursor:pointer}&.is-done [data-tap]{cursor:default}
+  & [data-tap-state="wrong"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar-bad-mark);stroke-width:3}& [data-tap-state="right"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar-good-mark);stroke-width:3}
+  @media (hover:hover){&:not(.is-done) [data-tap]:not([data-tap-state]):hover :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar);stroke-width:3}}}
+.scholar-tap-help{margin:-8px 0 0;font-size:var(--t2)}
 }
+/* A wide invisible line over each link, so a thin link can be tapped (2.3.0 tap board). Outside the layers on purpose: it
+   must win over every layered link stroke, forced colours included. */
+:is(.pic,.scholar-tap) .pic-link .pic-hit{stroke:transparent;stroke-width:18;fill:none;stroke-dasharray:none}
 /* Scholar pictures (2.2.0, the owner 2026-11-16): drawn from tokens only. Lit parts take the teal; with any part lit, the
    others fade. Captions share one grid cell, so the box keeps the tallest caption's height. */
 @layer screens{
