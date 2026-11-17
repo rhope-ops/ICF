@@ -15,11 +15,11 @@
 @font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url("./font-display-700.woff2") format("woff2")}
 @font-face{font-family:"Barlow Condensed";font-style:italic;font-weight:500;font-display:swap;src:url("./font-display-italic-500.woff2") format("woff2")}
 @layer tokens{
-:root{--paper:#EDF1F5;--sheet:#FFF;--ink:#0E1A2B;--muted:#4A586B;--rule:#C9D2DD;--blue:#0B3D91;--blue-ink:#FFF;--blue-soft:#DCE6F7;--violet:#5B3FB8;--violet-soft:#E9E3FA;--good:#11683A;--good-soft:#E0F2E7;--bad:#A3201B;--bad-soft:#FBE4E2;--gold:#8A5A00;--gold-soft:#FFF1CC;--scholar:#0E6470;--scholar-soft:#DCF1F2;--scholar-good-soft:#F1F8F3;--scholar-good-line:#7FB896;--scholar-bad-soft:#FDF3F2;--scholar-bad-line:#DA9F9B;--scholar-good-mark:#3E8A5E;--scholar-bad-mark:#C25A54;--focus:#C2410C;--control:#7D8A9C;--shadow:0 16px 36px -16px rgba(14,26,43,.45);
+:root{--paper:#EDF1F5;--sheet:#FFF;--ink:#0E1A2B;--muted:#4A586B;--rule:#C9D2DD;--blue:#0B3D91;--blue-ink:#FFF;--blue-soft:#DCE6F7;--violet:#5B3FB8;--violet-soft:#E9E3FA;--good:#11683A;--good-soft:#E0F2E7;--bad:#A3201B;--bad-soft:#FBE4E2;--gold:#8A5A00;--gold-soft:#FFF1CC;--scholar:#0E6470;--scholar-soft:#DCF1F2;--good-quiet:#F1F8F3;--good-quiet-line:#7FB896;--bad-quiet:#FDF3F2;--bad-quiet-line:#DA9F9B;--good-mark:#3E8A5E;--bad-mark:#C25A54;--focus:#C2410C;--control:#7D8A9C;--shadow:0 16px 36px -16px rgba(14,26,43,.45);
   --warn:var(--bad);--tone:var(--blue);--tone-soft:var(--blue-soft);--tone-ink:var(--blue-ink);
   --t1:.75rem;--t2:.875rem;--t3:1rem;--t4:1.125rem;--t5:1.25rem;--t6:1.5rem;--t7:2rem;--t8:3rem;--r1:4px;--r2:8px;--r3:12px;--rp:999px;--review-gap:8px;
   --f:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--header-height:64px;--header-cover:var(--header-height);--col:46rem;--gutter:max(16px,calc((100% - var(--col))/2));@media (max-width:640px){--gutter:max(11px,env(safe-area-inset-left,0px))}color-scheme:light}
-:root[data-theme="dark"]{--paper:#0A111C;--sheet:#121C2B;--ink:#E6ECF4;--muted:#9AA8BA;--rule:#2A384C;--blue:#7FA8F0;--blue-ink:#07101C;--blue-soft:#1A2B47;--violet:#B39DFF;--violet-soft:#2A2147;--good:#5FD08E;--good-soft:#123222;--bad:#FF8A80;--bad-soft:#3A1715;--gold:#F2C14E;--gold-soft:#3A2D0E;--scholar:#5CC8D0;--scholar-soft:#123338;--scholar-good-soft:#16271F;--scholar-good-line:#3F8C62;--scholar-bad-soft:#2A1B1F;--scholar-bad-line:#A0605B;--scholar-good-mark:#4FA374;--scholar-bad-mark:#C46A63;--focus:#FFA463;--control:#64758E;--shadow:0 16px 36px -16px rgba(0,0,0,.7);color-scheme:dark}
+:root[data-theme="dark"]{--paper:#0A111C;--sheet:#121C2B;--ink:#E6ECF4;--muted:#9AA8BA;--rule:#2A384C;--blue:#7FA8F0;--blue-ink:#07101C;--blue-soft:#1A2B47;--violet:#B39DFF;--violet-soft:#2A2147;--good:#5FD08E;--good-soft:#123222;--bad:#FF8A80;--bad-soft:#3A1715;--gold:#F2C14E;--gold-soft:#3A2D0E;--scholar:#5CC8D0;--scholar-soft:#123338;--good-quiet:#16271F;--good-quiet-line:#3F8C62;--bad-quiet:#2A1B1F;--bad-quiet-line:#A0605B;--good-mark:#4FA374;--bad-mark:#C46A63;--focus:#FFA463;--control:#64758E;--shadow:0 16px 36px -16px rgba(0,0,0,.7);color-scheme:dark}
 [data-tone="blue"]{--tone:var(--blue);--tone-soft:var(--blue-soft)}
 [data-tone="violet"]{--tone:var(--violet);--tone-soft:var(--violet-soft)}
 [data-tone="gold"]{--tone:var(--gold);--tone-soft:var(--gold-soft)}
@@ -211,8 +211,10 @@ details>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:p
   & :is(.back,.review-explanation){grid-column:2;display:block;font-style:italic;font-size:var(--t2);line-height:1.38;color:var(--muted);animation:reveal .25s ease-out;& em{font-style:inherit}}
   & .back.pending{visibility:hidden;animation:none}
   @media (hover:hover){&:hover:not([aria-disabled="true"]):not(:disabled):not(.correct,.wrong,.picked){border-color:var(--blue)}}
-  &.correct{border-color:var(--good);background:var(--good-soft);& :is(.feedback-label,.letter){color:var(--good);border-color:var(--good)}}
-  &.wrong{border-color:var(--bad);background:var(--bad-soft);& :is(.feedback-label,.letter){color:var(--bad);border-color:var(--bad)}}
+  /* Quiet right / wrong in every mode (the owner, 2026-11-17, from Scholar's 2026-11-16 look; app 2.5.3): a light fill and a soft border;
+     the ✓ / ✕ marker in the letter box keeps the strong colour (4.5:1 or more), so shape and colour, not the border, carry the state. */
+  &.correct{border-color:var(--good-quiet-line);background:var(--good-quiet);& :is(.feedback-label,.letter){color:var(--good);border-color:var(--good)}}
+  &.wrong{border-color:var(--bad-quiet-line);background:var(--bad-quiet);& :is(.feedback-label,.letter){color:var(--bad);border-color:var(--bad)}}
   &.picked{border-color:var(--blue);background:var(--blue-soft);& .letter{background:var(--blue);border-color:var(--blue);color:var(--blue-ink)}& .feedback-label{color:var(--blue)}}
   /* Exam tiles always hold the "Your answer" row, hidden until picked, so picking does not grow the tile (2.1.49). */
   &[data-exam-answer]:not(.picked) .feedback-label{visibility:hidden}
@@ -507,10 +509,6 @@ dialog .dialog-head h2{font-size:1.75rem}
 /* 2.3.0 polish (the owner, 2026-11-16): no inner box around the guided question; answer heights as in quizzes (since 2.5.0 the
    .answers:has(.back) hold, the owner, 2026-11-17); Hint at the left of the tool row as on the question screen, Check at the right. */
 .scholar-q{& .scholar-task{color:var(--scholar);margin:0 0 4px}& .stem{margin:0}}
-/* Gentler right / wrong in Scholar (the owner, 2026-11-16): a lighter fill and a softer border; the icon and the label still
-   say Correct / Incorrect, and the label text keeps 4.5:1 or more on the fill (site/tests/scholar.test.mjs). */
-.scholar-q{& .item.correct,& .scholar-row.is-right{background:var(--scholar-good-soft);border-color:var(--scholar-good-line)}
-  & .item.wrong,& .scholar-row.is-wrong{background:var(--scholar-bad-soft);border-color:var(--scholar-bad-line)}}
 .scholar-revealed{margin:0;color:var(--scholar)}
 .scholar-row.is-revealed{border-color:var(--scholar);background:var(--sheet)}
 .scholar-reset{margin:0;text-align:center;& .link-button{color:var(--muted);font-size:var(--t2)}}
@@ -519,8 +517,8 @@ dialog .dialog-head h2{font-size:1.75rem}
 .scholar-rows{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 /* min-height: the row hold (2.5.0: every row the tallest answered row on every width), set by app.mjs holdScholarHeights. */
 .scholar-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;align-content:start;min-height:var(--row-hold,0px);padding:8px 10px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);
-  &.is-right{border-color:var(--good);background:var(--good-soft);& .feedback-label{color:var(--good)}}
-  &.is-wrong{border-color:var(--bad);background:var(--bad-soft);& .feedback-label{color:var(--bad)}}
+  &.is-right{border-color:var(--good-quiet-line);background:var(--good-quiet);& .feedback-label{color:var(--good)}}
+  &.is-wrong{border-color:var(--bad-quiet-line);background:var(--bad-quiet);& .feedback-label{color:var(--bad)}}
   & .scholar-row-text{display:grid;gap:2px;font-weight:600;line-height:1.3;padding:0;& .feedback-label{font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:var(--t1)}& .back{font-weight:400;font-style:italic;font-size:var(--t2);color:var(--muted);line-height:1.38;& em{font-style:inherit}}}
   & fieldset{grid-column:1/-1;border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}
   @media (max-width:640px){padding:8px 6px}}
@@ -531,7 +529,7 @@ dialog .dialog-head h2{font-size:1.75rem}
 .scholar-decision{display:grid;gap:8px;& .scholar-prompt{margin:0;font-weight:600;line-height:1.35;& >.label{display:block;color:var(--scholar);margin-bottom:2px}}}
 /* Tap board: the targets of the answers take a pointer; after a pick, wrong targets go red and the key green. */
 .scholar-tap{& [data-tap]{cursor:pointer}&.is-done [data-tap]{cursor:default}
-  & [data-tap-state="wrong"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar-bad-mark);stroke-width:3}& [data-tap-state="right"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar-good-mark);stroke-width:3}
+  & [data-tap-state="wrong"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--bad-mark);stroke-width:3}& [data-tap-state="right"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--good-mark);stroke-width:3}
   @media (hover:hover){&:not(.is-done) [data-tap]:not([data-tap-state]):hover :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar);stroke-width:3}}}
 .scholar-tap-help{margin:-8px 0 0;font-size:var(--t2)}
 }
@@ -571,10 +569,17 @@ dialog .dialog-head h2{font-size:1.75rem}
   /* Phones draw the 400-unit picture at about 360 px: larger labels keep them at 11-13 px on screen. */
   @media (max-width:640px){& .pic-label{font-size:13.5px}& .pic-small{font-size:12px}& .pic-mono{font-size:11.5px}}}
 /* Picture controls (the owner, 2026-11-16): rewind and forward icon buttons on the left, the play/pause at the right, all
-   Flag-sized. */
-.pic-controls{display:flex;align-items:center;gap:8px;& .pic-nav{margin-left:0}& .pic-play{margin-left:auto}& .pic-parts{flex:1}& .flag-btn:disabled{opacity:.4}}
+   Flag-sized. Part buttons (the owner, 2026-11-17: "buttons are varying width" on phones): an equal-width grid on a line of
+   its own under the play/pause, 2 columns on phones and up to 4 on wider screens; a label may wrap, a row shares one height. */
+.pic-controls{display:flex;align-items:center;gap:8px;& .pic-nav{margin-left:0}& .pic-play{margin-left:auto}& .flag-btn:disabled{opacity:.4}
+  &:has(.pic-parts){flex-wrap:wrap;& .pic-parts{flex:1 0 100%}}}
 .pic-step{color:var(--tone);margin-right:4px}
-.pic-parts{display:flex;flex-wrap:wrap;gap:6px;& .pic-part{text-transform:none;letter-spacing:0;font-weight:600}& [aria-pressed="true"]{border-color:var(--scholar);background:var(--scholar-soft);color:var(--ink)}}
+.pic-parts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;
+  & .pic-part{text-transform:none;letter-spacing:0;font-weight:600;width:100%;height:100%;padding:6px 8px;line-height:1.2;white-space:normal;text-align:center}
+  & [aria-pressed="true"]{border-color:var(--scholar);background:var(--scholar-soft);color:var(--ink)}}
+@media (min-width:561px){.pic-parts{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
+.scholar-also{margin:0;color:var(--muted);& .label{color:var(--scholar);margin-right:4px}& .link-button{font-weight:600}}
+.scholar-list .scholar-also{display:block;font-size:var(--t2);font-weight:600}
 .pic-captions{display:grid;& >.pic-caption{grid-area:1/1;visibility:hidden;line-height:1.45}& >.is-now{visibility:visible}}
 }
 @keyframes pic-in{from{opacity:.35}}

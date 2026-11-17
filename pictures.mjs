@@ -7,7 +7,10 @@
 import { escape, ICON } from './presentation.mjs';
 
 export const VIEW = { w: 400, h: 240 };
-const NODE_TYPES = ['pc', 'switch', 'router', 'server', 'frame', 'text', 'panel'];
+// Drawn shapes (icons). The shape kit of 2.5.3 (the owner, 2026-11-17: "this is the foundation for the other blocks") adds
+// people, documents and objects, so a picture can show who does what to what, not only network gear.
+const ICONS = ['pc', 'switch', 'router', 'server', 'person', 'doc', 'lock', 'alert', 'envelope', 'shield', 'cloud', 'clock'];
+const NODE_TYPES = [...ICONS, 'frame', 'text', 'panel'];
 const LINK_KINDS = ['trunk', 'access', 'plain'];
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isText = v => typeof v === 'string' && v.trim() !== '';
@@ -37,6 +40,9 @@ export function pictureProblem(p) {
   }
   for (const l of p.scene.links || []) if (!isObj(l) || !isText(l.id) || ids.has(l.id) || !ids.has(l.from) || !ids.has(l.to) || !LINK_KINDS.includes(l.kind) || (l.labelAt !== undefined && !(l.labelAt >= 0 && l.labelAt <= 1))) return `link ${l?.id}`; else ids.add(l.id);
   for (const g of p.scene.groups || []) if (!isObj(g) || !isText(g.id) || !isText(g.label) || ids.has(g.id) || !Array.isArray(g.members) || !g.members.length || !g.members.every(m => ids.has(m))) return `group ${g?.id}`; else ids.add(g.id);
+  // Picture standard (Scholar product spec, 2.5.3): a picture shows what happens or how parts relate, so it draws at least
+  // one shape (a table panel, text or a frame alone is a table of the text), and every step or part changes what is shown.
+  if (!p.scene.nodes.some(n => ICONS.includes(n.type))) return 'no drawn shape (a panel, text or frame alone)';
   const all = targetIds(p), known = list => list === undefined || (Array.isArray(list) && list.every(id => all.has(id)));
   if (p.kind === 'steps') {
     if (!Array.isArray(p.steps) || p.steps.length < 2 || p.steps.length > 6) return 'steps count';
@@ -44,16 +50,23 @@ export function pictureProblem(p) {
       if (!isObj(s) || !isText(s.caption) || !known(s.light) || !known(s.hide)) return 'step';
       for (const k of s.packets || []) if (!isObj(k) || !(p.scene.links || []).some(l => l.id === k.on) || !(Number.isFinite(k.at) && k.at >= 0 && k.at <= 1)) return 'packet';
     }
+    const look = s => JSON.stringify([[...(s.light || [])].sort(), [...(s.hide || [])].sort(), (s.packets || []).map(k => [k.on, k.at, k.label || '', k.tag || ''])]);
+    if (p.steps.some((s, i) => i && look(s) === look(p.steps[i - 1]))) return 'a step changes nothing in the drawing';
   } else {
     if (!Array.isArray(p.parts) || p.parts.length < 2 || p.parts.length > 8) return 'parts count';
     for (const s of p.parts) if (!isObj(s) || !isText(s.caption) || !isText(s.label) || !Array.isArray(s.light) || !s.light.length || !known(s.light)) return 'part';
+    if (new Set(p.parts.map(s => [...s.light].sort().join())).size !== p.parts.length) return 'two parts light the same thing';
   }
   return null;
 }
 
 // ---- Drawing ----
-const SIZE = { pc: [30, 30], switch: [60, 20], router: [30, 30], server: [24, 34], text: [0, 0] };
-const box = n => n.type === 'frame' ? { x: n.x, y: n.y, w: n.segments.reduce((a, s) => a + s.w, 0), h: 22 }
+const SIZE = { pc: [30, 30], switch: [60, 20], router: [30, 30], server: [24, 34], text: [0, 0], person: [26, 30], doc: [22, 28], lock: [22, 28],
+  alert: [30, 26], envelope: [30, 20], shield: [24, 30], cloud: [34, 22], clock: [28, 28] };
+// Label width estimate: capitals are wider (COMSEC overflowed its group box on phones; 2.5.3 sweep).
+const textW = t => [...(t || '')].reduce((a, c) => a + (/[A-Z0-9]/.test(c) ? 8 : 6.5), 0);
+const box = n => n.type === 'text' ? { x: n.x - textW(n.label) / 2, y: n.y - 12, w: textW(n.label), h: 16 }
+  : n.type === 'frame' ? { x: n.x, y: n.y, w: n.segments.reduce((a, s) => a + s.w, 0), h: 22 }
   : n.type === 'panel' ? { x: n.x, y: n.y, w: n.w, h: 14 * n.lines.length + 10 }
   : { x: n.x - SIZE[n.type][0] / 2, y: n.y - SIZE[n.type][1] / 2, w: SIZE[n.type][0], h: SIZE[n.type][1] };
 const centre = n => { const b = box(n); return [b.x + b.w / 2, b.y + b.h / 2]; };
@@ -67,6 +80,14 @@ function icon(n) {
   if (n.type === 'switch') return `<rect class="pic-shape" x="${x - 30}" y="${y - 10}" width="60" height="20" rx="3"/>${[-18, -6, 6, 18].map(d => `<rect class="pic-port" x="${x + d - 3}" y="${y - 3}" width="6" height="6"/>`).join('')}`;
   if (n.type === 'router') return `<circle class="pic-shape" cx="${x}" cy="${y}" r="15"/><path class="pic-line" d="M${x - 8} ${y}h16M${x} ${y - 8}v16M${x + 5} ${y - 3}l3 3-3 3M${x - 5} ${y - 3}l-3 3 3 3"/>`;
   if (n.type === 'server') return `<rect class="pic-shape" x="${x - 12}" y="${y - 17}" width="24" height="34" rx="2"/><path class="pic-line" d="M${x - 7} ${y - 9}h14M${x - 7} ${y - 3}h14M${x - 7} ${y + 3}h14"/>`;
+  if (n.type === 'person') return `<circle class="pic-shape" cx="${x}" cy="${y - 8}" r="6.5"/><path class="pic-shape" d="M${x - 13} ${y + 15}v-3a13 11 0 0 1 26 0v3z"/>`;
+  if (n.type === 'doc') return `<path class="pic-shape" d="M${x - 11} ${y - 14}h15l7 7v21h-22z"/><path class="pic-line" d="M${x + 4} ${y - 14}v7h7M${x - 6} ${y - 1}h12M${x - 6} ${y + 4}h12M${x - 6} ${y + 9}h8"/>`;
+  if (n.type === 'lock') return `<path class="pic-line" d="M${x - 7} ${y - 2}v-5a7 7 0 0 1 14 0v5"/><rect class="pic-shape" x="${x - 11}" y="${y - 2}" width="22" height="16" rx="2"/><path class="pic-line" d="M${x} ${y + 3}v5"/>`;
+  if (n.type === 'alert') return `<path class="pic-shape" d="M${x} ${y - 13}l15 26h-30z" stroke-linejoin="round"/><path class="pic-line" d="M${x} ${y - 4}v8M${x} ${y + 8}v1"/>`;
+  if (n.type === 'envelope') return `<rect class="pic-shape" x="${x - 15}" y="${y - 10}" width="30" height="20" rx="2"/><path class="pic-line" d="M${x - 15} ${y - 9}l15 11 15-11"/>`;
+  if (n.type === 'shield') return `<path class="pic-shape" d="M${x} ${y - 15}l12 5v8c0 9-5 14-12 17c-7-3-12-8-12-17v-8z"/><path class="pic-line" d="M${x - 5} ${y}l4 4 7-8"/>`;
+  if (n.type === 'cloud') return `<path class="pic-shape" d="M${x - 10} ${y + 10}a7 7 0 0 1-1-14a9 9 0 0 1 17-4a7 7 0 0 1 7 9a5 5 0 0 1-1 9z"/>`;
+  if (n.type === 'clock') return `<circle class="pic-shape" cx="${x}" cy="${y}" r="13"/><path class="pic-line" d="M${x} ${y - 8}v8l6 4"/>`;
   return '';
 }
 
@@ -87,20 +108,31 @@ function nodeSvg(n, st) {
 
 // A link runs between the edges of its two boxes, not their centres: a dimmed box is see-through, so a line drawn to the
 // centre of a frame or panel crossed its label (Block 5 Scholar, 2026-11-16). Icons hid that part of the line anyway.
-function edge(n, [x, y], [tx, ty]) {
+// A link that would cross its own icon's label starts where it leaves the label (2.5.3 picture sweep): a downward or
+// diagonal line no longer runs through the name under the icon.
+function edge(n, [x, y], [tx, ty], clear = true) {
   const b = box(n), dx = tx - x, dy = ty - y;
-  const t = Math.min(1, dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity);
+  let t = Math.min(1, dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity);
+  if (clear && n.label && !['frame', 'panel', 'text'].includes(n.type)) {
+    const w = textW(n.label) * 0.62 + 2, top = b.y + b.h, bottom = top + 18;  // labels render up to ~1.2x wider on phones
+    const tx0 = dx ? ((n.x - w) - x) / dx : -Infinity, tx1 = dx ? ((n.x + w) - x) / dx : Infinity;
+    const ty0 = dy ? (top - y) / dy : -Infinity, ty1 = dy ? (bottom - y) / dy : Infinity;
+    const enter = Math.max(Math.min(tx0, tx1), Math.min(ty0, ty1)), leave = Math.min(Math.max(tx0, tx1), Math.max(ty0, ty1));
+    if ((dx || (x >= n.x - w && x <= n.x + w)) && (dy || (y >= top && y <= bottom)) && enter <= leave && leave > 0 && enter < 1) t = Math.min(1, Math.max(t, leave));
+  }
   return [x + dx * t, y + dy * t];
 }
 function linkSvg(l, nodes, st) {
   const a = nodes.get(l.from), z = nodes.get(l.to), ca = centre(a), cz = centre(z);
-  const [x1, y1] = edge(a, ca, cz), [x2, y2] = edge(z, cz, ca);
+  let [x1, y1] = edge(a, ca, cz), [x2, y2] = edge(z, cz, ca);
+  // When clearing the labels would make the two ends meet or cross (a target inside the label band), use the icon edges.
+  if ((x2 - x1) * (cz[0] - ca[0]) + (y2 - y1) * (cz[1] - ca[1]) <= 0) [[x1, y1], [x2, y2]] = [edge(a, ca, cz, false), edge(z, cz, ca, false)];
   return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${l.label ? label(x1 + (x2 - x1) * (l.labelAt ?? 0.5), y1 + (y2 - y1) * (l.labelAt ?? 0.5) - (l.kind === 'trunk' ? 16 : 7), l.label, ' pic-small') : ''}</g>`;
 }
 
 function groupSvg(g, nodes, st, i) {
-  // The box holds each member's icon and its label (about 5.5 px per character at the label size).
-  const bs = g.members.map(id => nodes.get(id)).filter(Boolean).map(n => { const b = box(n), lw = (n.label || '').length * 5.5; return lw > b.w && !['frame', 'panel'].includes(n.type) ? { ...b, x: n.x - lw / 2, w: lw } : b; });
+  // The box holds each member's icon and its label (textW; 5.5 px per character let a label touch the box, 2.5.3).
+  const bs = g.members.map(id => nodes.get(id)).filter(Boolean).map(n => { const b = box(n), lw = textW(n.label); return lw > b.w && !['frame', 'panel'].includes(n.type) ? { ...b, x: n.x - lw / 2, w: lw } : b; });
   const x = Math.min(...bs.map(b => b.x)) - 10, y = Math.min(...bs.map(b => b.y)) - 18, r = Math.max(...bs.map(b => b.x + b.w)) + 10, bt = Math.max(...bs.map(b => b.y + b.h)) + 22;
   return `<g class="pic-group pic-group-${i % 3}${cls(g.id, st)}" data-pic-id="${escape(g.id)}"><rect x="${x}" y="${y}" width="${r - x}" height="${bt - y}" rx="8"/><text class="pic-label pic-small pic-group-label" x="${x + 6}" y="${y + 11}">${escape(g.label)}</text></g>`;
 }
@@ -145,7 +177,7 @@ export function pictureHtml(p, index = 0, { motion = {}, playing = false } = {})
   const play = `<button type="button" id="pic-play" class="flag-btn pic-play" data-playing="${playing}" aria-label="${playing ? 'Pause the picture' : 'Play the picture'}" title="${playing ? 'Pause' : 'Play'}">${playing ? ICON.pause : ICON.play}</button>`;
   const controls = steps
     ? `<div class="pic-controls"><button type="button" id="pic-back" class="flag-btn pic-nav" aria-label="Previous step" title="Previous step"${i === 0 ? ' disabled' : ''}>${ICON.rewind}</button><button type="button" id="pic-next" class="flag-btn pic-nav" aria-label="Next step" title="Next step"${i === list.length - 1 ? ' disabled' : ''}>${ICON.forward}</button>${play}</div>`
-    : `<div class="pic-controls"><div class="pic-parts" role="group" aria-label="Parts of the picture">${list.map((s, k) => `<button type="button" class="small pic-part" data-pic-part="${k}" aria-pressed="${k === i}">${escape(s.label)}</button>`).join('')}</div>${play}</div>`;
+    : `<div class="pic-controls">${play}<div class="pic-parts" role="group" aria-label="Parts of the picture">${list.map((s, k) => `<button type="button" class="small pic-part" data-pic-part="${k}" aria-pressed="${k === i}">${escape(s.label)}</button>`).join('')}</div></div>`;
   return `<div class="pic-body"><div class="pic-frame">${pictureSvg(p, i, motion)}</div>${controls}<div class="pic-captions"${playing ? ' aria-live="off"' : ' role="status"'}>${captions}</div></div>`;
 }
 

@@ -296,7 +296,7 @@ export function scholarListHtml({block, units, unit, items, done = {}}) {
   const seg = units.map(u => `<label><input type="radio" name="scholar-unit" value="${u}" ${u === unit ? 'checked' : ''}>U${u}</label>`).join('');
   const title = escape(block.units.find(u => u.id === unit)?.title || '');
   const row = it => { const n = done[it.id] || 0, all = it.questions.length;
-    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${escape(it.term)}</strong><span>${escape(it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
+    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${escape(it.term)}</strong>${it.covers ? `<span class="scholar-also">Also: ${it.covers.map(c => escape(c.term)).join(' · ')}</span>` : ''}<span>${escape(it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
   return `<div class="page-head"><p class="label">Block ${block.id} · Scholar</p><h1>Scholar</h1></div>
     <section class="panel scholar-units" data-tone="scholar"><fieldset><legend class="label">Unit</legend><div class="seg scholar-unit-seg">${seg}</div></fieldset>
       <div class="step-head"><span class="num">Unit ${unit}</span><h2>${title}</h2></div></section>
@@ -390,7 +390,8 @@ export function scholarRowProbes(item, qn) {
 export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, done, back = '', pic = {}, open = {}, draft = null, started = false}) {
   const qn = item.questions[q], n = item.questions.length, t = typeOf(qn);
   const section = (kind, label, body) => `<details class="scholar-drop" data-section="${kind}"${open[kind] === false ? '' : ' open'}><summary><span class="label">${label}</span></summary><div class="scholar-drop-body">${body}</div></details>`;
-  const text = t0 => `<p>${escape(t0)}</p>`;
+  // A blank line starts a new paragraph (2.5.3: an umbrella's Deeper has one paragraph per covered term).
+  const text = t0 => t0.split(/\n\s*\n/).map(x => `<p>${escape(x.trim())}</p>`).join('');
   const g = guidedBody(item, qn, tries, draft), over = g.over;
   // One counter (2.3.0 polish): the section title says "Guided question N of M"; the sheet shows only the task type of a
   // hands-on question. The tiles show Correct / Incorrect; the status line is for screen readers only.
@@ -410,7 +411,8 @@ export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, 
   const second = [nav.previous ? `<button id="scholar-list">${backLabel('All terms')}</button>` : '', back ? `<button id="scholar-return">${backLabel(back)}</button>` : ''].join('');
   return `<div class="page-head"><p class="label">Block ${block.id} · Scholar · Unit ${item.unit}</p><h1 id="scholar-term">${escape(item.term)}</h1></div>
     <article class="panel scholar-item" data-tone="scholar" aria-labelledby="scholar-term">
-      <p class="scholar-summary">${escape(item.summary)}</p>
+      <p class="scholar-summary">${escape(item.summary)}</p>${item.covers ? `
+      <p class="scholar-also"><span class="label">Also covers</span> ${item.covers.map(c => `<button type="button" class="link-button" data-see="picture:${c.part}">${escape(c.term)}</button>`).join(' · ')}</p>` : ''}
       <div class="scholar-accordion">${item.picture ? section('picture', `Picture · ${item.picture.kind === 'steps' ? 'step through' : 'tap a part'}`, pictureHtml(item.picture, pic.index ?? 0, pic)) : ''}${section('deeper', 'Deeper explanation', text(item.deeper))}${section('analogy', 'Analogy', text(item.analogy))}${section('scenario', 'Sample scenario', text(item.scenario))}${section('example', 'Everyday example', exampleHtml(item.example))}${section('questions', `Guided question ${q + 1} of ${n}`, quiz)}</div></article>
     <div class="navrow actions scholar-nav">${first}${nav.next ? `<button id="scholar-next" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.next.id)}">${nextLabel('Next term')}</button>` : ''}${second}</div>`;
 }

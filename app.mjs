@@ -66,6 +66,7 @@ const scholarDraft=new Map();
 // The term whose section state was set: on a term's first visit every section is open, on later visits the reading
 // sections start closed so the guided question sits near the top (the owner, 2026-11-16).
 let scholarOpenFor=null;
+let scholarPicOpen=null;  // an umbrella opened for a covered entry: its picture section opens even on a return visit (2.5.3)
 // Set by a pick, so that the next render announces the answer line once.
 let scholarSay=false;
 // Picture loop (the owner, 2026-11-16: "animations automatically loop with a small button to cancel it"): on unless the
@@ -588,7 +589,7 @@ function renderFlashCards() {
   main.innerHTML = screens.flashScreenHtml({preview:flashPreview, set, bank, saved:manualHas(cardSets,card), missed:inMissed(card), message:flashMessage, source, back, glossEntry:seen && entry ? entry : null, scholar:Boolean(seen && entry && itemForEntry(scholar,entry.block,entry.id))});
   // Open in Glossary (under Back): the Glossary then offers "Card N" back to this card, on the same side.
   if ($('#card-open-gloss')) $('#card-open-gloss').onclick = () => { glossEntry = entry.id; glossReturn = 'flash-card'; navigate('glossary'); };
-  if ($('#card-open-scholar')) $('#card-open-scholar').onclick = () => { const it = itemForEntry(scholar,entry.block,entry.id); openScholar(it.id,{to:'flash-card'},it.block); };
+  if ($('#card-open-scholar')) $('#card-open-scholar').onclick = () => { const it = itemForEntry(scholar,entry.block,entry.id); openScholar(it.id,{to:'flash-card'},it.block,null,it.part); };
   main.querySelectorAll('.card-back .term-link').forEach(b => b.onclick = () => openTermPop(b, {phase:'resolved', block:entry?.block ?? blockId}));
   const move = event => { flashMessage='';flashPreview = moveCards(flashPreview,event); if(event==='flip')flashPreview.cards[flashPreview.index].seenBack=true; render(); if(['next','previous'].includes(event)){resetNavigationView();centreSheet('#flash-card','.question-actions');} };
   $('#flash-exit').onclick = () => navigate(flashSetId ? 'saved-card-sets' : 'cards-setup');
@@ -798,7 +799,7 @@ function scholarFailed(){const text='Scholar could not load. Check the connectio
 // before: run once the file is here, just before Scholar opens (Resume pauses the quiz only then; fresh review 4).
 // A newer open, or a move to another screen while the file loads, cancels this one (no late jump into Scholar).
 let scholarOpenSeq=0;
-async function openScholar(itemId=null,ret=null,block=blockId,before=null){
+async function openScholar(itemId=null,ret=null,block=blockId,before=null,part=null){
   const us=unitsOf(scholar,block);if(!us.length)return;
   const seq=++scholarOpenSeq,from=step;
   if(!await loadScholarBlock(block)){if(seq===scholarOpenSeq)scholarFailed();return;}
@@ -814,6 +815,8 @@ async function openScholar(itemId=null,ret=null,block=blockId,before=null){
   if(blockId!==block){blockId=block;units=allUnits();}
   let st=scholarState&&scholarState.block===blockId?scholarState:{...newScholarState(blockId,us[0]),picks:{...scholarState?.picks},seen:[...(scholarState?.seen||[])]};
   if(itemId)st=moveScholar(st,{type:'item',id:itemId},scholar);
+  // A covered entry (umbrella, 2.5.3) opens its umbrella with the picture at the part that shows it.
+  if(Number.isInteger(part)&&st.item===itemId){scholarPicOpen=itemId;scholarPic={item:itemId,index:part,prev:null,manual:true};}
   scholarReturn=ret;saveScholar(st);navigate('scholar');
 }
 function saveScholar(st){scholarState=st;persist('scholar',st);}
@@ -840,6 +843,7 @@ function renderScholar(){
   if(scholarPic.item!==item.id)scholarPic={item:item.id,index:item.picture?.kind==='explore'?-1:0,prev:null,manual:false};
   if(scholarOpenFor!==item.id){scholarOpenFor=item.id;const seen=(st.seen||[]).includes(item.id);
     scholarOpen=seen?{picture:false,deeper:false,analogy:false,scenario:false,example:false}:{};if(!seen)saveScholar(moveScholar(st,{type:'seen',id:item.id},scholar));}
+  if(scholarPicOpen===item.id){scholarOpen={...scholarOpen,picture:true};scholarPicOpen=null;}
   const back=scholarReturn?.to==='glossary'?'Glossary':scholarReturn?.to==='flash-card'?`Card ${flashPreview.index+1}`:'';
   const qn=item.questions[st.q],tries=triesOf(scholarState,qn);
   main.innerHTML=screens.scholarItemHtml({block,item,q:st.q,tries,started:item.questions.some(x=>triesOf(scholarState,x).length),hint:scholarHints.has(qn.id),nav:neighbours(scholar,st),done:x=>resolved(x,triesOf(scholarState,x)),back,pic:picOptions(),open:scholarOpen,draft:draftOf(qn,tries)});
@@ -871,9 +875,10 @@ function renderScholar(){
   // Only the render that follows a pick speaks; a Hint or Look again render stays quiet (review 2026-11-16, evening).
   { const say=main.querySelector('.scholar-q [data-say]');if(scholarSay&&say?.dataset.say)setTimeout(()=>{if(say.isConnected)say.textContent=say.dataset.say;},150);scholarSay=false; }
   // Look again: open the section that explains the question (a picture step is shown and its loop paused), then go there.
-  if($('#scholar-see'))$('#scholar-see').onclick=()=>{const [part,n]=$('#scholar-see').dataset.see.split(':');scholarOpen[part]=true;
+  // The same for an umbrella's "Also covers" links (2.5.3): each opens the picture at the part that shows that term.
+  main.querySelectorAll('#scholar-see, .scholar-also [data-see]').forEach(b=>b.onclick=()=>{const [part,n]=b.dataset.see.split(':');scholarOpen[part]=true;
     if(part==='picture'){scholarPic={item:item.id,index:Number(n),prev:scholarPic.index,manual:true};}
-    render();const box=main.querySelector(`[data-section="${part}"]`);box?.scrollIntoView({block:'start'});box?.querySelector('summary')?.focus({preventScroll:true});};
+    render();const box=main.querySelector(`[data-section="${part}"]`);box?.scrollIntoView({block:'start'});box?.querySelector('summary')?.focus({preventScroll:true});});
   main.querySelectorAll('.scholar-nav [data-scholar-item]').forEach(b=>b.onclick=()=>open(b.dataset.scholarItem));
   $('#scholar-list').onclick=()=>{const id=item.id;scholarReturn=null;saveScholar(moveScholar(scholarState,{type:'list'},scholar));render();window.scrollTo({top:0,behavior:'instant'});main.querySelector(`[data-scholar-item="${CSS.escape(id)}"]`)?.focus({preventScroll:false});};
   if($('#scholar-return'))$('#scholar-return').onclick=()=>{const r=scholarReturn;scholarReturn=null;if(r.to==='glossary'){glossEntry=r.entry;navigate('glossary');}else navigate('flash-card');};
@@ -943,7 +948,7 @@ function renderGlossary() {
     const studyPool=hard=>{const qs=glossQuestions(entry),pool=questionsForMode(qs,hard?'Hard':'Unassisted');if(!pool.length)return;
       const useMode=hard?'Hard':mode==='Hard'?'Unassisted':mode;mode=useMode;startSession(shuffle(pool),{version:bank.version,mode:useMode},'random');navigate('study');};
     if($('#gloss-questions'))$('#gloss-questions').onclick=()=>studyPool(false);
-    if($('#gloss-open-scholar'))$('#gloss-open-scholar').onclick=()=>openScholar(itemForEntry(scholar,blockId,entry.id).id,{to:'glossary',entry:entry.id});
+    if($('#gloss-open-scholar'))$('#gloss-open-scholar').onclick=()=>{const it=itemForEntry(scholar,blockId,entry.id);openScholar(it.id,{to:'glossary',entry:entry.id},blockId,null,it.part);};
     if($('#gloss-hard-questions'))$('#gloss-hard-questions').onclick=()=>studyPool(true);
     if(card)bindSave(card);
     if($('#flag-card')&&flagSource)$('#flag-card').onclick=()=>flagCard(flagSource,screens.cardFlagContext(card));

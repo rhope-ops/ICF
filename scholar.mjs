@@ -25,12 +25,15 @@ const SHAPES = {
 const isPerm = (v, n) => Array.isArray(v) && v.length === n && new Set(v).size === n && v.every(i => isIdx(i, n));
 const questionOk = q => isObj(q) && isText(q.id) && isText(q.v) && isText(q.stem) && (q.type === undefined || ['tap', 'order', 'sort', 'branch'].includes(q.type)) && SHAPES[typeOf(q)](q) && citesOk(q.cites);
 const itemOk = (it, block, unit) => isObj(it) && isText(it.id) && isText(it.entry) && isText(it.term) && it.block === block && it.unit === unit &&
-  PARTS.every(p => isText(it[p])) && citesOk(it.cites) && (it.picture === undefined || pictureProblem(it.picture) === null) && Array.isArray(it.questions) && it.questions.length > 0 && it.questions.every(questionOk);
+  PARTS.every(p => isText(it[p])) && citesOk(it.cites) && coversOk(it) && (it.picture === undefined || pictureProblem(it.picture) === null) && Array.isArray(it.questions) && it.questions.length > 0 && it.questions.every(questionOk);
 
 // scholar.json is an index (schema 2; the owner, 2026-11-16, "2 a"): per block its file, content version and the entry ids of
 // each unit. A block's items come from its own file (scholar-B<n>.json), loaded when that block's Scholar opens and added
 // with addScholarBlock. Before that, itemForEntry answers from the index (id, block, unit, entry) so the Glossary and the
 // cards can offer "Open in Scholar".
+// Umbrella terms (2.5.3): an item's covers are other entries of its unit, each shown by one picture step or part.
+const coversOk = it => it.covers === undefined || (Array.isArray(it.covers) && it.covers.length > 0 && it.covers.every(c => isObj(c) && isText(c.entry) && isText(c.term)
+  && Number.isInteger(c.part) && c.part >= 0 && c.part < ((it.picture?.steps || it.picture?.parts || []).length)));
 const entriesOk = v => Array.isArray(v) && v.length > 0 && v.every(isText) && new Set(v).size === v.length;
 const itemId = (b, u, e) => `S-B${b}-U${u}-${e}`;
 // The checked index with lookups, or null when it is missing, unknown or damaged (the app then hides Scholar).
@@ -44,6 +47,15 @@ export function restoreScholar(raw) {
       for (const e of entries) {
         if (byEntry.has(`${b}/${e}`)) return null;
         byEntry.set(`${b}/${e}`, { id: itemId(b, u, e), block: Number(b), unit: Number(u), entry: e });
+      }
+    }
+    // covers: {covered entry: [umbrella entry, picture part]}; a covered entry opens its umbrella at that part.
+    if (ix.covers !== undefined) {
+      if (!isObj(ix.covers)) return null;
+      for (const [e, v] of Object.entries(ix.covers)) {
+        const host = Array.isArray(v) && v.length === 2 && isText(v[0]) && Number.isInteger(v[1]) && v[1] >= 0 && byEntry.get(`${b}/${v[0]}`);
+        if (!host || byEntry.has(`${b}/${e}`) || host.part !== undefined) return null;
+        byEntry.set(`${b}/${e}`, { ...host, part: v[1] });
       }
     }
   }
@@ -64,8 +76,12 @@ export function addScholarBlock(s, raw) {
       if (!itemOk(raw0, raw.block, Number(u)) || raw0.id !== itemId(b, u, raw0.entry) || byId.has(raw0.id)) return null;
       const it = { ...raw0, questions: handsOnFirst(raw0.questions) };
       shown[u].push(it); byId.set(it.id, it); byEntry.set(`${b}/${it.entry}`, it);
+      for (const c of it.covers || []) { if (ix.covers?.[c.entry]?.join() !== [it.entry, c.part].join()) return null; byEntry.set(`${b}/${c.entry}`, { ...it, part: c.part }); }
     }
   }
+  // Every cover the index names was set by an item of this file, and every item cover is in the index (fresh review 2.5.3).
+  const fileCovers = Object.values(raw.units).flat().flatMap(it => (it.covers || []).map(c => c.entry));
+  if (new Set(fileCovers).size !== fileCovers.length || fileCovers.length !== Object.keys(ix.covers || {}).length || fileCovers.some(e => !ix.covers[e])) return null;
   return { ...s, blocks: { ...s.blocks, [b]: shown }, byId, byEntry };
 }
 // Display order of a term's questions: hands-on (tap, order, sort, branch) before A-D, file order kept inside each kind.
@@ -77,7 +93,8 @@ export const unitsOf = (s, block) => Object.keys(s?.index[String(block)]?.units 
 export const itemsFor = (s, block, unit) => s?.blocks[String(block)]?.[String(unit)] || [];
 export const itemById = (s, id) => s?.byId.get(id) || null;
 // The Scholar item of a glossary entry (Open in Scholar from the Glossary and the card back), or null. Before its block is
-// loaded this is the index's {id, block, unit, entry}.
+// loaded this is the index's {id, block, unit, entry}. For an entry an umbrella covers it carries part: the picture step or
+// part that shows the entry.
 export const itemForEntry = (s, block, entryId) => (entryId && s?.byEntry.get(`${block}/${entryId}`)) || null;
 
 // ---- Saved place (storage key "scholar") ----
