@@ -751,7 +751,7 @@ function renderHub() {
   main.querySelectorAll('[data-study]').forEach(b=>b.onclick=()=>{if(b.dataset.study==='glossary'){glossEntry=null;glossReturn=null;}navigate(go[b.dataset.study]);});
   if(!glossary)main.querySelector('[data-study="glossary"]')?.setAttribute('disabled','');
   $('#exam-open').onclick=()=>navigate('exam-setup');
-  if($('#scholar-open'))$('#scholar-open').onclick=()=>openScholar();
+  if($('#scholar-open'))$('#scholar-open').onclick=()=>openScholar(null,null,blockId,null,null,true);  // 2.5.4 (the owner, 2026-11-17): Open Scholar shows the term list, never the last term
 }
 function renderCardsSetup() {
   const pick = cardSets.sets.find(set => set.id === pickSetId) || null;
@@ -799,7 +799,7 @@ function scholarFailed(){const text='Scholar could not load. Check the connectio
 // before: run once the file is here, just before Scholar opens (Resume pauses the quiz only then; fresh review 4).
 // A newer open, or a move to another screen while the file loads, cancels this one (no late jump into Scholar).
 let scholarOpenSeq=0;
-async function openScholar(itemId=null,ret=null,block=blockId,before=null,part=null){
+async function openScholar(itemId=null,ret=null,block=blockId,before=null,part=null,list=false){
   const us=unitsOf(scholar,block);if(!us.length)return;
   const seq=++scholarOpenSeq,from=step;
   if(!await loadScholarBlock(block)){if(seq===scholarOpenSeq)scholarFailed();return;}
@@ -815,6 +815,7 @@ async function openScholar(itemId=null,ret=null,block=blockId,before=null,part=n
   if(blockId!==block){blockId=block;units=allUnits();}
   let st=scholarState&&scholarState.block===blockId?scholarState:{...newScholarState(blockId,us[0]),picks:{...scholarState?.picks},seen:[...(scholarState?.seen||[])]};
   if(itemId)st=moveScholar(st,{type:'item',id:itemId},scholar);
+  else if(list)st=moveScholar(st,{type:'list'},scholar);  // picks and seen terms stay
   // A covered entry (umbrella, 2.5.3) opens its umbrella with the picture at the part that shows it.
   if(Number.isInteger(part)&&st.item===itemId){scholarPicOpen=itemId;scholarPic={item:itemId,index:part,prev:null,manual:true};}
   scholarReturn=ret;saveScholar(st);navigate('scholar');
