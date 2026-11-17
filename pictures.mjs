@@ -158,24 +158,39 @@ function linkSvg(l, nodes, st) {
   // A cable is a thick line with a plug (a short wide bar along the line) at each end.
   const len = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / len * 7, uy = (y2 - y1) / len * 7;
   const plugs = l.kind === 'cable' ? `<line class="pic-plug" x1="${x1}" y1="${y1}" x2="${x1 + ux}" y2="${y1 + uy}"/><line class="pic-plug" x1="${x2}" y1="${y2}" x2="${x2 - ux}" y2="${y2 - uy}"/>` : '';
-  const lift = l.kind === 'trunk' ? 16 : l.kind === 'cable' ? 10 : 7;
-  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${plugs}${l.label ? label(x1 + (x2 - x1) * (l.labelAt ?? 0.5), y1 + (y2 - y1) * (l.labelAt ?? 0.5) - lift, l.label, ' pic-small') : ''}</g>`;
+  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${plugs}${l.label ? linkLabel(l, x1, y1, x2, y2) : ''}</g>`;
+}
+
+// A line's label sits beside the line, never on it (the owner, 2026-11-17): its centre moves along the normal (up, or right
+// on a vertical line) far enough that the label box clears the line; a flat line keeps the old 7 px gap (11 px to the centre).
+export function linkLabel(l, x1, y1, x2, y2) {
+  const t = l.labelAt ?? 0.5, px = x1 + (x2 - x1) * t, py = y1 + (y2 - y1) * t, len = Math.hypot(x2 - x1, y2 - y1) || 1;
+  let nx = -(y2 - y1) / len, ny = (x2 - x1) / len;
+  if (ny > 0.05 || (Math.abs(ny) <= 0.05 && nx < 0)) [nx, ny] = [-nx, -ny];
+  const hw = textW(l.label) * 0.58, hh = 6, base = l.kind === 'trunk' ? 20 : l.kind === 'cable' ? 14 : 11, d = l.kind === 'trunk' && Math.abs(ny) > 0.9 ? base : Math.max(base, hw * Math.abs(nx) + hh * Math.abs(ny) + 4 + base - 11);
+  // The other side when it leaves the 400 x 240 frame by less (review 2026-11-17); a near-flat trunk keeps its fixed 20 px gap, a steep one uses the angle too.
+  const out = s => { const cx = px + s * nx * d, cy = py + s * ny * d;
+    return Math.max(0, 4 - (cx - hw)) + Math.max(0, cx + hw - (VIEW.w - 4)) + Math.max(0, 4 - (cy - hh)) + Math.max(0, cy + hh - (VIEW.h - 4)); };
+  if (out(-1) < out(1)) [nx, ny] = [-nx, -ny];
+  return label(Math.round(px + nx * d), Math.round(py + ny * d + 4), l.label, ' pic-small');
 }
 
 function groupSvg(g, nodes, st, i) {
   // The box holds each member's icon and its label (textW; 5.5 px per character let a label touch the box, 2.5.3).
   const bs = g.members.map(id => nodes.get(id)).filter(Boolean).map(n => { const b = box(n), lw = textW(n.label); return lw > b.w && !BOXES.includes(n.type) ? { ...b, x: n.x - lw / 2, w: lw } : b; });
-  const x = Math.min(...bs.map(b => b.x)) - 10, y = Math.min(...bs.map(b => b.y)) - 18, r = Math.max(...bs.map(b => b.x + b.w)) + 10, bt = Math.max(...bs.map(b => b.y + b.h)) + 22;
+  const x = Math.min(...bs.map(b => b.x)) - 10, y = Math.min(...bs.map(b => b.y)) - 18, r = Math.max(Math.max(...bs.map(b => b.x + b.w)) + 10, Math.min(...bs.map(b => b.x)) - 4 + textW(g.label) * 1.05 + 4), bt = Math.max(...bs.map(b => b.y + b.h)) + 22;
   return `<g class="pic-group pic-group-${i % 3}${cls(g.id, st)}" data-pic-id="${escape(g.id)}"><rect x="${x}" y="${y}" width="${r - x}" height="${bt - y}" rx="8"/><text class="pic-label pic-small pic-group-label" x="${x + 6}" y="${y + 11}">${escape(g.label)}</text></g>`;
 }
 
-// from: where the packet was in the previous step (0-1 along the same link), or null for no glide. The glide is an SVG
-// animateTransform (0.45 s), so it runs once per render and needs no script; reduced motion passes from = null.
+// from: where the packet was in the previous step (0-1 along the same link), null for no motion, or 'new' when the
+// previous step had no packet on this link: then it fades in at its place, since a glide from the line start crossed
+// labels and icons (the owner, 2026-11-17). The glide is an SVG animateTransform (0.45 s), so it runs once per render and
+// needs no script; reduced motion passes from = null.
 function packetSvg(k, links, nodes, from = null) {
   const l = links.get(k.on), [x1, y1] = centre(nodes.get(l.from)), [x2, y2] = centre(nodes.get(l.to));
   const at = t => [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t], [x, y] = at(k.at), text = k.tag ? `Tag ${k.tag}` : (k.label || 'Frame'), w = 8 + 6 * text.length;
-  const glide = from !== null && from !== k.at ? (([fx, fy]) => `<animateTransform attributeName="transform" type="translate" from="${(fx - x).toFixed(1)} ${(fy - y).toFixed(1)}" to="0 0" dur="0.45s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".2 .7 .3 1"/>`)(at(from)) : '';
-  return `<g class="pic-packet${k.tag ? ' is-tagged' : ''}">${glide}<rect x="${x - w / 2}" y="${y - 9}" width="${w}" height="18" rx="4"/>${label(x, y + 4, text, ' pic-small pic-packet-text')}</g>`;
+  const glide = from !== null && from !== 'new' && from !== k.at ? (([fx, fy]) => `<animateTransform attributeName="transform" type="translate" from="${(fx - x).toFixed(1)} ${(fy - y).toFixed(1)}" to="0 0" dur="0.45s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".2 .7 .3 1"/>`)(at(from)) : '';
+  return `<g class="pic-packet${k.tag ? ' is-tagged' : ''}${from === 'new' ? ' is-new' : ''}">${glide}<rect x="${x - w / 2}" y="${y - 9}" width="${w}" height="18" rx="4"/>${label(x, y + 4, text, ' pic-small pic-packet-text')}</g>`;
 }
 
 // The SVG for one state. index: the step (steps) or the chosen part (explore; -1 = none).
@@ -188,7 +203,9 @@ export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = n
   const s = fixed || stateOf(p, index), before = fixed || prev === null || still || prev === index ? null : stateOf(p, prev);
   const on = new Set(s.light || []), off = new Set(s.hide || []);
   const st = { on, off, fresh: before ? new Set([...on].filter(id => !(before.light || []).includes(id))) : new Set() };
-  const from = k => !before ? null : ((before.packets || []).find(b => b.on === k.on)?.at ?? 0);
+  // The n-th packet on a line glides from the n-th packet that was on that line (two packets can share a line; review 2026-11-17).
+  const nth = (list, k) => list.filter(b => b.on === k.on).indexOf(k);
+  const from = k => !before ? null : ((before.packets || []).filter(b => b.on === k.on)[nth(s.packets, k)]?.at ?? 'new');
   const dim = on.size ? ' has-light' : '';
   return `<svg class="pic${dim}" viewBox="0 0 ${VIEW.w} ${VIEW.h}" role="img" aria-label="${escape(p.alt)}" focusable="false">`
     + (p.scene.groups || []).map((g, i) => groupSvg(g, nodes, st, i)).join('')
