@@ -1102,7 +1102,6 @@ export const HARD_CARD_MAP = Object.freeze({
  "B5-H-U2-Q068": "B5-U2-Q109",
  "B5-H-U2-Q071": "B5-U2-Q112",
  "B5-H-U2-Q072": "B5-U2-Q114",
- "B5-H-U2-Q073": "B5-U2-Q115",
  "B5-H-U2-Q074": "B5-U2-Q118",
  "B5-H-U3-Q027": "B5-U3-Q050",
  "B5-H-U3-Q029": "B5-U3-Q049",
