@@ -331,7 +331,7 @@ export const seeLabel = (see, picture) => { const [part, n] = see.split(':'); re
 // Only the "In the course" line goes into the attribution figure; the illustration before it stays plain text (review 2026-11-16).
 export const exampleHtml = text => { const m = /^(.*?)\s*(In the course: .*), ([^,]+) p\.(\d+)\.$/s.exec(text);
   return m ? `${m[1] ? `<p>${escape(m[1])}</p>` : ''}<div class="excerpt scholar-example"><figure><p>${escape(m[2])}.</p><figcaption>${escape(m[3])} · p. ${m[4]}</figcaption></figure></div>` : `<p>${escape(text)}</p>`; };
-// Hands-on task labels (2.3.0): the type tag above the stem of question 2.
+// Hands-on task labels (2.3.0): the type tag above the stem of the hands-on question (shown first since 2.4.2).
 const TASK_LABEL = { tap: 'Tap the picture', order: 'Put in order', sort: 'Sort', branch: 'Scenario' };
 // The body of the guided question by type. draft: the arrangement being built (order: shown indexes in the current order;
 // sort: a group 0/1 or null per item). Returns {body, over, feedback, wrongNow, check}.
@@ -379,6 +379,12 @@ function guidedBody(item, qn, tries, draft) {
     feedback: !tries.length ? '' : over ? end : now.length ? 'Incorrect. Read why, then pick again.' : `${(tries[k - 1] || []).includes(qn.steps[k - 1]?.key) ? 'Correct.' : 'Answer revealed.'} Decision ${k + 1} of ${qn.steps.length}.` };
 }
 const same = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]);
+// Row height probes of an order or sort question (the owner, 2026-11-16: answer heights as in quizzes): its rows in their two
+// tallest states, after a wrong check (a mark line on each row) and at the end (the why on each row).
+export function scholarRowProbes(item, qn) {
+  const wrong = typeOf(qn) === 'order' ? [...qn.key].reverse() : qn.key.map(g => 1 - g);
+  return [guidedBody(item, qn, [wrong], wrong).body, guidedBody(item, qn, [qn.key]).body];
+}
 
 // started: some guided question of this term has a pick (the Reset questions link shows).
 export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, done, back = '', pic = {}, open = {}, draft = null, started = false}) {

@@ -636,7 +636,6 @@ function renderStudy() {
   const gloss=studyGloss(c,q,reviewing);
   const box=questionCard(c,q,reviewing);
   main.innerHTML=screens.studyHtml({session, bank, box, library:cardSets, source:sourceExcerpt, isFlagged, gloss});
-  holdAnswerHeights();
   if($('#study-mode')?.dataset?.mode)$('#study-mode').onclick=e=>{send({type:'mode',mode:e.currentTarget.dataset.mode});$('#study-mode')?.focus({preventScroll:true});};
   main.querySelectorAll('[data-answer]:not([aria-disabled="true"])').forEach(b=>b.onclick=()=>{if(reviewing)return;const id=b.dataset.answer;
     if(assisted&&c.flippedWrong.includes(id))send({type:'flipWrong',id});else{send({type:'answer',id});if(session.current.resolved)$('#next')?.focus({preventScroll:true});}});
@@ -657,60 +656,20 @@ function sessionOpen(){return Boolean(session&&!session.ended&&!session.finished
 function sessionDone(){return Boolean(session&&(session.ended||session.finished));}
 function pauseStudy(){if(step==='study'&&sessionOpen()&&!session.paused)send({type:'pause'},false);}
 function resumeStudy(){step='study';send({type:'resume'});main.focus({preventScroll:true});}
-// Hold answer heights: before the answer, every block of this question already has the
-// height of the tallest block in its answered state (label and explanation), so the reveal
-// only fills in text and nothing on the screen moves. Measured per question and width.
-let answerHold = null;
-// Answer hold: a reveal moves nothing. Wide screens give all four blocks the tallest answered height;
-// phones (640px or less) give each block its own answered height, so short answers stay short (the owner, 2026-11-07).
-const perTileHold = () => window.matchMedia('(max-width: 640px)').matches;
-function holdAnswerHeights() {
-  const answers = main.querySelector('.answers');
-  // Scholar answers do not take the hold since 2.3.0: its tiles grow only when a why shows (the owner, 2026-11-16, polish).
-  if (!answers || !(step === 'study' && session)) return;
-  const c = viewed(), q = session.questions.find(x => x.id === c?.id);if (!q) return;
-  const perTile = perTileHold(), width = answers.getBoundingClientRect().width, key = `${q.id}|${width}|${document.documentElement.dataset.theme}|${perTile}`;
-  if (answerHold?.key !== key) {
-    const probe = document.createElement('div');
-    probe.className = 'answers';probe.setAttribute('aria-hidden','true');probe.inert = true;
-    Object.assign(probe.style,{position:'absolute',left:'0',top:'0',width:`${width}px`,visibility:'hidden',pointerEvents:'none'});
-    probe.innerHTML = answersHtml(q,{order:c.order,resolved:'revealed',stage:0,eliminated:[],flippedWrong:[],wrongIds:[]},{assisted:false});
-    probe.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-    main.append(probe);
-    const heights = {};
-    try { for (const tile of probe.children) { tile.style.minHeight = '0'; heights[tile.dataset.answer] = Math.ceil(tile.getBoundingClientRect().height); } }
-    finally { probe.remove(); }
-    answerHold = {key, perTile, heights, height: Math.max(0, ...Object.values(heights))};
-  }
-  if (answerHold.perTile) {
-    answers.style.removeProperty('--answer-hold');
-    answers.querySelectorAll('[data-answer]').forEach(tile => tile.style.setProperty('--answer-hold', `${answerHold.heights[tile.dataset.answer] ?? 0}px`));
-  } else {
-    answers.querySelectorAll('[data-answer]').forEach(tile => tile.style.removeProperty('--answer-hold'));
-    answers.style.setProperty('--answer-hold', `${answerHold.height}px`);
-  }
-}
-// Scholar answer heights (the owner, 2026-11-16: "adjust answer height on desktop as before"): on wide screens every tile
-// of a group already has the tallest answered height, so a reveal moves nothing; phones keep each tile as tall as its text
-// until a why shows.
+// Scholar order and sort rows: before an answer, every row of a list already has the tallest answered row height, on every
+// width, so a reveal moves nothing (the owner, 2026-11-17). Answer tiles hold by CSS (answersHtml, .answers:has(.back)).
 const scholarHold=new Map();
-function holdScholarHeights(qn){
-  const groups=[...main.querySelectorAll('.scholar-answers')];if(!qn||!groups.length)return;
-  for(const g of groups){
-    if(perTileHold()){g.style.removeProperty('--answer-hold');continue;}
-    const d=g.closest('[data-decision]'),q=d?screens.scholarQuestion(screens.decisionQuestion(qn,Number(d.dataset.decision))):screens.scholarQuestion(qn);
-    const width=g.getBoundingClientRect().width,key=`${q.id}|${width}|${document.documentElement.dataset.theme}`;
-    if(!scholarHold.has(key)){
-      const probe=document.createElement('div');probe.className='answers scholar-answers';probe.setAttribute('aria-hidden','true');probe.inert=true;
-      Object.assign(probe.style,{position:'absolute',left:'0',top:'0',width:`${width}px`,visibility:'hidden',pointerEvents:'none'});
-      // The probe shows every tile in its tallest state: every wrong tile with its Incorrect line and why (a picked wrong
-      // answer), the key with its label (fourth fresh review 2026-11-16: a neutral probe was too short).
-      probe.innerHTML=answersHtml(q,{order:q.answers.map(a=>a.id),resolved:'revealed',stage:0,eliminated:[],flippedWrong:[],wrongIds:[]},{assisted:false});
-      probe.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));main.append(probe);
-      try{scholarHold.set(key,Math.max(0,...[...probe.children].map(t=>{t.style.minHeight='0';return Math.ceil(t.getBoundingClientRect().height);})));}finally{probe.remove();}
-    }
-    g.style.setProperty('--answer-hold',`${scholarHold.get(key)}px`);
-  }
+const probeAt=(width,cls,html)=>{const probe=document.createElement('div');probe.className=cls;probe.setAttribute('aria-hidden','true');probe.inert=true;
+  Object.assign(probe.style,{position:'absolute',left:'0',top:'0',width:`${width}px`,visibility:'hidden',pointerEvents:'none'});
+  probe.innerHTML=html;probe.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));probe.querySelectorAll('input[name]').forEach(el=>el.removeAttribute('name'));return probe;};
+const measure=(probe,read)=>{main.append(probe);try{return read(probe);}finally{probe.remove();}};
+function holdScholarHeights(item,qn){
+  if(!qn)return;
+  const list=main.querySelector('.scholar-rows');if(!list)return;
+  const width=list.getBoundingClientRect().width,key=`rows|${qn.id}@${qn.v}|${width}|${document.documentElement.dataset.theme}`;
+  if(!scholarHold.has(key))scholarHold.set(key,measure(probeAt(width,'scholar-q',screens.scholarRowProbes(item,qn).join('')),
+    p=>Math.max(0,...[...p.querySelectorAll('.scholar-rows > li')].map(li=>{li.style.minHeight='0';return Math.ceil(li.getBoundingClientRect().height);}))));
+  for(const li of list.children)li.style.setProperty('--row-hold',`${scholarHold.get(key)}px`);
 }
 function updateTrack() {
   const c=session?.current;if(!c||!$('#track-fill'))return;
@@ -903,7 +862,7 @@ function renderScholar(){
   if($('#scholar-reset'))$('#scholar-reset').onclick=()=>{for(const x of item.questions){scholarHints.delete(x.id);scholarDraft.delete(x.id);}
     saveScholar(moveScholar(scholarState,{type:'reset',item:item.id},scholar));keepScroll(render);$('#scholar-stem')?.focus({preventScroll:true});sayScholar('This term\'s questions start over.');};
   if($('#scholar-check'))$('#scholar-check').onclick=()=>{scholarSay=true;move({type:'answer',value:draftOf(qn,tries)},()=>main.querySelector('.scholar-row.is-wrong :is(button:not(:disabled),input)')||$('#scholar-stem'));};
-  bindPicture(item);picLoop(item);holdScholarHeights(qn);
+  bindPicture(item);picLoop(item);holdScholarHeights(item,qn);
   main.querySelectorAll('[data-scholar-q]').forEach(b=>b.onclick=()=>move({type:'question',index:Number(b.dataset.scholarQ)}));
   if($('#scholar-next-q'))$('#scholar-next-q').onclick=()=>move({type:'question',index:st.q+1});
   if($('#scholar-prev-q'))$('#scholar-prev-q').onclick=()=>move({type:'question',index:st.q-1});
@@ -1283,5 +1242,5 @@ try {
   document.querySelectorAll('[data-screen-link]').forEach(b=>b.setAttribute('aria-disabled','true'));
 }
 
-if('ResizeObserver' in window)new ResizeObserver(()=>{holdAnswerHeights();if(step==='scholar'&&scholarState?.item){const it=itemById(scholar,scholarState.item);holdScholarHeights(it?.questions[scholarState.q]);}}).observe(main);
-document.fonts?.ready.then(()=>{answerHold=null;scholarHold.clear();holdAnswerHeights();if(step==='scholar'&&scholarState?.item){const it=itemById(scholar,scholarState.item);holdScholarHeights(it?.questions[scholarState.q]);}});
+if('ResizeObserver' in window)new ResizeObserver(()=>{if(step==='scholar'&&scholarState?.item){const it=itemById(scholar,scholarState.item);holdScholarHeights(it,it?.questions[scholarState.q]);}}).observe(main);
+document.fonts?.ready.then(()=>{scholarHold.clear();if(step==='scholar'&&scholarState?.item){const it=itemById(scholar,scholarState.item);holdScholarHeights(it,it?.questions[scholarState.q]);}});

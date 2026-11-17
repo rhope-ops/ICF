@@ -8,7 +8,8 @@ const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isText = v => typeof v === 'string' && v.trim() !== '';
 const PARTS = ['summary', 'deeper', 'analogy', 'scenario', 'example'];
 const citesOk = c => Array.isArray(c) && c.length > 0 && c.every(x => isObj(x) && isText(x.doc) && Number.isInteger(x.page));
-// Guided question types (2.3.0, the owner 2026-11-16): Q1 is the A-D question (no type); Q2 is hands-on: tap (the 4 answers
+// Guided question types (2.3.0, the owner 2026-11-16): the file has the A-D question (no type) first and a hands-on one
+// second; the app shows the hands-on one first (2.4.2, the owner 2026-11-16). Hands-on: tap (the 4 answers
 // are parts of the term's picture, answer.at), order (steps shown out of order, key = the shown indices in the right order),
 // sort (items into 2 groups, key = the group of each item) or branch (2-3 linked decisions, each with its own key).
 const isIdx = (v, n) => Number.isInteger(v) && v >= 0 && v < n;
@@ -55,16 +56,21 @@ export function addScholarBlock(s, raw) {
   if (!ix || raw.schema !== 1 || raw.v !== ix.v || !isObj(raw.units)) return null;
   const units = Object.keys(raw.units).sort().join();
   if (units !== Object.keys(ix.units).sort().join()) return null;
-  const b = String(raw.block), byId = new Map(s.byId), byEntry = new Map(s.byEntry);
+  const b = String(raw.block), byId = new Map(s.byId), byEntry = new Map(s.byEntry), shown = {};
   for (const [u, items] of Object.entries(raw.units)) {
     if (!Array.isArray(items) || items.map(it => it?.entry).join() !== ix.units[u].join()) return null;
-    for (const it of items) {
-      if (!itemOk(it, raw.block, Number(u)) || it.id !== itemId(b, u, it.entry) || byId.has(it.id)) return null;
-      byId.set(it.id, it); byEntry.set(`${b}/${it.entry}`, it);
+    shown[u] = [];
+    for (const raw0 of items) {
+      if (!itemOk(raw0, raw.block, Number(u)) || raw0.id !== itemId(b, u, raw0.entry) || byId.has(raw0.id)) return null;
+      const it = { ...raw0, questions: handsOnFirst(raw0.questions) };
+      shown[u].push(it); byId.set(it.id, it); byEntry.set(`${b}/${it.entry}`, it);
     }
   }
-  return { ...s, blocks: { ...s.blocks, [b]: raw.units }, byId, byEntry };
+  return { ...s, blocks: { ...s.blocks, [b]: shown }, byId, byEntry };
 }
+// Display order of a term's questions: hands-on (tap, order, sort, branch) before A-D, file order kept inside each kind.
+// Picks are keyed by question id and version, so the order change keeps every saved pick.
+const handsOnFirst = qs => [...qs.filter(q => typeOf(q) !== 'choose'), ...qs.filter(q => typeOf(q) === 'choose')];
 export const blockLoaded = (s, block) => Boolean(s?.blocks[String(block)]);
 // Units of a block that have Scholar items, in unit order (from the index).
 export const unitsOf = (s, block) => Object.keys(s?.index[String(block)]?.units || {}).map(Number).sort((a, b) => a - b);

@@ -82,6 +82,8 @@ export const backLabel = text => `<span class="lbl">${ICON.back}${escape(text)}<
 export const nextLabel = text => `<span class="lbl">${escape(text)}${ICON.next}</span>`;
 
 // neutralUnpicked (Scholar, 2.3.0): after the reveal, a wrong choice nobody picked keeps its why but is not marked red.
+// Every tile carries its why from the start; a pending why is hidden but keeps its space, so all tiles hold their answered
+// height and a reveal moves nothing (the owner, 2026-11-17). The marker and tile colour show Correct / Incorrect.
 export function answersHtml(q,c,{assisted,reviewing=false,neutralUnpicked=false}) {
   const revealed=['correct','revealed'].includes(c.resolved)||assisted&&c.stage>=4;
   return c.order.map((id,i)=>{
@@ -94,7 +96,7 @@ export function answersHtml(q,c,{assisted,reviewing=false,neutralUnpicked=false}
     const label=correct?(c.resolved==='revealed'?'Answer revealed':'Correct'):incorrect?'Incorrect':'';
     return `<button class="item${correct?' correct':''}${incorrect?' wrong':''}${eliminated&&!revealed?' eliminated':''}" data-answer="${escape(id)}" ${reviewing||c.resolved?'aria-disabled="true"':eliminated?'disabled':''}>
       <span class="letter ${correct?'correct-label':incorrect?'incorrect-label':''}" aria-hidden="true">${marker}</span>
-      <span class="answer-body">${label?`<span class="sr-only">${label}: </span>`:''}<span class="answer-text"><span>${escape(a.text)}</span></span><span class="feedback-label" aria-hidden="true">${label}</span>${correct||wrong||revealed||c.resolved==='missed'&&chosenWrong?`<span class="back"><em>${escape(a.rationale)}</em></span>`:''}</span>
+      <span class="answer-body">${label?`<span class="sr-only">${label}: </span>`:''}<span class="answer-text"><span>${escape(a.text)}</span></span><span class="back${correct||wrong||revealed||c.resolved==='missed'&&chosenWrong?'':' pending'}"><em>${escape(a.rationale)}</em></span></span>
     </button>`;
   }).join('');
 }

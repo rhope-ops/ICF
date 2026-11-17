@@ -194,13 +194,22 @@ details>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:p
 .excerpt-held{display:flex;align-items:center;min-height:48px;padding:6px 14px;border:2px dashed var(--rule);border-left:4px solid var(--rule);border-radius:var(--r2);@media (max-width:640px){padding:6px 8px;& .label{font-size:var(--t1);letter-spacing:.03em}& .held-more{display:none}}}
 /* Item: one answer card for the quiz (live, correct, wrong, eliminated), the exam (picked) and reviews (correct / wrong). */
 .answers{display:grid;gap:8px}
-.item{width:100%;text-align:left;font:inherit;letter-spacing:0;text-transform:none;white-space:normal;color:var(--ink);border:2px solid var(--control);border-radius:var(--r2);padding:10px 12px;background:var(--sheet);min-height:max(64px,var(--answer-hold,64px));display:grid;grid-template-columns:1.75rem minmax(0,1fr);gap:1px 10px;align-content:start;align-items:start;justify-content:stretch;cursor:pointer;
+/* Answer hold (the owner, 2026-11-17): tiles that reveal a why are equal on every width, sized by the tallest answered tile. */
+.answers:has(.back){grid-auto-rows:1fr}
+/* Floor (the owner, 2026-11-17): one tile height from question to question; room for the answer line and 2 why lines on wide
+   screens (all 1,445 questions), 4 on phones (98%); a longer tile grows and 1fr keeps the four equal. Line units scale with zoom.
+   The px part is the .item border and padding plus the row gap (keep in step with .item): wide 4 + 20 + 1, plus 1px so the
+   floor rounds to the full 2-line height (93px, not 92.6); phones 4 + 16. */
+.answers:has(.back)>.item{--why-lines:2;min-height:calc(26px + 1.75rem + var(--why-lines) * var(--t2) * 1.38);
+  @media (max-width:640px){--why-lines:4;min-height:calc(20px + 1.75rem + var(--why-lines) * var(--t2) * 1.38)}}
+.item{width:100%;text-align:left;font:inherit;letter-spacing:0;text-transform:none;white-space:normal;color:var(--ink);border:2px solid var(--control);border-radius:var(--r2);padding:10px 12px;background:var(--sheet);min-height:64px;display:grid;grid-template-columns:1.75rem minmax(0,1fr);gap:1px 10px;align-content:start;align-items:start;justify-content:stretch;cursor:pointer;
   & .letter{grid-row:1/span 3;font-size:var(--t2);font-weight:500;width:1.75rem;height:1.75rem;display:grid;place-items:center;border:1px solid var(--rule);border-radius:var(--r1);color:var(--muted)}
   & .answer-body{display:contents}
   /* One inner span: a flex box would drop the space before a mid-label term link. */
   & .answer-text{grid-column:2;font-weight:600;align-self:center;min-height:1.75rem;line-height:1.25;display:flex;align-items:center}
   & .feedback-label{grid-column:2;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:var(--t1);line-height:1.2;&:empty{display:none}&:not(:empty){animation:reveal .25s ease-out}}
   & :is(.back,.review-explanation){grid-column:2;display:block;font-style:italic;font-size:var(--t2);line-height:1.38;color:var(--muted);animation:reveal .25s ease-out;& em{font-style:inherit}}
+  & .back.pending{visibility:hidden;animation:none}
   @media (hover:hover){&:hover:not([aria-disabled="true"]):not(:disabled):not(.correct,.wrong,.picked){border-color:var(--blue)}}
   &.correct{border-color:var(--good);background:var(--good-soft);& :is(.feedback-label,.letter){color:var(--good);border-color:var(--good)}}
   &.wrong{border-color:var(--bad);background:var(--bad-soft);& :is(.feedback-label,.letter){color:var(--bad);border-color:var(--bad)}}
@@ -486,7 +495,7 @@ dialog .dialog-head h2{font-size:1.75rem}
   & >summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 14px;list-style:none;cursor:pointer;&:focus-visible{outline-offset:-3px}&::-webkit-details-marker{display:none}& >.label{color:var(--scholar)}}
   & >.scholar-drop-body{display:grid;gap:10px;padding:2px 14px 16px;& >p{line-height:1.45}@media (max-width:640px){padding:2px 12px 14px}}
   /* The guided question takes a panel's padding, so the question screen's header (question-focus) fits as it does there. */
-  &[data-section="questions"]>.scholar-drop-body{padding:18px 20px;@media (max-width:640px){padding:14px 13px}}}
+  &[data-section="questions"]>.scholar-drop-body{padding:18px 20px;@media (max-width:640px){padding:12px 8px}}}
 .scholar-q{display:grid;gap:16px;& .question-focus{position:static}& .stem:focus{outline:none}}
 .scholar-hint,.scholar-see,.scholar-takeaway{line-height:1.45;& >.label{color:var(--scholar);margin-right:6px}}
 .scholar-takeaway{padding:10px 12px;border-left:4px solid var(--scholar);border-radius:var(--r1);background:var(--scholar-soft)}
@@ -494,11 +503,10 @@ dialog .dialog-head h2{font-size:1.75rem}
 /* Term nav and question nav (the owner, 2026-11-16: "next is always on the right side. unified UI nav"; All terms takes
    Previous term's place on the first term). */
 .scholar-nav{& #scholar-next{grid-column:2;grid-row:1}& >:first-child{grid-column:1;grid-row:1}}
-.scholar-q-nav{& #scholar-next-q{grid-column:2}& #scholar-prev-q{grid-column:1}&:empty{display:none}}
-/* 2.3.0 polish (the owner, 2026-11-16): no inner box around the guided question; tiles only as tall as their text until a
-   why shows; Hint at the left of the tool row as on the question screen, Check at the right. */
+.scholar-q-nav{grid-template-columns:repeat(2,minmax(0,1fr));& >button{width:100%;min-width:0;white-space:normal;line-height:1.15;padding:6px 10px}& .lbl{white-space:normal;text-wrap:balance}& #scholar-next-q{grid-column:2}& #scholar-prev-q{grid-column:1}&:empty{display:none}}
+/* 2.3.0 polish (the owner, 2026-11-16): no inner box around the guided question; answer heights as in quizzes (since 2.5.0 the
+   .answers:has(.back) hold, the owner, 2026-11-17); Hint at the left of the tool row as on the question screen, Check at the right. */
 .scholar-q{& .scholar-task{color:var(--scholar);margin:0 0 4px}& .stem{margin:0}}
-.scholar-answers .item{min-height:max(48px,var(--answer-hold,48px))}
 /* Gentler right / wrong in Scholar (the owner, 2026-11-16): a lighter fill and a softer border; the icon and the label still
    say Correct / Incorrect, and the label text keeps 4.5:1 or more on the fill (site/tests/scholar.test.mjs). */
 .scholar-q{& .item.correct,& .scholar-row.is-right{background:var(--scholar-good-soft);border-color:var(--scholar-good-line)}
@@ -509,15 +517,16 @@ dialog .dialog-head h2{font-size:1.75rem}
 .scholar-tools{justify-content:space-between;& >#scholar-hint:only-child{margin-left:0}& >#scholar-check{margin-left:auto}}
 /* Hands-on rows (order, sort): a row per step or item; a check marks each row right or wrong. */
 .scholar-rows{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.scholar-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 10px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);
+/* min-height: the row hold (2.5.0: every row the tallest answered row on every width), set by app.mjs holdScholarHeights. */
+.scholar-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;align-content:start;min-height:var(--row-hold,0px);padding:8px 10px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);
   &.is-right{border-color:var(--good);background:var(--good-soft);& .feedback-label{color:var(--good)}}
   &.is-wrong{border-color:var(--bad);background:var(--bad-soft);& .feedback-label{color:var(--bad)}}
   & .scholar-row-text{display:grid;gap:2px;font-weight:600;line-height:1.3;padding:0;& .feedback-label{font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:var(--t1)}& .back{font-weight:400;font-style:italic;font-size:var(--t2);color:var(--muted);line-height:1.38;& em{font-style:inherit}}}
   & fieldset{grid-column:1/-1;border:0;margin:0;padding:0;display:grid;gap:8px;min-width:0}
-  @media (max-width:640px){padding:8px}}
+  @media (max-width:640px){padding:8px 6px}}
 .scholar-pos{width:1.75rem;height:1.75rem;display:grid;place-items:center;border:1px solid var(--rule);border-radius:var(--r1);font-size:var(--t2);color:var(--muted)}
 .scholar-move{display:flex;gap:6px;& button{min-width:44px;min-height:44px;padding:0;display:grid;place-items:center}@media (max-width:640px){flex-direction:column;gap:4px;& button{min-height:40px}}}
-.scholar-sort-seg{--tone:var(--scholar);width:100%;& label{flex:1 1 0;min-height:44px;display:grid;place-items:center;text-align:center;padding:4px 8px;font-size:var(--t2);line-height:1.2}}
+.scholar-sort-seg{--tone:var(--scholar);width:100%;& label{flex:1 1 0;min-width:0;min-height:44px;display:grid;place-items:center;text-align:center;padding:6px 6px;font-size:var(--t2);line-height:1.2;letter-spacing:.03em;white-space:normal;overflow-wrap:anywhere}}
 /* Branch: decisions one under another; a finished one keeps its tiles and whys. */
 .scholar-decision{display:grid;gap:8px;& .scholar-prompt{margin:0;font-weight:600;line-height:1.35;& >.label{display:block;color:var(--scholar);margin-bottom:2px}}}
 /* Tap board: the targets of the answers take a pointer; after a pick, wrong targets go red and the key green. */
