@@ -85,8 +85,16 @@ function nodeSvg(n, st) {
   return `<g class="pic-node${cls(n.id, st)}" data-pic-id="${escape(n.id)}">${icon(n)}${label(n.x, b.y + b.h + 12, n.label)}</g>`;
 }
 
+// A link runs between the edges of its two boxes, not their centres: a dimmed box is see-through, so a line drawn to the
+// centre of a frame or panel crossed its label (Block 5 Scholar, 2026-11-16). Icons hid that part of the line anyway.
+function edge(n, [x, y], [tx, ty]) {
+  const b = box(n), dx = tx - x, dy = ty - y;
+  const t = Math.min(1, dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity);
+  return [x + dx * t, y + dy * t];
+}
 function linkSvg(l, nodes, st) {
-  const [x1, y1] = centre(nodes.get(l.from)), [x2, y2] = centre(nodes.get(l.to));
+  const a = nodes.get(l.from), z = nodes.get(l.to), ca = centre(a), cz = centre(z);
+  const [x1, y1] = edge(a, ca, cz), [x2, y2] = edge(z, cz, ca);
   return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${l.label ? label(x1 + (x2 - x1) * (l.labelAt ?? 0.5), y1 + (y2 - y1) * (l.labelAt ?? 0.5) - (l.kind === 'trunk' ? 16 : 7), l.label, ' pic-small') : ''}</g>`;
 }
 

@@ -1,5 +1,5 @@
-// Scholar (2.2.0, the owner 2026-11-16): pure lookups over scholar.json and the saved Scholar place. No DOM, storage or
-// network access. Every text shown comes from scholar.json, one item per glossary entry.
+// Scholar (2.2.0, the owner 2026-11-16): pure lookups over scholar.json, the block files and the saved Scholar place. No DOM, storage or
+// network access. Every text shown comes from a block file, one item per concept entry (no facets; the owner, 2026-11-16).
 // Sample answers are practice only: they never enter stats, Results, missed cards or exam cycles.
 
 import { pictureProblem } from './pictures.mjs';
@@ -26,27 +26,52 @@ const questionOk = q => isObj(q) && isText(q.id) && isText(q.v) && isText(q.stem
 const itemOk = (it, block, unit) => isObj(it) && isText(it.id) && isText(it.entry) && isText(it.term) && it.block === block && it.unit === unit &&
   PARTS.every(p => isText(it[p])) && citesOk(it.cites) && (it.picture === undefined || pictureProblem(it.picture) === null) && Array.isArray(it.questions) && it.questions.length > 0 && it.questions.every(questionOk);
 
-// The checked file with lookups, or null when it is missing, unknown or damaged (the app then hides Scholar).
+// scholar.json is an index (schema 2; the owner, 2026-11-16, "2 a"): per block its file, content version and the entry ids of
+// each unit. A block's items come from its own file (scholar-B<n>.json), loaded when that block's Scholar opens and added
+// with addScholarBlock. Before that, itemForEntry answers from the index (id, block, unit, entry) so the Glossary and the
+// cards can offer "Open in Scholar".
+const entriesOk = v => Array.isArray(v) && v.length > 0 && v.every(isText) && new Set(v).size === v.length;
+const itemId = (b, u, e) => `S-B${b}-U${u}-${e}`;
+// The checked index with lookups, or null when it is missing, unknown or damaged (the app then hides Scholar).
 export function restoreScholar(raw) {
-  if (!isObj(raw) || raw.schema !== 1 || !isObj(raw.blocks) || !isObj(raw.docs)) return null;
-  const byId = new Map(), byEntry = new Map();
-  for (const [b, units] of Object.entries(raw.blocks)) {
-    if (!/^[1-9]\d*$/.test(b) || !isObj(units)) return null;
-    for (const [u, items] of Object.entries(units)) {
-      if (!/^[1-9]\d*$/.test(u) || !Array.isArray(items) || !items.length) return null;
-      for (const it of items) {
-        if (!itemOk(it, Number(b), Number(u)) || byId.has(it.id)) return null;
-        byId.set(it.id, it); byEntry.set(`${b}/${it.entry}`, it);
+  if (!isObj(raw) || raw.schema !== 2 || !isText(raw.contentVersion) || !isObj(raw.blocks) || !isObj(raw.docs)) return null;
+  const byEntry = new Map();
+  for (const [b, ix] of Object.entries(raw.blocks)) {
+    if (!/^[1-9]\d*$/.test(b) || !isObj(ix) || ix.file !== `scholar-B${b}.json` || !isText(ix.v) || !isObj(ix.units) || !Object.keys(ix.units).length) return null;
+    for (const [u, entries] of Object.entries(ix.units)) {
+      if (!/^[1-9]\d*$/.test(u) || !entriesOk(entries)) return null;
+      for (const e of entries) {
+        if (byEntry.has(`${b}/${e}`)) return null;
+        byEntry.set(`${b}/${e}`, { id: itemId(b, u, e), block: Number(b), unit: Number(u), entry: e });
       }
     }
   }
-  return { ...raw, byId, byEntry };
+  return { docs: raw.docs, contentVersion: raw.contentVersion, index: raw.blocks, blocks: {}, byId: new Map(), byEntry };
 }
-// Units of a block that have Scholar items, in unit order.
-export const unitsOf = (s, block) => Object.keys(s?.blocks[String(block)] || {}).map(Number).sort((a, b) => a - b);
+// The block file named by the index, checked against it: the same version and exactly the units and entries the index lists.
+// Returns a new Scholar value with the block's items, or null when the file is damaged or does not match the index.
+export function addScholarBlock(s, raw) {
+  const ix = isObj(raw) && s?.index[String(raw.block)];
+  if (!ix || raw.schema !== 1 || raw.v !== ix.v || !isObj(raw.units)) return null;
+  const units = Object.keys(raw.units).sort().join();
+  if (units !== Object.keys(ix.units).sort().join()) return null;
+  const b = String(raw.block), byId = new Map(s.byId), byEntry = new Map(s.byEntry);
+  for (const [u, items] of Object.entries(raw.units)) {
+    if (!Array.isArray(items) || items.map(it => it?.entry).join() !== ix.units[u].join()) return null;
+    for (const it of items) {
+      if (!itemOk(it, raw.block, Number(u)) || it.id !== itemId(b, u, it.entry) || byId.has(it.id)) return null;
+      byId.set(it.id, it); byEntry.set(`${b}/${it.entry}`, it);
+    }
+  }
+  return { ...s, blocks: { ...s.blocks, [b]: raw.units }, byId, byEntry };
+}
+export const blockLoaded = (s, block) => Boolean(s?.blocks[String(block)]);
+// Units of a block that have Scholar items, in unit order (from the index).
+export const unitsOf = (s, block) => Object.keys(s?.index[String(block)]?.units || {}).map(Number).sort((a, b) => a - b);
 export const itemsFor = (s, block, unit) => s?.blocks[String(block)]?.[String(unit)] || [];
 export const itemById = (s, id) => s?.byId.get(id) || null;
-// The Scholar item of a glossary entry (Open in Scholar from the Glossary and the card back), or null.
+// The Scholar item of a glossary entry (Open in Scholar from the Glossary and the card back), or null. Before its block is
+// loaded this is the index's {id, block, unit, entry}.
 export const itemForEntry = (s, block, entryId) => (entryId && s?.byEntry.get(`${block}/${entryId}`)) || null;
 
 // ---- Saved place (storage key "scholar") ----
@@ -78,27 +103,49 @@ export function triesFit(qn, v) {
   // Branch: each decision's picks stop at its key; every decision before the last is over.
   return v.length <= qn.steps.length && v.every((x, k) => Array.isArray(x) && x.length >= 1 && uniq(x) && x.every(i => isIdx(i, qn.steps[k].choices.length)) && x.length <= limit(qn.steps[k]) && !x.slice(0, -1).includes(qn.steps[k].key) && (k === v.length - 1 || decisionDone(qn.steps[k], x)));
 }
-export function restoreScholarState(raw, s) {
-  // Exact shape (review 2026-11-16): no unknown keys, and q must name a question of the saved item.
+// The stored place, checked by shape only (exact keys and types; schema 1 is migrated exactly: picks dropped, seen []).
+// null when damaged. It does not need any content, so a place whose block file is not loaded can keep its progress.
+export function scholarStateShape(raw) {
+  // Exact shape (review 2026-11-16): no unknown keys.
   if (!isObj(raw) || !(raw.schema === 1 || raw.schema === 2) || Object.keys(raw).sort().join() !== KEYS[raw.schema] || !Number.isInteger(raw.block) || !Number.isInteger(raw.unit) || !Number.isInteger(raw.q) || !isObj(raw.picks)) return null;
   if (raw.schema === 1 && !Object.values(raw.picks).every(v => ints(v) && v.length >= 1 && v.length <= 2 && new Set(v).size === v.length && v.every(i => i < 4))) return null;
   if (!Object.entries(raw.picks).every(([k, v]) => isText(k) && triesShape(v))) return null;
   if (raw.schema === 2 && !(Array.isArray(raw.seen) && raw.seen.every(isText))) return null;
-  if (!s) return null;
-  // A saved item that moved to another unit (a content update) keeps the place in its new unit.
-  const item = raw.item === null ? null : itemById(s, raw.item);
-  if (raw.item !== null && (!item || item.block !== raw.block)) return null;
-  if (!item && !unitsOf(s, raw.block).includes(raw.unit)) return null;
-  // A negative q is damage; a q past the end only means the item lost a question in a content update: keep the place
-  // at its last question rather than dropping every saved pick (review 2026-11-16, evening).
-  if (raw.q < 0 || (!item && raw.q !== 0)) return null;
-  const q = item ? Math.min(raw.q, item.questions.length - 1) : 0;
-  // Picks of questions that no longer exist, or no longer fit their question (a content update changed it), are dropped.
-  const byQ = new Map([...s.byId.values()].flatMap(it => it.questions.map(x => [pickKey(x), x])));
-  const picks = raw.schema === 1 ? {} : Object.fromEntries(Object.entries(raw.picks).filter(([k, v]) => byQ.has(k) && triesFit(byQ.get(k), v)));
-  const seen = [...new Set(raw.schema === 2 ? raw.seen : [])].filter(id => s.byId.has(id));
-  return { schema: SCHOLAR_STATE_SCHEMA, block: raw.block, unit: item ? item.unit : raw.unit, item: item ? item.id : null, q, picks, seen };
+  if (!(raw.item === null || isText(raw.item))) return null;
+  // A negative q is damage, and so is a question number without a term.
+  if (raw.q < 0 || (raw.item === null && raw.q !== 0)) return null;
+  return { schema: SCHOLAR_STATE_SCHEMA, block: raw.block, unit: raw.unit, item: raw.item, q: raw.q,
+    picks: raw.schema === 1 ? {} : { ...raw.picks }, seen: [...new Set(raw.schema === 2 ? raw.seen : [])] };
 }
+export function restoreScholarState(raw, s) {
+  const sh = scholarStateShape(raw);
+  if (!sh || !s) return null;
+  const fit = fitPicks(sh.picks, sh.seen, s);
+  // A saved item that moved to another unit (a content update) keeps the place in its new unit; a q past the end only
+  // means the item lost a question: keep the place at its last question (review 2026-11-16, evening).
+  const item = sh.item === null ? null : itemById(s, sh.item);
+  if (item && item.block === sh.block) return { ...sh, unit: item.unit, item: item.id, q: Math.min(sh.q, item.questions.length - 1), ...fit };
+  if (!item && sh.item === null && unitsOf(s, sh.block).includes(sh.unit)) return { ...sh, ...fit };
+  // The place no longer fits (its term or unit was removed or renamed by a content update): open that block's first unit,
+  // or the first block with Scholar, and keep every pick and seen term (fresh review 2, 2026-11-16).
+  const block = unitsOf(s, sh.block).length ? sh.block : Number(Object.keys(s.index)[0]);
+  if (!Number.isInteger(block) || !unitsOf(s, block).length) return null;
+  const unit = block === sh.block && unitsOf(s, block).includes(sh.unit) ? sh.unit : unitsOf(s, block)[0];
+  return { ...sh, block, unit, item: null, q: 0, ...fit };
+}
+// Picks and seen terms are checked against the content of their own block. Picks of questions that no longer exist, or no
+// longer fit their question (a content update changed it), are dropped. A block whose file is not loaded yet keeps its
+// picks and seen terms as they are (shape checked above) until it loads: then refitScholarState checks them (fresh review
+// 2026-11-16: at start only the saved place's block loads, and the other blocks' progress must survive).
+const blockOf = id => Number((/^S-B(\d+)-/.exec(id) || [])[1]);
+function fitPicks(picks, seen, s) {
+  const byQ = new Map([...s.byId.values()].flatMap(it => it.questions.map(x => [pickKey(x), x])));
+  const later = id => !blockLoaded(s, blockOf(id)) && Boolean(s.index[String(blockOf(id))]);
+  return { picks: Object.fromEntries(Object.entries(picks).filter(([k, v]) => later(k) || (byQ.has(k) && triesFit(byQ.get(k), v)))),
+    seen: seen.filter(id => later(id) || s.byId.has(id)) };
+}
+// The state after a block file loads: that block's picks and seen terms are checked against its content.
+export const refitScholarState = (state, s) => state && { ...state, ...fitPicks(state.picks, state.seen, s) };
 const same = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]);
 const limit = d => Math.min(2, d.choices.length - 1);
 const decisionDone = (d, x = []) => x.includes(d.key) || x.length >= limit(d);

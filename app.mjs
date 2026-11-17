@@ -8,7 +8,7 @@ import { restoreUnderstanding, markMissed, assessUnderstanding, understandingRec
 import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview } from './storage.mjs';
 import * as screens from './screens.mjs';
 import { restoreGlossary, entryForCard, stemLinks, popover, keyTerms, searchEntries, restoreBookmarks } from './glossary.mjs';
-import { restoreScholar, restoreScholarState, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey } from './scholar.mjs';
+import { restoreScholar, addScholarBlock, blockLoaded, restoreScholarState, refitScholarState, scholarStateShape, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey } from './scholar.mjs';
 import { pictureHtml } from './pictures.mjs';
 const $ = s => document.querySelector(s);
 const main = $('#main'), dialog = $('#dialog');
@@ -49,7 +49,7 @@ poolKind=toPoolKind(read('poolKind',null),read('smart',false));
 let examNavOpen=false;
 let glossary=null,glossQuery='',glossUnit=0,glossEntry=null,termPop=null,glossGroup='unit',glossReturn=null;
 let targetedPoolSize='all';
-// Scholar (2.2.0; scholar.json, loaded at start; the app works without it). scholarState: the saved place (icf:scholar).
+// Scholar (2.2.0; the index scholar.json loads at start, a block's file when its Scholar opens; the app works without them). scholarState: the saved place (icf:scholar).
 // scholarReturn: {to:'glossary', entry} or {to:'flash-card'} when an item was opened from there (a way back).
 // lastPlace: 'quiz' | 'scholar', the one the user was in last (the nav context button).
 let scholar=null,scholarState=null,scholarReturn=null,lastPlace=null;
@@ -346,7 +346,7 @@ function resetLocalData() {
   theme=window.icfTheme.defaultChoice;window.icfTheme.set(theme);syncThemeSwitch();
   pinQuestion=true;document.documentElement.dataset.pinQuestion='true';$('#settings-pin-question').checked=true;
   profile={nickname:'',visited:false};flags={};session=null;understanding={};stats=restoreStats(null);poolKind='random';missedReview=null;modalWasRunning=false;
-  cardSets=restoreCardSets();flashPreview=null;flashSetId=null;flashMessage='';dynamicCards=true;pickSetId=null;pendingCard=null;glossReturn=null;glossEntry=null;glossQuery='';glossUnit=0;closeTermPop();scholarState=null;scholarReturn=null;lastPlace=null;scholarDraft.clear();scholarOpenFor=null;
+  cardSets=restoreCardSets();flashPreview=null;flashSetId=null;flashMessage='';dynamicCards=true;pickSetId=null;pendingCard=null;glossReturn=null;glossEntry=null;glossQuery='';glossUnit=0;closeTermPop();scholarState=null;scholarPending=null;scholarReturn=null;lastPlace=null;scholarDraft.clear();scholarOpenFor=null;
   exam=null;examHistory=[];examCycles={schema:1,blocks:{}};lastBlock=null;examFilter='missed';resultsKind='study';
   navigate('welcome');
 }
@@ -401,7 +401,7 @@ function syncScreens() {
 $('#context-link')?.addEventListener('click',()=>{
   const to=$('#context-link').dataset.context;if(!bank||!to||examLive(exam))return;tools.close();
   if(to==='quiz'&&sessionOpen()){resumeStudy();positionStudyQuestion();return;}
-  if(to==='scholar'&&scholarState){pauseStudy();if(blockId!==scholarState.block){blockId=scholarState.block;units=allUnits();}navigate('scholar');}
+  if(to==='scholar'&&scholarState){pauseStudy();openScholar(null,scholarReturn,scholarState.block);}  // loads the place's block file first
 });
 document.querySelectorAll('[data-screen-link]').forEach(link => link.addEventListener('click', () => {
   const id = link.dataset.screenLink;
@@ -588,7 +588,7 @@ function renderFlashCards() {
   main.innerHTML = screens.flashScreenHtml({preview:flashPreview, set, bank, saved:manualHas(cardSets,card), missed:inMissed(card), message:flashMessage, source, back, glossEntry:seen && entry ? entry : null, scholar:Boolean(seen && entry && itemForEntry(scholar,entry.block,entry.id))});
   // Open in Glossary (under Back): the Glossary then offers "Card N" back to this card, on the same side.
   if ($('#card-open-gloss')) $('#card-open-gloss').onclick = () => { glossEntry = entry.id; glossReturn = 'flash-card'; navigate('glossary'); };
-  if ($('#card-open-scholar')) $('#card-open-scholar').onclick = () => { const it = itemForEntry(scholar,entry.block,entry.id); if (blockId !== it.block) { blockId = it.block; units = allUnits(); } openScholar(it.id,{to:'flash-card'}); };
+  if ($('#card-open-scholar')) $('#card-open-scholar').onclick = () => { const it = itemForEntry(scholar,entry.block,entry.id); openScholar(it.id,{to:'flash-card'},it.block); };
   main.querySelectorAll('.card-back .term-link').forEach(b => b.onclick = () => openTermPop(b, {phase:'resolved', block:entry?.block ?? blockId}));
   const move = event => { flashMessage='';flashPreview = moveCards(flashPreview,event); if(event==='flip')flashPreview.cards[flashPreview.index].seenBack=true; render(); if(['next','previous'].includes(event)){resetNavigationView();centreSheet('#flash-card','.question-actions');} };
   $('#flash-exit').onclick = () => navigate(flashSetId ? 'saved-card-sets' : 'cards-setup');
@@ -824,9 +824,30 @@ function renderExamSetup() {
 // ---- Scholar (2.2.0) ----
 // Open Scholar for the current block: at an item (from the Glossary or a card) or at the saved place of this block, else
 // at the first unit's term list. ret: the way back ({to:'glossary', entry} | {to:'flash-card'}) or none (from Mode).
-function openScholar(itemId=null,ret=null){
-  const units=unitsOf(scholar,blockId);if(!units.length)return;
-  let st=scholarState&&scholarState.block===blockId?scholarState:{...newScholarState(blockId,units[0]),picks:{...scholarState?.picks}};
+// A block's Scholar file (the owner, 2026-11-16, "2 a"): fetched once, when that block's Scholar opens. true when loaded.
+const scholarLoads={};let scholarPending=null;  // a saved place whose block file could not load at start
+function loadScholarBlock(b){
+  if(!scholar)return Promise.resolve(false);if(blockLoaded(scholar,b))return Promise.resolve(true);
+  const ix=scholar.index[String(b)];if(!ix)return Promise.resolve(false);
+  return scholarLoads[b]||=fetchJson(`./${ix.file}`).then(raw=>{const next=addScholarBlock(scholar,raw);if(!next)throw Error(`${ix.file} damaged`);scholar=next;
+    // The saved picks and seen terms of this block are checked now that its content is here.
+    if(scholarState){const fit=refitScholarState(scholarState,scholar);if(JSON.stringify(fit)!==JSON.stringify(scholarState))saveScholar(fit);}
+    return true;}).catch(()=>{delete scholarLoads[b];return false;});
+}
+function scholarFailed(){const text='Scholar could not load. Check the connection and try again.';flashToast(text);const say=$('#answer-status');if(say)say.textContent=text;}
+// block: the block to open (a card may open a term of another block); the current block changes only once its file loads.
+async function openScholar(itemId=null,ret=null,block=blockId){
+  const us=unitsOf(scholar,block);if(!us.length)return;
+  if(!await loadScholarBlock(block)){scholarFailed();return;}
+  // A place held at start (its block file could not load then) is checked before another block's place replaces it.
+  // If its block still cannot load, its picks and seen terms (shape checked) carry into the new place and are checked when
+  // that block loads (fresh review 2, 2026-11-16: an empty place used to overwrite it).
+  if(scholarPending){const held=scholarPending;scholarPending=null;
+    if(!scholarState){
+      if(held.block===block||await loadScholarBlock(held.block)){scholarState=restoreScholarState(held,scholar);if(!scholarState)persist('scholar',null);}
+      else scholarState=refitScholarState(scholarStateShape(held),scholar);}}  // loaded blocks' picks are checked now
+  if(blockId!==block){blockId=block;units=allUnits();}
+  let st=scholarState&&scholarState.block===blockId?scholarState:{...newScholarState(blockId,us[0]),picks:{...scholarState?.picks},seen:[...(scholarState?.seen||[])]};
   if(itemId)st=moveScholar(st,{type:'item',id:itemId},scholar);
   scholarReturn=ret;saveScholar(st);navigate('scholar');
 }
@@ -1217,7 +1238,11 @@ try {
   try{glossary=restoreGlossary(await fetchJson('./glossary.json'));}catch{glossary=null;}
   // Scholar: optional; without it the Mode screen shows no Scholar entry. A saved place that no longer fits is dropped.
   try{scholar=restoreScholar(await fetchJson('./scholar.json'));}catch{scholar=null;}
-  { const raw=read('scholar',null);scholarState=restoreScholarState(raw,scholar);if(raw!==null&&!scholarState&&scholar)persist('scholar',null); }
+  // The saved place's block file loads now (one block), so the place can be checked and Resume Scholar offered.
+  { const raw=read('scholar',null);
+    if(Number.isInteger(raw?.block)&&scholar?.index[String(raw.block)]&&!await loadScholarBlock(raw.block))scholarPending=raw;  // offline: keep the place, check it when Scholar opens
+    else{scholarState=restoreScholarState(raw,scholar);if(raw!==null&&!scholarState&&scholar)persist('scholar',null);
+      if(scholarState&&!blockLoaded(scholar,scholarState.block))await loadScholarBlock(scholarState.block);} }  // a fallback place in another block
   lastBlock=servedBlock(read('lastBlock',null))?read('lastBlock',null):null;
   blockId=lastBlock??bank.blocks[0].id; units=allUnits();
   migrateBookmarks();
