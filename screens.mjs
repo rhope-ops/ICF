@@ -86,9 +86,9 @@ export function studyHubHtml({block, scholar = false}) {
   const divider = '<div class="exam-divider" aria-hidden="true"><span>Or</span></div>';
   return `<div class="page-head"><p class="label">Block ${block.id} · ${escape(block.title)}</p><h1>Mode</h1></div>
     <div class="type-grid study-tiles" role="group" aria-label="Study type">${TILES.map(tile).join('')}</div>
-    ${scholar ? `${divider}<section class="card exam-entry scholar-entry" data-tone="scholar" aria-labelledby="scholar-entry-title"><div class="exam-entry-text"><h2 id="scholar-entry-title">Scholar</h2><p class="exam-entry-sub">Go deeper on each term: examples, scenarios and guided questions.</p></div><button id="scholar-open" class="primary" data-tone="scholar">${nextLabel('Open Scholar')}</button></section>` : ''}
+    ${scholar ? `${divider}<section class="card exam-entry scholar-entry" data-tone="scholar" aria-labelledby="scholar-entry-title"><div class="exam-entry-text"><h2 id="scholar-entry-title">Scholar</h2><p class="exam-entry-sub">Go deeper with interactive lessons.</p></div><button id="scholar-open" class="primary" data-tone="scholar">${nextLabel('Open Scholar')}</button></section>` : ''}
     ${divider}
-    <section class="card exam-entry" data-tone="violet" aria-labelledby="exam-entry-title"><div class="exam-entry-text"><h2 id="exam-entry-title">Exam</h2><p class="exam-entry-sub">As close to the real thing as you’re going to get.</p></div><button id="exam-open" class="primary" data-tone="violet">${nextLabel('Take exam')}</button></section>`;
+    <section class="card exam-entry" data-tone="violet" aria-labelledby="exam-entry-title"><div class="exam-entry-text"><h2 id="exam-entry-title">Exam</h2><p class="exam-entry-sub">Prove your mastery of the material.</p></div><button id="exam-open" class="primary" data-tone="violet">${nextLabel('Take exam')}</button></section>`;
 }
 
 // One note on every path that starts a new Questions session over a paused one (UX review 2026-11-11, H2).
@@ -297,11 +297,17 @@ export function answerAnnouncement(event, attemptsBefore, session) {
 // Term list of one unit: unit choice (a segmented row), then each term with its summary. done: {itemId: right answers}.
 // todo (2.6.0, G3): the first term of the unit whose guided questions are not all right, or null; review: show "Review this
 // unit" (G4: the unit's guided questions in a shuffled order, practice only).
-export function scholarListHtml({block, units, unit, items, done = {}, todo = null, review = false}) {
+// 2.6.3 (the owner, 2026-11-17): each entry reuses its glossary entry (glossOf: entry id -> glossary entry or null): the
+// one-line glossary definition instead of the Scholar summary, and a term longer than SHORT_NAME characters shows its glossary
+// short form (an all-capital alias such as CMOS) with the full name for screen readers. The term page keeps the full texts.
+const SHORT_NAME = 24;
+const listName = (term, g) => { const alias = term.length > SHORT_NAME && g?.aliases.find(a => /^[A-Z][A-Z0-9&]{1,9}$/.test(a));
+  return alias ? `${escape(alias)}<span class="sr-only"> (${escape(term)})</span>` : escape(term); };
+export function scholarListHtml({block, units, unit, items, done = {}, todo = null, review = false, glossOf = () => null}) {
   const seg = units.map(u => `<label><input type="radio" name="scholar-unit" value="${u}" ${u === unit ? 'checked' : ''}>U${u}</label>`).join('');
   const title = escape(block.units.find(u => u.id === unit)?.title || '');
-  const row = it => { const n = done[it.id] || 0, all = it.questions.length;
-    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${escape(it.term)}</strong>${it.covers ? `<span class="scholar-also">Also: ${it.covers.map(c => escape(c.term)).join(' · ')}</span>` : ''}<span>${escape(it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
+  const row = it => { const n = done[it.id] || 0, all = it.questions.length, g = glossOf(it.entry);
+    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${listName(it.term, g)}</strong>${it.covers ? `<span class="scholar-also">Also: ${it.covers.map(c => escape(c.term)).join(' · ')}</span>` : ''}<span>${escape(g?.short || it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
   return `<div class="page-head"><p class="label">Block ${block.id} · Scholar</p><h1>Scholar</h1></div>
     <section class="panel scholar-units" data-tone="scholar"><fieldset><legend class="label">Unit</legend><div class="seg scholar-unit-seg">${seg}</div></fieldset>
       <div class="step-head"><span class="num">Unit ${unit}</span><h2>${title}</h2></div></section>

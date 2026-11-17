@@ -840,7 +840,7 @@ function renderScholar(){
     const units=unitsOf(scholar,st.block),items=itemsFor(scholar,st.block,st.unit);
     const counts=Object.fromEntries(items.map(it=>[it.id,it.questions.filter(q=>right(q,triesOf(st,q))).length]));
     const todo=items.find(it=>counts[it.id]<it.questions.length)||null;
-    main.innerHTML=screens.scholarListHtml({block,units,unit:st.unit,items,done:counts,todo,review:items.length>=2});
+    main.innerHTML=screens.scholarListHtml({block,units,unit:st.unit,items,done:counts,todo,review:items.length>=2,glossOf:id=>glossary?.byId.get(id)||null});
     if($('#scholar-todo'))$('#scholar-todo').onclick=()=>open($('#scholar-todo').dataset.scholarNext);
     if($('#scholar-review'))$('#scholar-review').onclick=()=>{scholarReview={block:st.block,unit:st.unit,deck:reviewDeck(items),k:0,picks:{}};reviewHints.clear();reviewDraft.clear();render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#scholar-review-title'));};
     main.querySelectorAll('[name="scholar-unit"]').forEach(r=>r.onchange=()=>{saveScholar(moveScholar(scholarState,{type:'unit',unit:Number(r.value)},scholar));keepScroll(render);main.querySelector(`[name="scholar-unit"][value="${r.value}"]`)?.focus({preventScroll:true});});
