@@ -8,7 +8,7 @@ import { restoreUnderstanding, markMissed, assessUnderstanding, understandingRec
 import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview } from './storage.mjs';
 import * as screens from './screens.mjs';
 import { restoreGlossary, entryForCard, stemLinks, popover, keyTerms, searchEntries, restoreBookmarks } from './glossary.mjs';
-import { restoreScholar, addScholarBlock, blockLoaded, restoreScholarState, refitScholarState, scholarStateShape, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey } from './scholar.mjs';
+import { restoreScholar, addScholarBlock, blockLoaded, restoreScholarState, refitScholarState, scholarStateShape, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey, reviewDeck } from './scholar.mjs';
 import { pictureHtml } from './pictures.mjs';
 const $ = s => document.querySelector(s);
 const main = $('#main'), dialog = $('#dialog');
@@ -61,6 +61,8 @@ let scholarPic={item:null,index:0,prev:null};
 let scholarOpen={};
 // Guided-question hints shown (question ids), until the page closes; a hint is help, not a score.
 const scholarHints=new Set();
+// Unit review (2.6.0, G4): {block, unit, deck: [{item, q}], k, picks}; in memory only (practice; never saved or scored).
+let scholarReview=null;const reviewHints=new Set(),reviewDraft=new Map();
 // Order and sort tasks (2.3.0): the arrangement being built, per question id (not saved; a check is saved as a try).
 const scholarDraft=new Map();
 // The term whose section state was set: on a term's first visit every section is open, on later visits the reading
@@ -824,18 +826,23 @@ function saveScholar(st){scholarState=st;persist('scholar',st);}
 // A message in the guided question's live region, after the render (so it is heard as a change).
 function sayScholar(text){setTimeout(()=>{const say=main.querySelector('.scholar-q [data-say]');if(say&&say.isConnected)say.textContent=text;},150);}
 // The arrangement on screen: the one being built, else the last check, else the shown order (order) or no groups (sort).
-function draftOf(qn,tries=[]){const t=typeOf(qn);if(t!=='order'&&t!=='sort')return null;
-  return scholarDraft.get(qn.id)||(tries.length?[...tries[tries.length-1]]:t==='order'?qn.steps.map((_,i)=>i):qn.items.map(()=>null));}
+function draftOf(qn,tries=[],drafts=scholarDraft){const t=typeOf(qn);if(t!=='order'&&t!=='sort')return null;
+  return drafts.get(qn.id)||(tries.length?[...tries[tries.length-1]]:t==='order'?qn.steps.map((_,i)=>i):qn.items.map(()=>null));}
 function renderScholar(){
   clearTimeout(picTimer);
   if(!scholar||!scholarState){navigate('units');return;}
   if(scholarReturn?.to==='flash-card'&&!flashPreview)scholarReturn=null;
   const st=scholarState,block=bank.blocks.find(b=>b.id===st.block)||currentBlock(),item=itemById(scholar,st.item);
   const open=id=>{saveScholar(moveScholar(scholarState,{type:'item',id},scholar));render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#scholar-term'));};
+  if(scholarReview&&(scholarReview.block!==st.block||scholarReview.unit!==st.unit||item))scholarReview=null;
+  if(scholarReview){renderScholarReview(block);return;}
   if(!item){scholarOpenFor=null;
     const units=unitsOf(scholar,st.block),items=itemsFor(scholar,st.block,st.unit);
     const counts=Object.fromEntries(items.map(it=>[it.id,it.questions.filter(q=>right(q,triesOf(st,q))).length]));
-    main.innerHTML=screens.scholarListHtml({block,units,unit:st.unit,items,done:counts});
+    const todo=items.find(it=>counts[it.id]<it.questions.length)||null;
+    main.innerHTML=screens.scholarListHtml({block,units,unit:st.unit,items,done:counts,todo,review:items.length>=2});
+    if($('#scholar-todo'))$('#scholar-todo').onclick=()=>open($('#scholar-todo').dataset.scholarNext);
+    if($('#scholar-review'))$('#scholar-review').onclick=()=>{scholarReview={block:st.block,unit:st.unit,deck:reviewDeck(items),k:0,picks:{}};reviewHints.clear();reviewDraft.clear();render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#scholar-review-title'));};
     main.querySelectorAll('[name="scholar-unit"]').forEach(r=>r.onchange=()=>{saveScholar(moveScholar(scholarState,{type:'unit',unit:Number(r.value)},scholar));keepScroll(render);main.querySelector(`[name="scholar-unit"][value="${r.value}"]`)?.focus({preventScroll:true});});
     main.querySelectorAll('[data-scholar-item]').forEach(b=>b.onclick=()=>open(b.dataset.scholarItem));
     $('#back').onclick=()=>navigate('units');
@@ -847,7 +854,11 @@ function renderScholar(){
   if(scholarPicOpen===item.id){scholarOpen={...scholarOpen,picture:true};scholarPicOpen=null;}
   const back=scholarReturn?.to==='glossary'?'Glossary':scholarReturn?.to==='flash-card'?`Card ${flashPreview.index+1}`:'';
   const qn=item.questions[st.q],tries=triesOf(scholarState,qn);
-  main.innerHTML=screens.scholarItemHtml({block,item,q:st.q,tries,started:item.questions.some(x=>triesOf(scholarState,x).length),hint:scholarHints.has(qn.id),nav:neighbours(scholar,st),done:x=>resolved(x,triesOf(scholarState,x)),back,pic:picOptions(),open:scholarOpen,draft:draftOf(qn,tries)});
+  const related=(glossary?.byId.get(item.entry)?.related||[]).map(id=>glossary.byId.get(id)).filter(e=>e&&e.block===item.block).map(e=>{const it=itemForEntry(scholar,e.block,e.id);return {id:e.id,term:e.term,item:it&&it.id!==item.id?it.id:null,part:it?.part};}).filter(r=>r.item||!itemForEntry(scholar,item.block,r.id));
+  main.innerHTML=screens.scholarItemHtml({block,item,q:st.q,tries,started:item.questions.some(x=>triesOf(scholarState,x).length),hint:scholarHints.has(qn.id),nav:neighbours(scholar,st),done:x=>resolved(x,triesOf(scholarState,x)),back,pic:picOptions(),open:scholarOpen,draft:draftOf(qn,tries),related});
+  main.querySelectorAll('.scholar-related [data-scholar-item]').forEach(b=>b.onclick=()=>{const part=b.dataset.part===undefined?null:Number(b.dataset.part);  // the part first, so one render keeps focus on the heading (review of PR 112)
+    if(Number.isInteger(part)){scholarPicOpen=b.dataset.scholarItem;scholarPic={item:b.dataset.scholarItem,index:part,prev:null,manual:true};}open(b.dataset.scholarItem);});
+  main.querySelectorAll('.scholar-related .term-link').forEach(b=>b.onclick=()=>openTermPop(b,{phase:'review',block:item.block}));
   scholarPic.prev=null;
   main.querySelectorAll('.scholar-drop').forEach(d=>d.ontoggle=()=>{scholarOpen[d.dataset.section]=d.open;if(d.dataset.section==='picture')picLoop(item);});
   const move=(event,focus)=>{saveScholar(moveScholar(scholarState,event,scholar));keepScroll(render);(focus?.()||$('#scholar-stem'))?.focus({preventScroll:true});};
@@ -884,6 +895,36 @@ function renderScholar(){
   $('#scholar-list').onclick=()=>{const id=item.id;scholarReturn=null;saveScholar(moveScholar(scholarState,{type:'list'},scholar));render();window.scrollTo({top:0,behavior:'instant'});main.querySelector(`[data-scholar-item="${CSS.escape(id)}"]`)?.focus({preventScroll:false});};
   if($('#scholar-return'))$('#scholar-return').onclick=()=>{const r=scholarReturn;scholarReturn=null;if(r.to==='glossary'){glossEntry=r.entry;navigate('glossary');}else navigate('flash-card');};
 }
+// Unit review screen (2.6.0, G4): the term page's guided-question handlers on a practice state that is never saved.
+function renderScholarReview(block){
+  const rv=scholarReview,d=rv.deck[rv.k],item=itemById(scholar,d.item),qn=item?.questions[d.q];
+  if(!qn){scholarReview=null;render();return;}
+  const tries=rv.picks[pickKey(qn)]||[];
+  main.innerHTML=screens.scholarReviewHtml({block,unit:rv.unit,item,qn,k:rv.k,total:rv.deck.length,tries,hint:reviewHints.has(qn.id),draft:draftOf(qn,tries,reviewDraft)});
+  const apply=(event,focus)=>{const temp={...scholarState,item:item.id,q:d.q,picks:rv.picks};rv.picks=moveScholar(temp,event,scholar).picks;scholarSay=true;keepScroll(render);(focus?.()||$('#scholar-stem'))?.focus({preventScroll:true});};
+  const pick=id=>{const n0=main.querySelectorAll('.scholar-decision').length;apply({type:'answer',index:Number(id)},()=>{const ds=main.querySelectorAll('.scholar-decision'),last=ds[ds.length-1];
+    if(last)return (ds.length>n0?last.querySelector('[data-answer]:not([aria-disabled="true"])'):null)||last.querySelector(`[data-answer="${id}"]`);
+    return main.querySelector(`.scholar-answers [data-answer="${id}"]`);});};
+  main.querySelectorAll('.scholar-answers [data-answer]').forEach(b=>b.onclick=()=>{if(b.getAttribute('aria-disabled')==='true'||b.closest('.scholar-decision.is-done'))return;pick(b.dataset.answer);});
+  { const board=main.querySelector('.scholar-tap:not(.is-done) svg');if(board)board.onclick=e=>{const t=e.target.closest('[data-tap]');if(t&&!t.dataset.tapState)pick(t.dataset.tap);}; }
+  main.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{const dd=[...draftOf(qn,tries,reviewDraft)],i=Number(b.dataset.move),j=i+Number(b.dataset.dir);[dd[i],dd[j]]=[dd[j],dd[i]];reviewDraft.set(qn.id,dd);keepScroll(render);
+    const again=main.querySelector(`[data-move="${j}"][data-dir="${b.dataset.dir}"]`);(again&&!again.disabled?again:main.querySelector(`[data-move="${j}"]:not(:disabled)`))?.focus({preventScroll:true});
+    sayScholar(`${qn.steps[dd[j]].text} Moved to place ${j+1} of ${dd.length}.`);});
+  main.querySelectorAll('.scholar-sort-seg input').forEach(r=>r.onchange=()=>{const dd=[...draftOf(qn,tries,reviewDraft)],i=Number(r.closest('[data-sort]').dataset.sort);dd[i]=Number(r.value);reviewDraft.set(qn.id,dd);keepScroll(render);main.querySelector(`[name="sort-${i}"][value="${r.value}"]`)?.focus({preventScroll:true});});
+  if($('#scholar-check'))$('#scholar-check').onclick=()=>apply({type:'answer',value:draftOf(qn,tries,reviewDraft)},()=>main.querySelector('.scholar-row.is-wrong :is(button:not(:disabled),input)'));
+  if($('#scholar-hint'))$('#scholar-hint').onclick=()=>{reviewHints.add(qn.id);keepScroll(render);$('#scholar-hint-text')?.focus({preventScroll:true});};
+  holdScholarHeights(item,qn);
+  { const say=main.querySelector('.scholar-q [data-say]');if(scholarSay&&say?.dataset.say)setTimeout(()=>{if(say.isConnected)say.textContent=say.dataset.say;},150);scholarSay=false; }
+  const go=k=>{rv.k=k;render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#scholar-review-title'));};
+  if($('#scholar-review-prev'))$('#scholar-review-prev').onclick=()=>go(rv.k-1);
+  if($('#scholar-review-next'))$('#scholar-review-next').onclick=()=>go(rv.k+1);
+  const exit=(say)=>{scholarReview=null;saveScholar(moveScholar(scholarState,{type:'list'},scholar));render();window.scrollTo({top:0,behavior:'instant'});focusHeading(main.querySelector('h1'));if(say)sayList(say);};
+  if($('#scholar-review-end'))$('#scholar-review-end').onclick=()=>{const right_=rv.deck.filter(x=>{const it=itemById(scholar,x.item),q=it.questions[x.q];return right(q,rv.picks[pickKey(q)]||[]);}).length;exit(`Review done: ${right_} of ${rv.deck.length} right.`);};
+  $('#scholar-review-exit').onclick=()=>exit('');
+  $('#scholar-review-term').onclick=()=>{scholarReview=null;saveScholar(moveScholar(scholarState,{type:'item',id:item.id},scholar));render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#scholar-term'));};
+}
+// A short line in the term list's status (a finished review's score).
+function sayList(text){setTimeout(()=>{const s=main.querySelector('p.status.count');if(s&&step==='scholar')s.textContent=`${s.textContent} · ${text}`;},150);}
 const picOptions=()=>({index:scholarPic.index,motion:{prev:scholarPic.prev,still:window.matchMedia('(prefers-reduced-motion: reduce)').matches},playing:scholarPlay&&!scholarPic.manual&&scholarOpen.picture!==false});
 // Redraw only the picture (a loop tick or a picture control), keeping focus on the control that had it.
 function mountPicture(item){
@@ -995,9 +1036,12 @@ function openTermPop(button,{phase,ref:seeRef=null,block=blockId}){
   const el=document.createElement('div');el.className='term-pop';el.setAttribute('role','dialog');el.setAttribute('aria-labelledby','term-pop-title');
   // Save beside the close button: the term's flash card in Manual (the owner, 2026-11-16). A glossary-only term has no card.
   const card=content.entry?cardForQuestion(catalogCards(),content.entry.sourceId):null;
+  // Study in Scholar (2.6.0): not during a live exam (the nav hides Scholar there) and not from Scholar itself.
+  const study=content.entry&&!examLive(exam)&&step!=='scholar'?itemForEntry(scholar,content.entry.block,content.entry.id):null;
   const draw=(more=false)=>{
     const save=card?saveButton({id:'term-pop-save',key:cardKey(card),saved:manualHas(cardSets,card)}):'';
-    el.innerHTML=screens.termPopoverHtml(content,{more,docs:glossary.docs,save});
+    el.innerHTML=screens.termPopoverHtml(content,{more,docs:glossary.docs,save,scholar:Boolean(study)});
+    el.querySelector('#term-pop-scholar')?.addEventListener('click',()=>{closeTermPop();openScholar(study.id,null,study.block,pauseStudy,study.part);});
     el.querySelector('#term-pop-close').onclick=closeTermPop;
     if(card)el.querySelector('#term-pop-save').onclick=()=>{const text=toggleManual(card);if(!text)return;el.querySelector('#term-pop-save').focus({preventScroll:true});flashToast(text,el);};
     el.querySelector('#term-pop-more')?.addEventListener('click',()=>{draw(true);el.querySelector('#term-pop-close').focus();});

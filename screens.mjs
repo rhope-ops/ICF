@@ -275,12 +275,15 @@ export function splitSummary(text) {
 // Term popover (desktop) / bottom sheet (phone). content: glossary.popover(). It opens on a short summary, the first sentence
 // of the definition; More expands the rest and the excerpts (the owner, 2026-11-16). save: the Save button for the term's
 // flash card, beside the close button, or ''.
-export function termPopoverHtml(content, {more = false, docs = {}, save = ''} = {}) {
+// scholar (2.6.0, G2 of the Scholar review): the term has a Scholar item, so "Study in Scholar" opens it (one tap from a
+// missed question's key term to its explanation).
+export function termPopoverHtml(content, {more = false, docs = {}, save = '', scholar = false} = {}) {
   const e = content.entry, [summary, rest] = e ? splitSummary(e.short) : ['', ''];
   return `<div class="pop-head"><h2 id="term-pop-title">${escape(content.title)}</h2>${save}<button type="button" class="small" id="term-pop-close" aria-label="Close">✕</button></div>
     ${content.expansion ? `<p class="pop-expansion">${escape(content.expansion)}</p>` : ''}
     ${e ? `${content.expansion ? `<p class="label">${escape(e.term)}</p>` : ''}<p class="pop-summary">${escape(more ? e.short : summary)}</p>${more ? excerptsHtml(e, docs) : rest || e.excerpts.length ? '<button type="button" class="link-button" id="term-pop-more">More</button>' : ''}` : ''}
-    ${content.see.length ? `<p class="pop-see"><span class="label">See</span> ${content.see.map(x => `<button type="button" class="link-button" data-term="${escape(x.id)}">${escape(x.term)}</button>`).join(' · ')}</p>` : ''}`;
+    ${content.see.length ? `<p class="pop-see"><span class="label">See</span> ${content.see.map(x => `<button type="button" class="link-button" data-term="${escape(x.id)}">${escape(x.term)}</button>`).join(' · ')}</p>` : ''}
+    ${scholar ? '<p class="pop-scholar"><button type="button" class="link-button" id="term-pop-scholar" data-tone="scholar">Study in Scholar</button></p>' : ''}`;
 }
 
 // Screen-reader line after an answer: only accepted grading is announced, never another option or rationale.
@@ -292,7 +295,9 @@ export function answerAnnouncement(event, attemptsBefore, session) {
 
 // ---- Scholar (2.2.0) ----
 // Term list of one unit: unit choice (a segmented row), then each term with its summary. done: {itemId: right answers}.
-export function scholarListHtml({block, units, unit, items, done = {}}) {
+// todo (2.6.0, G3): the first term of the unit whose guided questions are not all right, or null; review: show "Review this
+// unit" (G4: the unit's guided questions in a shuffled order, practice only).
+export function scholarListHtml({block, units, unit, items, done = {}, todo = null, review = false}) {
   const seg = units.map(u => `<label><input type="radio" name="scholar-unit" value="${u}" ${u === unit ? 'checked' : ''}>U${u}</label>`).join('');
   const title = escape(block.units.find(u => u.id === unit)?.title || '');
   const row = it => { const n = done[it.id] || 0, all = it.questions.length;
@@ -300,7 +305,9 @@ export function scholarListHtml({block, units, unit, items, done = {}}) {
   return `<div class="page-head"><p class="label">Block ${block.id} · Scholar</p><h1>Scholar</h1></div>
     <section class="panel scholar-units" data-tone="scholar"><fieldset><legend class="label">Unit</legend><div class="seg scholar-unit-seg">${seg}</div></fieldset>
       <div class="step-head"><span class="num">Unit ${unit}</span><h2>${title}</h2></div></section>
-    <p class="status count" role="status">${plural(items.length,'term')}</p>
+    <p class="status count" role="status">${plural(items.length,'term')} · ${items.filter(it => (done[it.id] || 0) === it.questions.length).length} done</p>${todo ? `
+    <div class="actions scholar-todo"><button type="button" id="scholar-todo" class="primary" data-tone="scholar" data-scholar-next="${escape(todo.id)}">${nextLabel(`Study next: ${todo.term}`)}</button></div>` : ''}${review ? `
+    <div class="actions scholar-review-start"><button type="button" id="scholar-review" data-tone="scholar">Review this unit</button></div>` : ''}
     <ul class="scholar-list">${items.map(row).join('')}</ul>
     <div class="navrow actions"><button id="back">${backLabel('Mode')}</button></div>`;
 }
@@ -386,8 +393,37 @@ export function scholarRowProbes(item, qn) {
   return [guidedBody(item, qn, [wrong], wrong).body, guidedBody(item, qn, [qn.key]).body];
 }
 
+// The guided question without its navigation (2.6.0: shared by the term page and the unit review). see: false leaves out
+// "Look again" (the unit review has no reading sections on screen; the takeaway and every why still show).
+function guidedSection(item, qn, g, hint, {see = true} = {}) {
+  const t = typeOf(qn), over = g.over;
+  return `<section class="question-focus" aria-label="Guided question">${TASK_LABEL[t] ? `<p class="label scholar-task">${TASK_LABEL[t]}</p>` : ''}
+      <h2 id="scholar-stem" class="stem" tabindex="-1">${escape(qn.stem)}</h2>
+      ${hint ? `<p class="scholar-hint" id="scholar-hint-text" tabindex="-1"><span class="label">Hint</span> ${escape(qn.hint)}</p>` : ''}</section>
+      ${g.body}
+      <p class="sr-only" role="status" data-say="${escape(g.feedback)}"></p>
+      ${see && g.wrongNow ? `<p class="scholar-see"><span class="label">Look again</span> <button type="button" class="link-button" id="scholar-see" data-see="${escape(qn.see)}">${escape(seeLabel(qn.see, item.picture))}</button></p>` : ''}
+      ${over ? `<p class="scholar-takeaway"><span class="label">Takeaway</span> ${escape(qn.takeaway)}</p>` : ''}
+      <div class="tool-row scholar-tools"><button id="scholar-hint" aria-controls="scholar-stem"${hint || over ? ' disabled' : ''}>${hint ? 'Hint shown' : 'Hint'}</button>${g.check || ''}</div>`;
+}
+
+// Unit review (2.6.0, G4 of the Scholar review): one guided question of a deck mixed across the unit's terms; practice only.
+// deck: [{item, q}]; k: the place in it; tries, hint, draft as on the term page.
+export function scholarReviewHtml({block, unit, item, qn, k, total, tries = [], hint = false, draft = null}) {
+  const g = guidedBody(item, qn, tries, draft), over = g.over;
+  return `<div class="page-head"><p class="label">Block ${block.id} · Scholar · Unit ${unit} review</p><h1 id="scholar-review-title">Review: question ${k + 1} of ${total}</h1></div>
+    <article class="panel scholar-item scholar-review" data-tone="scholar" aria-labelledby="scholar-review-title">
+      <p class="label scholar-review-term">Term · <button type="button" class="link-button" id="scholar-review-term" data-scholar-item="${escape(item.id)}">${escape(item.term)}</button></p>
+      <div class="scholar-q" data-type="${typeOf(qn)}">${guidedSection(item, qn, g, hint, {see: false})}
+      <div class="navrow actions scholar-q-nav">${k > 0 ? `<button id="scholar-review-prev">${backLabel('Previous question')}</button>` : ''}${k < total - 1 ? `<button id="scholar-review-next"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Next question')}</button>` : `<button id="scholar-review-end"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Finish review')}</button>`}</div></div>
+    </article>
+    <div class="navrow actions scholar-nav"><button id="scholar-review-exit">${backLabel('All terms')}</button></div>`;
+}
+
 // started: some guided question of this term has a pick (the Reset questions link shows).
-export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, done, back = '', pic = {}, open = {}, draft = null, started = false}) {
+// related (2.6.0, G5): the glossary's related terms [{id, term, item, part}]; item (a Scholar item id) opens that term in
+// Scholar, else the term opens its glossary pop-up.
+export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, done, back = '', pic = {}, open = {}, draft = null, started = false, related = []}) {
   const qn = item.questions[q], n = item.questions.length, t = typeOf(qn);
   const section = (kind, label, body) => `<details class="scholar-drop" data-section="${kind}"${open[kind] === false ? '' : ' open'}><summary><span class="label">${label}</span></summary><div class="scholar-drop-body">${body}</div></details>`;
   // A blank line starts a new paragraph (2.5.3: an umbrella's Deeper has one paragraph per covered term).
@@ -395,14 +431,7 @@ export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, 
   const g = guidedBody(item, qn, tries, draft), over = g.over;
   // One counter (2.3.0 polish): the section title says "Guided question N of M"; the sheet shows only the task type of a
   // hands-on question. The tiles show Correct / Incorrect; the status line is for screen readers only.
-  const quiz = `<div class="scholar-q" data-type="${t}"><section class="question-focus" aria-label="Guided question">${TASK_LABEL[t] ? `<p class="label scholar-task">${TASK_LABEL[t]}</p>` : ''}
-      <h2 id="scholar-stem" class="stem" tabindex="-1">${escape(qn.stem)}</h2>
-      ${hint ? `<p class="scholar-hint" id="scholar-hint-text" tabindex="-1"><span class="label">Hint</span> ${escape(qn.hint)}</p>` : ''}</section>
-      ${g.body}
-      <p class="sr-only" role="status" data-say="${escape(g.feedback)}"></p>
-      ${g.wrongNow ? `<p class="scholar-see"><span class="label">Look again</span> <button type="button" class="link-button" id="scholar-see" data-see="${escape(qn.see)}">${escape(seeLabel(qn.see, item.picture))}</button></p>` : ''}
-      ${over ? `<p class="scholar-takeaway"><span class="label">Takeaway</span> ${escape(qn.takeaway)}</p>` : ''}
-      <div class="tool-row scholar-tools"><button id="scholar-hint" aria-controls="scholar-stem"${hint || over ? ' disabled' : ''}>${hint ? 'Hint shown' : 'Hint'}</button>${g.check || ''}</div>
+  const quiz = `<div class="scholar-q" data-type="${t}">${guidedSection(item, qn, g, hint)}
       <div class="navrow actions scholar-q-nav">${q > 0 ? `<button id="scholar-prev-q">${backLabel('Previous question')}</button>` : ''}${q < n - 1 ? `<button id="scholar-next-q"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Next question')}</button>` : ''}</div>
       ${started ? '<p class="scholar-reset"><button type="button" class="link-button" id="scholar-reset">Reset this term\'s questions</button></p>' : ''}</div>`;
   // Term nav (the owner, 2026-11-16): Next term always at the right; All terms takes Previous term's place on the first
@@ -412,7 +441,8 @@ export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, 
   return `<div class="page-head"><p class="label">Block ${block.id} · Scholar · Unit ${item.unit}</p><h1 id="scholar-term">${escape(item.term)}</h1></div>
     <article class="panel scholar-item" data-tone="scholar" aria-labelledby="scholar-term">
       <p class="scholar-summary">${escape(item.summary)}</p>${item.covers ? `
-      <p class="scholar-also"><span class="label">Also covers</span> ${item.covers.map(c => `<button type="button" class="link-button" data-see="picture:${c.part}">${escape(c.term)}</button>`).join(' · ')}</p>` : ''}
+      <p class="scholar-also"><span class="label">Also covers</span> ${item.covers.map(c => `<button type="button" class="link-button" data-see="picture:${c.part}">${escape(c.term)}</button>`).join(' · ')}</p>` : ''}${related.length ? `
+      <p class="scholar-related"><span class="label">Related</span> ${related.map(r => r.item ? `<button type="button" class="link-button" data-scholar-item="${escape(r.item)}"${Number.isInteger(r.part) ? ` data-part="${r.part}"` : ''}>${escape(r.term)}</button>` : `<button type="button" class="link-button term-link" data-term="${escape(r.id)}" aria-haspopup="dialog">${escape(r.term)}</button>`).join(' · ')}</p>` : ''}
       <div class="scholar-accordion">${item.picture ? section('picture', `Picture · ${item.picture.kind === 'steps' ? 'step through' : 'tap a part'}`, pictureHtml(item.picture, pic.index ?? 0, pic)) : ''}${section('deeper', 'Deeper explanation', text(item.deeper))}${section('analogy', 'Analogy', text(item.analogy))}${section('scenario', 'Sample scenario', text(item.scenario))}${section('example', 'Everyday example', exampleHtml(item.example))}${section('questions', `Guided question ${q + 1} of ${n}`, quiz)}</div></article>
     <div class="navrow actions scholar-nav">${first}${nav.next ? `<button id="scholar-next" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.next.id)}">${nextLabel('Next term')}</button>` : ''}${second}</div>`;
 }

@@ -250,3 +250,10 @@ export function contextTarget({ quiz, scholar, last, here }) {
   const order = last === 'scholar' ? ['scholar', 'quiz'] : ['quiz', 'scholar'];
   return order.find(k => open[k] && here !== k) || null;
 }
+
+// Unit review deck (2.6.0, G4 of the Scholar review: interleaved practice): up to n questions, at most one per term, terms
+// and questions drawn at random (rnd: a function returning [0, 1)). Practice only: its picks are not saved.
+export function reviewDeck(items, n = 10, rnd = Math.random) {
+  const pool = items.filter(it => it.questions?.length).map(it => ({ it, r: rnd() })).sort((a, b) => a.r - b.r).slice(0, n);
+  return pool.map(({ it }) => ({ item: it.id, q: Math.floor(rnd() * it.questions.length) }));
+}

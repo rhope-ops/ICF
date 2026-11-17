@@ -9,17 +9,27 @@ import { escape, ICON } from './presentation.mjs';
 export const VIEW = { w: 400, h: 240 };
 // Drawn shapes (icons). The shape kit of 2.5.3 (the owner, 2026-11-17: "this is the foundation for the other blocks") adds
 // people, documents and objects, so a picture can show who does what to what, not only network gear.
-const ICONS = ['pc', 'switch', 'router', 'server', 'person', 'doc', 'lock', 'alert', 'envelope', 'shield', 'cloud', 'clock'];
-const NODE_TYPES = [...ICONS, 'frame', 'text', 'panel'];
-const LINK_KINDS = ['trunk', 'access', 'plain'];
+// The picture kit addition (Scholar spec review 2026-11-17, section C: 753 course terms sorted by kind) adds the hardware and place
+// shapes most named by the terms the kit could not draw (building, disk, chip), a cable link, a layer stack (ranked or
+// layered bands) and a timeline (an axis with marks). A stack or timeline, like a panel or frame, is not a drawn shape.
+const ICONS = ['pc', 'switch', 'router', 'server', 'person', 'doc', 'lock', 'alert', 'envelope', 'shield', 'cloud', 'clock', 'building', 'disk', 'chip'];
+const NODE_TYPES = [...ICONS, 'frame', 'text', 'panel', 'stack', 'timeline'];
+const LINK_KINDS = ['trunk', 'access', 'plain', 'cable'];
+// Boxes (not icons): links meet their edges and no label is cleared under them.
+const BOXES = ['frame', 'panel', 'stack', 'timeline'];
+export const BAND_H = 22;
+// Each band of a stack and each mark of a timeline is a target (<node>.<id>), like frame segments and panel lines.
+const subs = n => [...(n.segments || []), ...(n.lines || []), ...(n.layers || []), ...(n.marks || [])];
+const subList = (list, max = 8) => Array.isArray(list) && list.length >= 2 && list.length <= max && list.every(x => isObj(x) && isText(x.id) && isText(x.label)) && new Set(list.map(x => x.id)).size === list.length;
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isText = v => typeof v === 'string' && v.trim() !== '';
 const inView = (x, y) => Number.isFinite(x) && Number.isFinite(y) && x >= 0 && x <= VIEW.w && y >= 0 && y <= VIEW.h;
 
-// Every id a step or part may name: nodes, links, groups, frame segments (<node>.<seg>) and panel lines (<node>.<line>).
+// Every id a step or part may name: nodes, links, groups, frame segments (<node>.<seg>), panel lines (<node>.<line>), stack
+// bands (<node>.<layer>) and timeline marks (<node>.<mark>).
 export function targetIds(p) {
   const ids = new Set();
-  for (const n of p.scene.nodes) { ids.add(n.id); for (const s of n.segments || []) if (s.id) ids.add(`${n.id}.${s.id}`); for (const l of n.lines || []) if (l.id) ids.add(`${n.id}.${l.id}`); }
+  for (const n of p.scene.nodes) { ids.add(n.id); for (const s of subs(n)) if (s?.id) ids.add(`${n.id}.${s.id}`); }
   for (const l of p.scene.links || []) ids.add(l.id);
   for (const g of p.scene.groups || []) ids.add(g.id);
   return ids;
@@ -36,6 +46,9 @@ export function pictureProblem(p) {
     // a fixed-width one, so columns are placed, not padded with spaces).
     if (n.type === 'panel' && !(Array.isArray(n.cols) && n.cols.every(Number.isFinite) && Array.isArray(n.lines) && n.lines.length && n.lines.every(l => isObj(l) && Array.isArray(l.cells) && l.cells.length <= n.cols.length && l.cells.every(c => typeof c === 'string')) && Number.isFinite(n.w) && inView(n.x + n.w, n.y + 14 * n.lines.length + 10))) return `panel ${n.id}`;
     if (n.type === 'frame' && !inView(n.x + n.segments.reduce((a, s) => a + s.w, 0), n.y)) return `frame ${n.id} width`;
+    // Stack: bands top to bottom (the first is the top rank or layer); timeline: marks left to right, evenly spaced.
+    if (n.type === 'stack' && !(subList(n.layers) && Number.isFinite(n.w) && n.w > 0 && inView(n.x + n.w, n.y + BAND_H * n.layers.length) && (!isText(n.label) || n.y >= 16))) return `stack ${n.id}`;  // its label sits above the bands
+    if (n.type === 'timeline' && !(subList(n.marks) && Number.isFinite(n.w) && n.w > 0 && inView(n.x + n.w, n.y + 24) && n.label === undefined && n.marks.every(m => textW(m.label) <= n.w / n.marks.length + 8))) return `timeline ${n.id}`;  // no undrawn label; mark labels fit their spacing
     ids.add(n.id);
   }
   for (const l of p.scene.links || []) if (!isObj(l) || !isText(l.id) || ids.has(l.id) || !ids.has(l.from) || !ids.has(l.to) || !LINK_KINDS.includes(l.kind) || (l.labelAt !== undefined && !(l.labelAt >= 0 && l.labelAt <= 1))) return `link ${l?.id}`; else ids.add(l.id);
@@ -62,12 +75,14 @@ export function pictureProblem(p) {
 
 // ---- Drawing ----
 const SIZE = { pc: [30, 30], switch: [60, 20], router: [30, 30], server: [24, 34], text: [0, 0], person: [26, 30], doc: [22, 28], lock: [22, 28],
-  alert: [30, 26], envelope: [30, 20], shield: [24, 30], cloud: [34, 22], clock: [28, 28] };
+  alert: [30, 26], envelope: [30, 20], shield: [24, 30], cloud: [34, 22], clock: [28, 28], building: [32, 32], disk: [28, 30], chip: [30, 30] };
 // Label width estimate: capitals are wider (COMSEC overflowed its group box on phones; 2.5.3 sweep).
 const textW = t => [...(t || '')].reduce((a, c) => a + (/[A-Z0-9]/.test(c) ? 8 : 6.5), 0);
 const box = n => n.type === 'text' ? { x: n.x - textW(n.label) / 2, y: n.y - 12, w: textW(n.label), h: 16 }
   : n.type === 'frame' ? { x: n.x, y: n.y, w: n.segments.reduce((a, s) => a + s.w, 0), h: 22 }
   : n.type === 'panel' ? { x: n.x, y: n.y, w: n.w, h: 14 * n.lines.length + 10 }
+  : n.type === 'stack' ? { x: n.x, y: n.y, w: n.w, h: BAND_H * n.layers.length }
+  : n.type === 'timeline' ? { x: n.x, y: n.y - 6, w: n.w, h: 28 }
   : { x: n.x - SIZE[n.type][0] / 2, y: n.y - SIZE[n.type][1] / 2, w: SIZE[n.type][0], h: SIZE[n.type][1] };
 const centre = n => { const b = box(n); return [b.x + b.w / 2, b.y + b.h / 2]; };
 // st: {on, off, fresh}: lit, hidden, and lit now but not in the previous state (fresh parts fade in; animation 2.2.0).
@@ -87,6 +102,11 @@ function icon(n) {
   if (n.type === 'envelope') return `<rect class="pic-shape" x="${x - 15}" y="${y - 10}" width="30" height="20" rx="2"/><path class="pic-line" d="M${x - 15} ${y - 9}l15 11 15-11"/>`;
   if (n.type === 'shield') return `<path class="pic-shape" d="M${x} ${y - 15}l12 5v8c0 9-5 14-12 17c-7-3-12-8-12-17v-8z"/><path class="pic-line" d="M${x - 5} ${y}l4 4 7-8"/>`;
   if (n.type === 'cloud') return `<path class="pic-shape" d="M${x - 10} ${y + 10}a7 7 0 0 1-1-14a9 9 0 0 1 17-4a7 7 0 0 1 7 9a5 5 0 0 1-1 9z"/>`;
+  // building: a roof line over a wall with a door and two windows; disk: a drive cylinder with a platter line; chip: a square
+  // with three pins on each side.
+  if (n.type === 'building') return `<path class="pic-shape" d="M${x - 16} ${y - 3}L${x} ${y - 16}L${x + 16} ${y - 3}z" stroke-linejoin="round"/><rect class="pic-shape" x="${x - 13}" y="${y - 3}" width="26" height="19"/><path class="pic-line" d="M${x - 3} ${y + 16}v-8h6v8"/><rect class="pic-line" x="${x - 10}" y="${y + 1}" width="5" height="5"/><rect class="pic-line" x="${x + 5}" y="${y + 1}" width="5" height="5"/>`;
+  if (n.type === 'disk') return `<path class="pic-shape" d="M${x - 13} ${y - 10}v20a13 5 0 0 0 26 0v-20a13 5 0 0 0-26 0z"/><path class="pic-line" d="M${x - 13} ${y - 10}a13 5 0 0 0 26 0M${x - 13} ${y}a13 5 0 0 0 26 0"/>`;
+  if (n.type === 'chip') return `<rect class="pic-shape" x="${x - 10}" y="${y - 10}" width="20" height="20" rx="2"/><path class="pic-line" d="${[-6, 0, 6].map(d => `M${x + d} ${y - 11}v-4M${x + d} ${y + 11}v4M${x - 11} ${y + d}h-4M${x + 11} ${y + d}h4`).join('')}"/><circle class="pic-line" cx="${x - 5}" cy="${y - 5}" r="1.5"/>`;
   if (n.type === 'clock') return `<circle class="pic-shape" cx="${x}" cy="${y}" r="13"/><path class="pic-line" d="M${x} ${y - 8}v8l6 4"/>`;
   return '';
 }
@@ -102,6 +122,14 @@ function nodeSvg(n, st) {
     const lines = n.lines.map((l, i) => { const id = l.id ? `${n.id}.${l.id}` : ''; return `<g class="pic-row${id ? cls(id, st) : ''}"${id ? ` data-pic-id="${escape(id)}"` : ''}><rect class="pic-row-bg" x="${n.x + 2}" y="${n.y + 4 + 14 * i}" width="${n.w - 4}" height="14"/>${l.cells.map((c, k) => c ? `<text class="pic-mono${l.head ? ' pic-head' : ''}" x="${n.x + 6 + n.cols[k]}" y="${n.y + 15 + 14 * i}">${escape(c)}</text>` : '').join('')}</g>`; }).join('');
     return `<g class="pic-node pic-panel${cls(n.id, st)}" data-pic-id="${escape(n.id)}"><rect class="pic-shape" x="${n.x}" y="${n.y}" width="${n.w}" height="${14 * n.lines.length + 10}" rx="4"/>${lines}</g>`;
   }
+  if (n.type === 'stack') {
+    const bands = n.layers.map((l, i) => { const id = `${n.id}.${l.id}`, y = n.y + BAND_H * i; return `<g class="pic-band${cls(id, st)}" data-pic-id="${escape(id)}"><rect class="pic-shape" x="${n.x}" y="${y}" width="${n.w}" height="${BAND_H}"/>${label(n.x + n.w / 2, y + 15, l.label, ' pic-small')}</g>`; }).join('');
+    return `<g class="pic-node pic-stack${cls(n.id, st)}" data-pic-id="${escape(n.id)}">${bands}${label(n.x + n.w / 2, n.y - 6, n.label, ' pic-small')}</g>`;
+  }
+  if (n.type === 'timeline') {
+    const k = n.marks.length, marks = n.marks.map((m, i) => { const id = `${n.id}.${m.id}`, x = n.x + n.w * (i + 0.5) / k; return `<g class="pic-mark${cls(id, st)}" data-pic-id="${escape(id)}"><circle class="pic-shape" cx="${x}" cy="${n.y}" r="4.5"/>${label(x, n.y + 19, m.label, ' pic-small')}</g>`; }).join('');
+    return `<g class="pic-node pic-timeline${cls(n.id, st)}" data-pic-id="${escape(n.id)}"><path class="pic-line" d="M${n.x} ${n.y}h${n.w}m-6 -4l6 4-6 4"/>${marks}</g>`;
+  }
   const b = box(n);
   return `<g class="pic-node${cls(n.id, st)}" data-pic-id="${escape(n.id)}">${icon(n)}${label(n.x, b.y + b.h + 12, n.label)}</g>`;
 }
@@ -113,7 +141,7 @@ function nodeSvg(n, st) {
 function edge(n, [x, y], [tx, ty], clear = true) {
   const b = box(n), dx = tx - x, dy = ty - y;
   let t = Math.min(1, dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity);
-  if (clear && n.label && !['frame', 'panel', 'text'].includes(n.type)) {
+  if (clear && n.label && ![...BOXES, 'text'].includes(n.type)) {
     const w = textW(n.label) * 0.62 + 2, top = b.y + b.h, bottom = top + 18;  // labels render up to ~1.2x wider on phones
     const tx0 = dx ? ((n.x - w) - x) / dx : -Infinity, tx1 = dx ? ((n.x + w) - x) / dx : Infinity;
     const ty0 = dy ? (top - y) / dy : -Infinity, ty1 = dy ? (bottom - y) / dy : Infinity;
@@ -127,12 +155,16 @@ function linkSvg(l, nodes, st) {
   let [x1, y1] = edge(a, ca, cz), [x2, y2] = edge(z, cz, ca);
   // When clearing the labels would make the two ends meet or cross (a target inside the label band), use the icon edges.
   if ((x2 - x1) * (cz[0] - ca[0]) + (y2 - y1) * (cz[1] - ca[1]) <= 0) [[x1, y1], [x2, y2]] = [edge(a, ca, cz, false), edge(z, cz, ca, false)];
-  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${l.label ? label(x1 + (x2 - x1) * (l.labelAt ?? 0.5), y1 + (y2 - y1) * (l.labelAt ?? 0.5) - (l.kind === 'trunk' ? 16 : 7), l.label, ' pic-small') : ''}</g>`;
+  // A cable is a thick line with a plug (a short wide bar along the line) at each end.
+  const len = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / len * 7, uy = (y2 - y1) / len * 7;
+  const plugs = l.kind === 'cable' ? `<line class="pic-plug" x1="${x1}" y1="${y1}" x2="${x1 + ux}" y2="${y1 + uy}"/><line class="pic-plug" x1="${x2}" y1="${y2}" x2="${x2 - ux}" y2="${y2 - uy}"/>` : '';
+  const lift = l.kind === 'trunk' ? 16 : l.kind === 'cable' ? 10 : 7;
+  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${plugs}${l.label ? label(x1 + (x2 - x1) * (l.labelAt ?? 0.5), y1 + (y2 - y1) * (l.labelAt ?? 0.5) - lift, l.label, ' pic-small') : ''}</g>`;
 }
 
 function groupSvg(g, nodes, st, i) {
   // The box holds each member's icon and its label (textW; 5.5 px per character let a label touch the box, 2.5.3).
-  const bs = g.members.map(id => nodes.get(id)).filter(Boolean).map(n => { const b = box(n), lw = textW(n.label); return lw > b.w && !['frame', 'panel'].includes(n.type) ? { ...b, x: n.x - lw / 2, w: lw } : b; });
+  const bs = g.members.map(id => nodes.get(id)).filter(Boolean).map(n => { const b = box(n), lw = textW(n.label); return lw > b.w && !BOXES.includes(n.type) ? { ...b, x: n.x - lw / 2, w: lw } : b; });
   const x = Math.min(...bs.map(b => b.x)) - 10, y = Math.min(...bs.map(b => b.y)) - 18, r = Math.max(...bs.map(b => b.x + b.w)) + 10, bt = Math.max(...bs.map(b => b.y + b.h)) + 22;
   return `<g class="pic-group pic-group-${i % 3}${cls(g.id, st)}" data-pic-id="${escape(g.id)}"><rect x="${x}" y="${y}" width="${r - x}" height="${bt - y}" rx="8"/><text class="pic-label pic-small pic-group-label" x="${x + 6}" y="${y + 11}">${escape(g.label)}</text></g>`;
 }
@@ -182,7 +214,7 @@ export function pictureHtml(p, index = 0, { motion = {}, playing = false } = {})
 }
 
 // ---- Tap board (2.3.0, the owner 2026-11-16: "tap the picture") ----
-// The ids an answer's at names: a node, link, group, segment or panel line, or part:<n> (the ids that part lights).
+// The ids an answer's at names: a node, link, group, segment, panel line, stack band or timeline mark, or part:<n> (the ids that part lights).
 // A group also covers its members, so a tap on a computer inside a VLAN box answers with that box (fresh review 2026-11-16).
 export const tapIds = (p, at) => /^part:\d+$/.test(at) ? (p.parts?.[Number(at.slice(5))]?.light || [])
   : [at, ...((p.scene.groups || []).find(g => g.id === at)?.members || [])];

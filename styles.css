@@ -554,6 +554,8 @@ dialog .dialog-head h2{font-size:1.75rem}
   & .pic-link line{stroke:var(--muted);stroke-width:2}
   & .pic-trunk line{stroke:var(--ink);stroke-width:6}& .pic-trunk .pic-trunk-core{stroke:var(--paper);stroke-width:2}
   & .pic-plain line{stroke-dasharray:4 3}
+  & .pic-cable line{stroke:var(--ink);stroke-width:4}& .pic-cable .pic-plug{stroke-width:9;stroke-linecap:butt}
+  & .pic-band .pic-shape{fill:var(--sheet)}& .pic-band.is-on .pic-shape{fill:var(--scholar-soft)}& .pic-mark.is-on .pic-shape{fill:var(--scholar)}
   & .pic-group rect{fill:var(--scholar-soft);stroke:var(--scholar);stroke-width:1.2}
   & .pic-group-1 rect{stroke-dasharray:6 3}& .pic-group-2 rect{stroke-dasharray:2 3}
   & .pic-group-label{fill:var(--scholar)}
@@ -561,7 +563,8 @@ dialog .dialog-head h2{font-size:1.75rem}
   & .pic-packet rect{fill:var(--scholar);stroke:none}& .pic-packet-text{fill:var(--blue-ink)}
   & .is-on :is(.pic-shape,line,rect){stroke:var(--scholar);stroke-width:3}& .is-on .pic-row-bg{fill:var(--scholar-soft);stroke:none}
   & .is-on.pic-trunk .pic-trunk-core{stroke:var(--paper);stroke-width:2}
-  &.has-light :is(.pic-node,.pic-link,.pic-group,.pic-row,.pic-seg):not(.is-on):not(:has(.is-on)){opacity:.4}
+  & .is-on.pic-cable line{stroke-width:5}& .is-on.pic-cable .pic-plug{stroke-width:10}
+  &.has-light :is(.pic-node,.pic-link,.pic-group,.pic-row,.pic-seg,.pic-band,.pic-mark):not(.is-on):not(:has(.is-on)){opacity:.4}
   & .is-off{display:none}
   /* Animation (the owner, 2026-11-16, "1 a"): parts lit by this step fade in; the global reduced-motion rule stops it. */
   & .is-new{animation:pic-in .25s ease-out}
@@ -580,6 +583,12 @@ dialog .dialog-head h2{font-size:1.75rem}
 @media (min-width:561px){.pic-parts{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
 .scholar-also{margin:0;color:var(--muted);& .label{color:var(--scholar);margin-right:4px}& .link-button{font-weight:600}}
 .scholar-list .scholar-also{display:block;font-size:var(--t2);font-weight:600}
+/* 2.6.0 (Scholar review G2-G5): related terms, Study in Scholar, next term, unit review */
+.scholar-related{margin:0;color:var(--muted);& .label{color:var(--scholar);margin-right:4px}& .link-button{font-weight:600;min-height:24px;padding:2px 0}}
+.pop-scholar{margin:8px 0 0;& .link-button{color:var(--scholar);font-weight:700;min-height:44px}}
+.scholar-todo,.scholar-review-start{margin:0 0 8px;display:flex;& button{flex:1 1 auto;max-width:100%;white-space:normal;line-height:1.2;min-height:48px}}
+.scholar-review-start button{border-color:var(--scholar);color:var(--scholar)}
+.scholar-review-term{margin:0 0 4px;& .link-button{color:var(--scholar);min-height:24px;padding:2px 0;text-transform:none;letter-spacing:0}}
 .pic-captions{display:grid;& >.pic-caption{grid-area:1/1;visibility:hidden;line-height:1.45}& >.is-now{visibility:visible}}
 }
 @keyframes pic-in{from{opacity:.35}}
