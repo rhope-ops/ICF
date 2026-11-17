@@ -37,6 +37,14 @@ const ICON_STROKE = 'fill="none" stroke="currentColor" stroke-width="2.25" strok
 export const ICON = {
   back: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M14.5 8H2M7.5 2.5 2 8l5.5 5.5" ${ICON_STROKE}/></svg>`,
   next: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M1.5 8H14M8.5 2.5 14 8l-5.5 5.5" ${ICON_STROKE}/></svg>`,
+  // Swap (the owner, 2026-11-16): a right arrow over a left arrow, before "Quiz" / "Scholar" on the nav context button.
+  swap: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M2 4.75H14M11 1.75 14 4.75 11 7.75M14 11.25H2M5 8.25 2 11.25 5 14.25" ${ICON_STROKE}/></svg>`,
+  // Play / pause of the Scholar picture loop (the owner, 2026-11-16): Flag-sized button, filled triangle or two bars.
+  play: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M6.5 4.5v11l9-5.5Z" ${ICON_STROKE}/></svg>`,
+  pause: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M7 4.5v11M13 4.5v11" ${ICON_STROKE}/></svg>`,
+  // Rewind / forward of a Scholar picture (the owner, 2026-11-16): two triangles, as on a media player.
+  rewind: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 5 4 10l6 5ZM16.5 5l-6 5 6 5Z" ${ICON_STROKE}/></svg>`,
+  forward: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 5l6 5-6 5ZM3.5 5l6 5-6 5Z" ${ICON_STROKE}/></svg>`,
   retry: `<svg class="ico" viewBox="1 0.2 14 14" aria-hidden="true" focusable="false"><path d="M12.6 5.4A5.3 5.3 0 1 1 8 2.8M6.2 1 8.2 2.8 6.2 4.6" ${ICON_STROKE}/></svg>`,
   flag: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path class="flag-cloth" d="M5 3.5 16 7.75 5 12Z" ${ICON_STROKE}/><path d="M5 2.5V17.5" ${ICON_STROKE}/></svg>`,
   // Floppy disk: the body fills when pressed (as the flag cloth); shutter and label then show in the sheet colour.

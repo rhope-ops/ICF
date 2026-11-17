@@ -1,13 +1,15 @@
 import { previewCards, startCards, moveCards, restoreCardSets, removeSavedCard, cardsInSet, ALL_BLOCKS, setsBlockValue, cardKey, MANUAL_ID, MISSED_ID, questionSaveBox, writeSetCard, manualHas, setHasCard, addCardToSet, cardForQuestion } from './flashcards.mjs';
 import { restoreStats, inspectStats, recordSession, prioritize, studyScores, toPoolKind, POOL_KINDS } from './analytics.mjs';
 import { EXAM, blueprint, standardPool, formsFor, formStatus, countExam, restoreCycles, startExam, examEvent, examLive, examCounts, examResults, examSession, withStudySnapshot, historyEntry, addHistory, restoreHistory, restoreExam, settleExam, remainingMs, REVIEW_FILTERS } from './exam.mjs';
-import { escape, toolsMenu, assistanceTimer, poolShortfall, answersHtml, saveButton, sourceRow, flagButton, sourceVisible } from './presentation.mjs';
+import { ICON, escape, toolsMenu, assistanceTimer, poolShortfall, answersHtml, saveButton, sourceRow, flagButton, sourceVisible } from './presentation.mjs';
 import { APP_VERSION, diagnosticReport } from './diagnostics.mjs';
 import { eligible, sample, shuffle, start, transition, questionsForMode } from './engine.mjs';
 import { restoreUnderstanding, markMissed, assessUnderstanding, understandingRecord, notUnderstoodQuestions, sessionMissedIds, newMissedIds, reviewIds, restoreReview } from './learning.mjs';
 import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview } from './storage.mjs';
 import * as screens from './screens.mjs';
 import { restoreGlossary, entryForCard, stemLinks, popover, keyTerms, searchEntries, restoreBookmarks } from './glossary.mjs';
+import { restoreScholar, restoreScholarState, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right } from './scholar.mjs';
+import { pictureHtml } from './pictures.mjs';
 const $ = s => document.querySelector(s);
 const main = $('#main'), dialog = $('#dialog');
 let local;
@@ -18,9 +20,11 @@ function notice(message) { $('#storage-notice').textContent = message || ''; }
 // Write one saved value. A failed write shows the storage notice and returns false; success leaves other notices in place.
 function persist(key, value) { const error = store.write(key, value); if (error) notice(error); return !error; }
 let theme=window.icfTheme.choice;
-const themeSwitch=document.querySelector('#theme-switch');
-const syncThemeSwitch=()=>themeSwitch?.setAttribute('aria-checked',String(document.documentElement.dataset.theme==='dark'));
-if(themeSwitch){syncThemeSwitch();themeSwitch.onclick=()=>{theme=document.documentElement.dataset.theme==='dark'?'light':'dark';window.icfTheme.set(theme);syncThemeSwitch();persist('theme',theme);};
+// Dark theme switch: a row of the gear menu since 2.2.0 (the owner, 2026-11-16: "integrate the light/dark toggle into the
+// settings screen"; it was a header switch).
+const themeSwitch=document.querySelector('#settings-dark');
+const syncThemeSwitch=()=>{if(themeSwitch)themeSwitch.checked=document.documentElement.dataset.theme==='dark';};
+if(themeSwitch){syncThemeSwitch();themeSwitch.onchange=()=>{theme=themeSwitch.checked?'dark':'light';window.icfTheme.set(theme);syncThemeSwitch();persist('theme',theme);};
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>setTimeout(syncThemeSwitch));}
 let pinQuestion=savedBoolean(read('pinQuestion',true),true);
 document.documentElement.dataset.pinQuestion=String(pinQuestion);
@@ -45,6 +49,24 @@ poolKind=toPoolKind(read('poolKind',null),read('smart',false));
 let examNavOpen=false;
 let glossary=null,glossQuery='',glossUnit=0,glossEntry=null,termPop=null,glossGroup='unit',glossReturn=null;
 let targetedPoolSize='all';
+// Scholar (2.2.0; scholar.json, loaded at start; the app works without it). scholarState: the saved place (icf:scholar).
+// scholarReturn: {to:'glossary', entry} or {to:'flash-card'} when an item was opened from there (a way back).
+// lastPlace: 'quiz' | 'scholar', the one the user was in last (the nav context button).
+let scholar=null,scholarState=null,scholarReturn=null,lastPlace=null;
+// The term picture's step or chosen part, for the term on screen only (not saved).
+// prev: the state before the last picture move, so that one render animates (then null: other re-renders do not replay it).
+let scholarPic={item:null,index:0,prev:null};
+// The picture is open or collapsed for every term until the page closes (not saved).
+// Open or closed term-page sections (picture, deeper, analogy, scenario, example, questions), until the page closes.
+let scholarOpen={};
+// Guided-question hints shown (question ids), until the page closes; a hint is help, not a score.
+const scholarHints=new Set();
+// Set by a pick, so that the next render announces the answer line once.
+let scholarSay=false;
+// Picture loop (the owner, 2026-11-16: "animations automatically loop with a small button to cancel it"): on unless the
+// reader paused it with the button (kept for every term until the page closes) or asked for reduced motion. A manual step
+// or part pauses only the term on screen (scholarPic.manual). PIC_MS per step.
+let scholarPlay=!window.matchMedia('(prefers-reduced-motion: reduce)').matches,picTimer=null;const PIC_MS=4000;
 let flashPreview = null, flashSetId = null, flashMessage = '', cardSets;
 // Card source on setup, Saved-sets screen state and Dynamic Flash Cards.
 let pickSetId = null, setsReturn = 'blocks', pendingCard = null, cardCatalog = null;
@@ -319,7 +341,7 @@ function resetLocalData() {
   theme=window.icfTheme.defaultChoice;window.icfTheme.set(theme);syncThemeSwitch();
   pinQuestion=true;document.documentElement.dataset.pinQuestion='true';$('#settings-pin-question').checked=true;
   profile={nickname:'',visited:false};flags={};session=null;understanding={};stats=restoreStats(null);poolKind='random';missedReview=null;modalWasRunning=false;
-  cardSets=restoreCardSets();flashPreview=null;flashSetId=null;flashMessage='';dynamicCards=true;pickSetId=null;pendingCard=null;glossReturn=null;glossEntry=null;glossQuery='';glossUnit=0;closeTermPop();
+  cardSets=restoreCardSets();flashPreview=null;flashSetId=null;flashMessage='';dynamicCards=true;pickSetId=null;pendingCard=null;glossReturn=null;glossEntry=null;glossQuery='';glossUnit=0;closeTermPop();scholarState=null;scholarReturn=null;lastPlace=null;
   exam=null;examHistory=[];examCycles={schema:1,blocks:{}};lastBlock=null;examFilter='missed';resultsKind='study';
   navigate('welcome');
 }
@@ -346,7 +368,7 @@ function chooseBlock(id, next = 'units') {
 // Nav bar: Blocks · Mode · Study · Results. Unavailable items stay visible and disabled. Study is one link for Questions,
 // Cards and Glossary: it opens the one used last. A lit item on a sub-screen (a setup, Saved card sets, Previous
 // Attempts) opens its section's main screen (1.2.2); only on the main screen itself does a tap do nothing.
-const SCREEN_OF={blocks:'blocks','saved-card-sets':'blocks',units:'units','not-understood-setup':'units',mode:'units','cards-setup':'units','exam-setup':'units',exam:'units',glossary:'study',study:'study','flash-card':'study','missed-review':'results',results:'results','exam-results':'results','previous-attempts':'results'};
+const SCREEN_OF={blocks:'blocks','saved-card-sets':'blocks',units:'units','not-understood-setup':'units',mode:'units','cards-setup':'units','exam-setup':'units',exam:'units',scholar:'units',glossary:'study',study:'study','flash-card':'study','missed-review':'results',results:'results','exam-results':'results','previous-attempts':'results'};
 // Saved card sets belongs to the section it was opened from (Blocks, or Mode through the Cards setup).
 const sectionOf = at => at === 'saved-card-sets' ? (setsReturn === 'units' ? 'units' : 'blocks') : SCREEN_OF[at];
 const MAIN_SCREEN = {blocks:['blocks'], units:['units'], results:['results','exam-results']};
@@ -364,7 +386,18 @@ function syncScreens() {
     if (here) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
     link.setAttribute('aria-disabled',String(!open));link.title=open?'':({study:'Choose Questions, Cards or Glossary in Mode',results:'No finished session'})[id]||'';
   });
+  // Context button (the owner, 2026-11-16): Resume Quiz / Resume Scholar, whichever was left last.
+  const ctx=$('#context-link');if(!ctx)return;
+  const to=contextTarget({quiz:sessionOpen(),scholar:Boolean(scholar&&scholarState),last:lastPlace,here:step==='study'?'quiz':step==='scholar'?'scholar':null});
+  ctx.hidden=!to;ctx.dataset.context=to||'';if(to==='scholar')ctx.dataset.tone='scholar';else delete ctx.dataset.tone;
+  ctx.innerHTML=to==='quiz'?`<span class="ctx-arrow">${ICON.swap}</span>`+'<span class="ctx-long">Resume </span>Quiz':to==='scholar'?`<span class="ctx-arrow">${ICON.swap}</span>`+'<span class="ctx-long">Resume </span>Scholar':'';
+  ctx.setAttribute('aria-label',to==='quiz'?'Resume Quiz':to==='scholar'?'Resume Scholar':'');
 }
+$('#context-link')?.addEventListener('click',()=>{
+  const to=$('#context-link').dataset.context;if(!bank||!to||examLive(exam))return;tools.close();
+  if(to==='quiz'&&sessionOpen()){resumeStudy();positionStudyQuestion();return;}
+  if(to==='scholar'&&scholarState){pauseStudy();if(blockId!==scholarState.block){blockId=scholarState.block;units=allUnits();}navigate('scholar');}
+});
 document.querySelectorAll('[data-screen-link]').forEach(link => link.addEventListener('click', () => {
   const id = link.dataset.screenLink;
   if (!bank || !screenAvailable(id) || MAIN_SCREEN[id]?.includes(step) || examLive(exam)) return;
@@ -433,7 +466,7 @@ function bindForReview() {
   const shown = Number(box.dataset.reviewFor);
   if ($('#exam-results-link')) $('#exam-results-link').onclick = () => navigate('exam-results');
   // Marked for review (2.1.3): Review opens the one-by-one review at once (as on Results) and continues a started one;
-  // Practice test is the marked-question test, with its unit choice (every unit selected first).
+  // Practice quiz (Practice test until 2.2.0) is the marked-question test, with its unit choice (every unit selected first).
   box.querySelectorAll('[data-review-block]').forEach(button => button.onclick = () => {
     const id = Number(button.dataset.reviewBlock), marked = notUnderstoodQuestions(bank, understanding, null, id).map(q => q.id);
     blockId = id; units = allUnits();
@@ -462,7 +495,7 @@ document.addEventListener('click', e => {
   const open = toggle.getAttribute('aria-expanded') !== 'true', key = dropKey(toggle);
   setDrop(toggle, open); if (open) openDrops.add(key); else openDrops.delete(key);
 });
-function render() {if(['study','flash-card','glossary'].includes(step))lastStudy=step;
+function render() {if(['study','flash-card','glossary'].includes(step))lastStudy=step;if(step==='study')lastPlace='quiz';else if(step==='scholar')lastPlace='scholar';
   if (!bank) return;
   syncScreens();
   const oldScreen=main.dataset.screen;
@@ -490,6 +523,7 @@ function render() {if(['study','flash-card','glossary'].includes(step))lastStudy
   else if (step === 'cards-setup') renderCardsSetup();
   else if (step === 'exam-setup') renderExamSetup();
   else if (step === 'glossary') renderGlossary();
+  else if (step === 'scholar') renderScholar();
   else if (step === 'mode') renderMode();
   else if (step === 'not-understood-setup') renderNotUnderstoodSetup();
   else if (step === 'missed-review') renderMissedReview();
@@ -546,9 +580,10 @@ function renderFlashCards() {
   // Card back (after the first flip): glossary entry, Source row with the card Flag.
   const entry = glossary ? entryForCard(glossary, card) : null, seen = Boolean(card.seenBack);
   const back = seen && (entry || source) ? screens.cardBackHtml({entry, g:glossary, source:source ? sourceExcerpt(source) : '', flagged:Boolean(source && flags[`${bank.version}/${source.id}/card`]), questionId:source?.id || null, save:'<!--save-->'}) : '';
-  main.innerHTML = screens.flashScreenHtml({preview:flashPreview, set, bank, saved:manualHas(cardSets,card), missed:inMissed(card), message:flashMessage, source, back, glossEntry:seen && entry ? entry : null});
+  main.innerHTML = screens.flashScreenHtml({preview:flashPreview, set, bank, saved:manualHas(cardSets,card), missed:inMissed(card), message:flashMessage, source, back, glossEntry:seen && entry ? entry : null, scholar:Boolean(seen && entry && itemForEntry(scholar,entry.block,entry.id))});
   // Open in Glossary (under Back): the Glossary then offers "Card N" back to this card, on the same side.
   if ($('#card-open-gloss')) $('#card-open-gloss').onclick = () => { glossEntry = entry.id; glossReturn = 'flash-card'; navigate('glossary'); };
+  if ($('#card-open-scholar')) $('#card-open-scholar').onclick = () => { const it = itemForEntry(scholar,entry.block,entry.id); if (blockId !== it.block) { blockId = it.block; units = allUnits(); } openScholar(it.id,{to:'flash-card'}); };
   main.querySelectorAll('.card-back .term-link').forEach(b => b.onclick = () => openTermPop(b, {phase:'resolved', block:entry?.block ?? blockId}));
   const move = event => { flashMessage='';flashPreview = moveCards(flashPreview,event); if(event==='flip')flashPreview.cards[flashPreview.index].seenBack=true; render(); if(['next','previous'].includes(event)){resetNavigationView();centreSheet('#flash-card','.question-actions');} };
   $('#flash-exit').onclick = () => navigate(flashSetId ? 'saved-card-sets' : 'cards-setup');
@@ -626,8 +661,10 @@ let answerHold = null;
 const perTileHold = () => window.matchMedia('(max-width: 640px)').matches;
 function holdAnswerHeights() {
   const answers = main.querySelector('.answers');
-  if (!answers || !session || step !== 'study') return;
-  const c = viewed(), q = session.questions.find(x => x.id === c?.id);if (!q) return;
+  // Scholar (2.2.0, the owner 2026-11-16: "adopt this for scholar"): its answers take the same hold.
+  const sq = step === 'scholar' && scholarState?.item ? itemById(scholar, scholarState.item)?.questions[scholarState.q] : null;
+  if (!answers || !(step === 'study' && session || sq)) return;
+  const c = sq ? {order:['0','1','2','3']} : viewed(), q = sq ? screens.scholarQuestion(sq) : session.questions.find(x => x.id === c?.id);if (!q) return;
   const perTile = perTileHold(), width = answers.getBoundingClientRect().width, key = `${q.id}|${width}|${document.documentElement.dataset.theme}|${perTile}`;
   if (answerHold?.key !== key) {
     const probe = document.createElement('div');
@@ -723,11 +760,12 @@ function renderMode() {
 }
 // Study hub: Questions, Cards, Glossary, and the separate Take exam.
 function renderHub() {
-  main.innerHTML=screens.studyHubHtml({block:currentBlock()});
+  main.innerHTML=screens.studyHubHtml({block:currentBlock(),scholar:unitsOf(scholar,blockId).length>0});
   const go={questions:'mode',cards:'cards-setup',glossary:'glossary'};
   main.querySelectorAll('[data-study]').forEach(b=>b.onclick=()=>{if(b.dataset.study==='glossary'){glossEntry=null;glossReturn=null;}navigate(go[b.dataset.study]);});
   if(!glossary)main.querySelector('[data-study="glossary"]')?.setAttribute('disabled','');
   $('#exam-open').onclick=()=>navigate('exam-setup');
+  if($('#scholar-open'))$('#scholar-open').onclick=()=>openScholar();
 }
 function renderCardsSetup() {
   const pick = cardSets.sets.find(set => set.id === pickSetId) || null;
@@ -757,6 +795,95 @@ function renderExamSetup() {
   $('#back').onclick=()=>{navigate('units');main.querySelector('#exam-open')?.focus({preventScroll:true});};
   $('#mode-next').onclick=beginExam;
 }
+// ---- Scholar (2.2.0) ----
+// Open Scholar for the current block: at an item (from the Glossary or a card) or at the saved place of this block, else
+// at the first unit's term list. ret: the way back ({to:'glossary', entry} | {to:'flash-card'}) or none (from Mode).
+function openScholar(itemId=null,ret=null){
+  const units=unitsOf(scholar,blockId);if(!units.length)return;
+  let st=scholarState&&scholarState.block===blockId?scholarState:{...newScholarState(blockId,units[0]),picks:{...scholarState?.picks}};
+  if(itemId)st=moveScholar(st,{type:'item',id:itemId},scholar);
+  scholarReturn=ret;saveScholar(st);navigate('scholar');
+}
+function saveScholar(st){scholarState=st;persist('scholar',st);}
+function renderScholar(){
+  clearTimeout(picTimer);
+  if(!scholar||!scholarState){navigate('units');return;}
+  if(scholarReturn?.to==='flash-card'&&!flashPreview)scholarReturn=null;
+  const st=scholarState,block=bank.blocks.find(b=>b.id===st.block)||currentBlock(),item=itemById(scholar,st.item);
+  const open=id=>{saveScholar(moveScholar(scholarState,{type:'item',id},scholar));render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#scholar-term'));};
+  if(!item){
+    const units=unitsOf(scholar,st.block),items=itemsFor(scholar,st.block,st.unit);
+    const counts=Object.fromEntries(items.map(it=>[it.id,it.questions.filter(q=>right(q,st.picks[q.id])).length]));
+    main.innerHTML=screens.scholarListHtml({block,units,unit:st.unit,items,done:counts});
+    main.querySelectorAll('[name="scholar-unit"]').forEach(r=>r.onchange=()=>{saveScholar(moveScholar(scholarState,{type:'unit',unit:Number(r.value)},scholar));keepScroll(render);main.querySelector(`[name="scholar-unit"][value="${r.value}"]`)?.focus({preventScroll:true});});
+    main.querySelectorAll('[data-scholar-item]').forEach(b=>b.onclick=()=>open(b.dataset.scholarItem));
+    $('#back').onclick=()=>navigate('units');
+    return;
+  }
+  if(scholarPic.item!==item.id)scholarPic={item:item.id,index:item.picture?.kind==='explore'?-1:0,prev:null,manual:false};
+  const back=scholarReturn?.to==='glossary'?'Glossary':scholarReturn?.to==='flash-card'?`Card ${flashPreview.index+1}`:'';
+  main.innerHTML=screens.scholarItemHtml({block,item,q:st.q,tries:st.picks[item.questions[st.q].id]||[],hint:scholarHints.has(item.questions[st.q].id),nav:neighbours(scholar,st),done:x=>resolved(x,st.picks[x.id]),back,pic:picOptions(),open:scholarOpen});
+  scholarPic.prev=null;
+  main.querySelectorAll('.scholar-drop').forEach(d=>d.ontoggle=()=>{scholarOpen[d.dataset.section]=d.open;if(d.dataset.section==='picture')picLoop(item);});
+  const move=(event,focus)=>{saveScholar(moveScholar(scholarState,event,scholar));keepScroll(render);(focus?.()||$('#scholar-stem'))?.focus({preventScroll:true});};
+  main.querySelectorAll('.scholar-answers [data-answer]').forEach(b=>b.onclick=()=>{if(b.getAttribute('aria-disabled')==='true')return;const id=b.dataset.answer;scholarSay=true;move({type:'answer',index:Number(id)},()=>main.querySelector(`.scholar-answers [data-answer="${id}"]`));});
+  bindPicture(item);picLoop(item);
+  main.querySelectorAll('[data-scholar-q]').forEach(b=>b.onclick=()=>move({type:'question',index:Number(b.dataset.scholarQ)}));
+  if($('#scholar-next-q'))$('#scholar-next-q').onclick=()=>move({type:'question',index:st.q+1});
+  if($('#scholar-prev-q'))$('#scholar-prev-q').onclick=()=>move({type:'question',index:st.q-1});
+  if($('#scholar-hint'))$('#scholar-hint').onclick=()=>{scholarHints.add(item.questions[st.q].id);keepScroll(render);$('#scholar-hint-text')?.focus({preventScroll:true});};
+  // The answer line is announced after the render, so a screen reader hears a change in an existing live region.
+  // Only the render that follows a pick speaks; a Hint or Look again render stays quiet (review 2026-11-16, evening).
+  { const say=main.querySelector('.scholar-q [data-say]');if(scholarSay&&say?.dataset.say)setTimeout(()=>{if(say.isConnected)say.textContent=say.dataset.say;},150);scholarSay=false; }
+  // Look again: open the section that explains the question (a picture step is shown and its loop paused), then go there.
+  if($('#scholar-see'))$('#scholar-see').onclick=()=>{const [part,n]=$('#scholar-see').dataset.see.split(':');scholarOpen[part]=true;
+    if(part==='picture'){scholarPic={item:item.id,index:Number(n),prev:scholarPic.index,manual:true};}
+    render();const box=main.querySelector(`[data-section="${part}"]`);box?.scrollIntoView({block:'start'});box?.querySelector('summary')?.focus({preventScroll:true});};
+  main.querySelectorAll('.scholar-nav [data-scholar-item]').forEach(b=>b.onclick=()=>open(b.dataset.scholarItem));
+  $('#scholar-list').onclick=()=>{const id=item.id;scholarReturn=null;saveScholar(moveScholar(scholarState,{type:'list'},scholar));render();window.scrollTo({top:0,behavior:'instant'});main.querySelector(`[data-scholar-item="${CSS.escape(id)}"]`)?.focus({preventScroll:false});};
+  if($('#scholar-return'))$('#scholar-return').onclick=()=>{const r=scholarReturn;scholarReturn=null;if(r.to==='glossary'){glossEntry=r.entry;navigate('glossary');}else navigate('flash-card');};
+  holdAnswerHeights();
+}
+const picOptions=()=>({index:scholarPic.index,motion:{prev:scholarPic.prev,still:window.matchMedia('(prefers-reduced-motion: reduce)').matches},playing:scholarPlay&&!scholarPic.manual&&scholarOpen.picture!==false});
+// Redraw only the picture (a loop tick or a picture control), keeping focus on the control that had it.
+function mountPicture(item){
+  const panel=main.querySelector('[data-section="picture"] > .scholar-drop-body');if(!panel)return;
+  const next=document.createElement('div');next.innerHTML=pictureHtml(item.picture,scholarPic.index,picOptions());scholarPic.prev=null;
+  // Drawing and captions are replaced; the controls stay and take the new state, so focus and screen readers are not disturbed
+  // on each loop tick (review 2026-11-16).
+  { const old=panel.querySelector('.pic-frame'),fresh=next.querySelector('.pic-frame');if(old&&fresh)old.replaceWith(fresh); }
+  // The caption box is kept and its text changed, so a screen reader hears the new caption from the existing live region.
+  // Attributes first: a box that was muted for the loop must be live again before its text changes (review 2026-11-16, evening).
+  { const old=panel.querySelector('.pic-captions'),fresh=next.querySelector('.pic-captions');if(old&&fresh){
+    for(const k of ['role','aria-live'])fresh.hasAttribute(k)?old.setAttribute(k,fresh.getAttribute(k)):old.removeAttribute(k);old.innerHTML=fresh.innerHTML;} }
+  next.querySelectorAll('.pic-controls button').forEach(b=>{const old=b.id?panel.querySelector('#'+b.id):panel.querySelector(`[data-pic-part="${b.dataset.picPart}"]`);if(!old)return;
+    for(const k of ['disabled','aria-pressed','aria-label','title','data-playing'])b.hasAttribute(k)?old.setAttribute(k,b.getAttribute(k)):old.removeAttribute(k);
+    if(old.id==='pic-play')old.innerHTML=b.innerHTML;});
+  if(panel.contains(document.activeElement)&&document.activeElement.disabled)panel.querySelector('.pic-controls button:not(:disabled)')?.focus({preventScroll:true});
+  bindPicture(item);
+}
+function bindPicture(item){
+  if(!item.picture)return;
+  const go=(index,manual=scholarPic.manual)=>{scholarPic={item:item.id,index,prev:scholarPic.index,manual};mountPicture(item);};
+  const manual=index=>{clearTimeout(picTimer);go(index,true);};
+  if($('#pic-back'))$('#pic-back').onclick=()=>manual(scholarPic.index-1);
+  if($('#pic-next'))$('#pic-next').onclick=()=>manual(scholarPic.index+1);
+  main.querySelectorAll('[data-pic-part]').forEach(b=>b.onclick=()=>manual(Number(b.dataset.picPart)));
+  // Explore: a tap on a drawn part chooses the first part that lights it (the chips are the keyboard way).
+  if(item.picture.kind==='explore')main.querySelector('.pic')?.addEventListener('click',e=>{const id=e.target.closest('[data-pic-id]')?.dataset.picId;const k=item.picture.parts.findIndex(p=>p.light.includes(id));if(k>=0)manual(k);});
+  // Play / pause: the reader's choice for every term; Play also lifts this term's manual pause.
+  if($('#pic-play'))$('#pic-play').onclick=()=>{const on=$('#pic-play').dataset.playing!=='true';scholarPlay=on;scholarPic.manual=false;mountPicture(item);picLoop(item);};
+}
+// One loop tick per PIC_MS while Scholar shows this term with its picture open; it wraps to the first step or part.
+function picLoop(item){
+  clearTimeout(picTimer);
+  if(!scholarPlay||scholarPic.manual||!item.picture||scholarOpen.picture===false)return;
+  picTimer=setTimeout(()=>{
+    if(step!=='scholar'||scholarPic.item!==item.id||!scholarPlay||scholarPic.manual)return;
+    if(!document.hidden){const n=(item.picture.steps||item.picture.parts).length;scholarPic={item:item.id,index:(scholarPic.index+1)%n,prev:scholarPic.index,manual:false};mountPicture(item);}
+    picLoop(item);
+  },PIC_MS);
+}
 // ---- Glossary ----
 const glossQuestions=e=>e.questionIds.map(id=>bank.questions.find(q=>q.id===id)).filter(q=>q&&q.block===blockId);
 function renderGlossary() {
@@ -770,7 +897,7 @@ function renderGlossary() {
   // Back to the card the entry was opened from (Card N), while that card session is still open.
   if(glossReturn&&!flashPreview)glossReturn=null;
   const toCard=glossReturn?`Card ${flashPreview.index+1}`:'';
-  main.innerHTML=screens.glossaryHtml({block:currentBlock(), replacing:sessionOpen(), g:glossary, list:searchEntries(glossary,{query:glossQuery,unit:glossUnit}).filter(e=>e.block===blockId), query:glossQuery, unit:glossUnit, entry, questionCount:e=>{const qs=glossQuestions(e);return {standard:questionsForMode(qs,'Unassisted').length,hard:questionsForMode(qs,'Hard').length};}, save, flag, toCard, group:glossGroup});
+  main.innerHTML=screens.glossaryHtml({block:currentBlock(), replacing:sessionOpen(), g:glossary, list:searchEntries(glossary,{query:glossQuery,unit:glossUnit}).filter(e=>e.block===blockId), query:glossQuery, unit:glossUnit, entry, questionCount:e=>{const qs=glossQuestions(e);return {standard:questionsForMode(qs,'Unassisted').length,hard:questionsForMode(qs,'Hard').length};}, save, flag, toCard, group:glossGroup, scholar:Boolean(entry&&itemForEntry(scholar,blockId,entry.id))});
   const openEntry=id=>{glossEntry=id;render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#gloss-term'));};
   main.querySelectorAll('[data-entry]').forEach(b=>b.onclick=()=>openEntry(b.dataset.entry));
   if($('#gloss-card'))$('#gloss-card').onclick=()=>{glossEntry=null;glossReturn=null;navigate('flash-card');};
@@ -782,6 +909,7 @@ function renderGlossary() {
     const studyPool=hard=>{const qs=glossQuestions(entry),pool=questionsForMode(qs,hard?'Hard':'Unassisted');if(!pool.length)return;
       const useMode=hard?'Hard':mode==='Hard'?'Unassisted':mode;mode=useMode;startSession(shuffle(pool),{version:bank.version,mode:useMode},'random');navigate('study');};
     if($('#gloss-questions'))$('#gloss-questions').onclick=()=>studyPool(false);
+    if($('#gloss-open-scholar'))$('#gloss-open-scholar').onclick=()=>openScholar(itemForEntry(scholar,blockId,entry.id).id,{to:'glossary',entry:entry.id});
     if($('#gloss-hard-questions'))$('#gloss-hard-questions').onclick=()=>studyPool(true);
     if(card)bindSave(card);
     if($('#flag-card')&&flagSource)$('#flag-card').onclick=()=>flagCard(flagSource,screens.cardFlagContext(card));
@@ -1039,13 +1167,16 @@ try {
   bank.blocks=bank.blocks.filter(b=>bank.questions.some(q=>q.block===b.id));
   // Glossary: optional; without it the Glossary tile is off and questions show no term links.
   try{glossary=restoreGlossary(await fetchJson('./glossary.json'));}catch{glossary=null;}
+  // Scholar: optional; without it the Mode screen shows no Scholar entry. A saved place that no longer fits is dropped.
+  try{scholar=restoreScholar(await fetchJson('./scholar.json'));}catch{scholar=null;}
+  { const raw=read('scholar',null);scholarState=restoreScholarState(raw,scholar);if(raw!==null&&!scholarState&&scholar)persist('scholar',null); }
   lastBlock=servedBlock(read('lastBlock',null))?read('lastBlock',null):null;
   blockId=lastBlock??bank.blocks[0].id; units=allUnits();
   migrateBookmarks();
   const saved=read('session'), scholarSaved=saved?.mode==='Scholar';
   session=scholarSaved?null:restoreSession(await migrateSession(saved,bank),bank);
   if(lastBlock===null&&session)noteBlock(session.questions[0]?.block); // upgrade: an open session names the last block
-  if(scholarSaved){persist('session',null);notice('Scholar was removed. Your Scholar session was closed; its answers stay in your stats.');}
+  if(scholarSaved){persist('session',null);notice('Your session from the old Scholar mode (removed in 1.2.3) was closed; its answers stay in your stats.');}
   if(session&&!POOL_KINDS.includes(session.poolKind))delete session.poolKind;
   understanding=migrateLearning(understanding,bank);saveUnderstanding();
   missedReview=restoreReview(migrateReview(read('missedReview'),bank),bank);

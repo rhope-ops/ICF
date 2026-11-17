@@ -10,7 +10,7 @@ export function persistence(storage) {
       try { storage.setItem('icf:' + key, JSON.stringify(value)); return null; }
       catch { return 'Storage is unavailable or full. Progress is temporary; export review notes before closing.'; }
     },
-    clear() { try { ['profile','session','flags','understanding','missedReview','device','theme','stats','smart','cardSets','highlights','dynamicCards','saveTarget','pinQuestion','exam','examHistory','examHard','examMix','examCycle','poolKind','glossaryBookmarks','lastBlock'].forEach(k => storage.removeItem('icf:' + k)); return null; } catch { return 'Local data could not be cleared.'; } }
+    clear() { try { ['profile','session','flags','understanding','missedReview','device','theme','stats','smart','cardSets','highlights','dynamicCards','saveTarget','pinQuestion','exam','examHistory','examHard','examMix','examCycle','poolKind','glossaryBookmarks','lastBlock','scholar'].forEach(k => storage.removeItem('icf:' + k)); return null; } catch { return 'Local data could not be cleared.'; } }
   };
 }
 // Save IDs/version once, rather than duplicating all static content every second.
@@ -56,6 +56,7 @@ export function validateBank(bank) {
       !['pending_player_testing','pending_owner_approval'].includes(q.testing?.status) || !['no_concern_identified','needs_testing'].includes(q.testing?.quality_assessment?.status) ||
       !['low','medium','high','very_high'].includes(q.testing?.distinctness_assessment?.overlap_confidence) ||
       !Array.isArray(q.testing?.quality_assessment?.concerns) || q.testing.quality_assessment.concerns.some(c => c.material_defect)) throw Error('Invalid question content');
+    if (q.spec !== undefined && q.spec !== 3) throw Error('Invalid question content'); // spec 3.0.x marker
     if (!Array.isArray(q.keywords) || !q.keywords.length) throw Error('Missing key terms');
     if (q.reviewCue !== undefined && (typeof q.reviewCue !== 'string' || !q.reviewCue.trim() || q.reviewCue.split(/\s+/).length > 25)) throw Error('Invalid review cue');
     const spans = [];

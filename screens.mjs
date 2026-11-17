@@ -7,6 +7,7 @@ import { understandingRecord, notUnderstoodQuestions, sessionMissedIds, reviewId
 import { unitScores, missedUnits, scoreTone, POOL_LABEL } from './analytics.mjs';
 import { EXAM, passMark, examCounts, reviewItems, REVIEW_FILTERS, examLabel, formsFor } from './exam.mjs';
 import { cardHtml, cardsInSet, savedSetsHtml, setsBlockHtml, cardKey, MISSED_ID } from './flashcards.mjs';
+import { pictureHtml } from './pictures.mjs';
 
 // m:ss, or h:mm:ss from one hour.
 export const duration = ms => { const n = Math.floor(ms/1000); return n >= 3600 ? `${Math.floor(n/3600)}:${String(Math.floor(n/60)%60).padStart(2,'0')}:${String(n%60).padStart(2,'0')}` : `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
@@ -37,7 +38,7 @@ export const poolSeg=(name,current,n=Infinity,empty='')=>{
 // ---- Welcome and Blocks ----
 export const welcomeHtml = ({nickname, open}) => `<section class="hero welcome-copy">${commBadge}<h1>Cyber <em>Fundamentals</em></h1><p class="label">Learn · Practice · Master</p><p class="lede">Pick a block and lock in.</p></section><form class="panel welcome-form" id="welcome"><div class="field"><label for="nickname">Nickname <span class="muted">(optional)</span></label><input id="nickname" maxlength="40" placeholder="Your nickname" autocomplete="nickname" value="${escape(nickname)}"></div><div class="welcome-actions"><button class="${open?'':'primary'}">Start</button>${open?'<button type="button" class="primary" id="welcome-resume">Resume</button>':''}</div><p class="privacy-note">Your nickname and progress stay on this device.</p></form>`;
 
-// For Review (2.1.28, the owner, 2026-11-10): the box shows only the open block: its marked questions (Review, Practice test)
+// For Review (2.1.28, the owner, 2026-11-10): the box shows only the open block: its marked questions (Review, Practice quiz; "Practice test" until 2.2.0, the owner 2026-11-16)
 // and its past results (Exam results when the last submitted exam is this block's; History (the owner, 2026-11-10; was Attempts) when this block has answered
 // questions). No open block: the box keeps only its title and one line. Layout is the 2.1.24 option C box.
 export function forReviewHtml({bank, block = null, understanding, stats, examBlock = null}) {
@@ -46,7 +47,7 @@ export function forReviewHtml({bank, block = null, understanding, stats, examBlo
   const n = notUnderstoodQuestions(bank, understanding, null, b.id).length;
   const asked = bank.questions.some(q => q.block === b.id && stats.questions[q.id]?.asked);
   const extra = `${examBlock === b.id ? '<button id="exam-results-link">Exam results</button>' : ''}${asked ? '<button id="saved-results">History</button>' : ''}`;
-  const groups = `${n ? `<div class="review-group"><p class="label">Marked questions</p><button class="primary" data-review-block="${b.id}">Review (${n})</button><button data-practice-units="${b.id}">Practice test</button></div>` : ''}${extra ? `<div class="review-group"><p class="label">Past results</p>${extra}</div>` : ''}`;
+  const groups = `${n ? `<div class="review-group"><p class="label">Marked questions</p><button class="primary" data-review-block="${b.id}">Review (${n})</button><button data-practice-units="${b.id}">Practice quiz</button></div>` : ''}${extra ? `<div class="review-group"><p class="label">Past results</p>${extra}</div>` : ''}`;
   return `<section class="panel practice-section for-review" data-review-for="${b.id}"><div class="step-head"><span class="num">Block ${b.id} · ${n ? `${n} marked` : 'Nothing marked'}</span><h2>For Review</h2></div>
     ${groups ? `<div class="review-groups">${groups}</div>` : `<p class="muted">No marked questions or results for this block yet.</p>`}</section>`;
 }
@@ -75,13 +76,17 @@ export function blocksHtml({bank, nickname, open, understanding, missedReview, s
 
 // ---- Study hub and setups (v1.2.0) ----
 // Study hub: three tiles (Questions, Flash cards, Glossary; on phones Glossary takes the full second row), then the
-// separate Exam entry. Scholar was removed in 1.2.3 (the owner, 2026-11-08: a one-week course rarely reaches its unlock).
+// Scholar entry and the Exam entry, each after an "Or" divider. The 1.2 Scholar was removed in 1.2.3 (the owner,
+// 2026-11-08); Scholar returned in 2.2.0 as term study (the owner, 2026-11-16). scholar: the
+// block has Scholar content (a block without it shows no Scholar entry).
 const TILES=[['questions','Questions','Answer, score and retry.'],['cards','Flash cards','Terms and definitions.'],['glossary','Glossary','Course terms with their sources.']];
-export function studyHubHtml({block}) {
+export function studyHubHtml({block, scholar = false}) {
   const tile = ([v,t,d]) => `<button type="button" class="card" data-study="${v}"><strong>${t}</strong><span>${d}</span></button>`;
+  const divider = '<div class="exam-divider" aria-hidden="true"><span>Or</span></div>';
   return `<div class="page-head"><p class="label">Block ${block.id} · ${escape(block.title)}</p><h1>Mode</h1></div>
     <div class="type-grid study-tiles" role="group" aria-label="Study type">${TILES.map(tile).join('')}</div>
-    <div class="exam-divider" aria-hidden="true"><span>Or</span></div>
+    ${scholar ? `${divider}<section class="card exam-entry scholar-entry" data-tone="scholar" aria-labelledby="scholar-entry-title"><div class="exam-entry-text"><h2 id="scholar-entry-title">Scholar</h2><p class="exam-entry-sub">Go deeper on each term: examples, scenarios and guided questions.</p></div><button id="scholar-open" class="primary" data-tone="scholar">${nextLabel('Open Scholar')}</button></section>` : ''}
+    ${divider}
     <section class="card exam-entry" data-tone="violet" aria-labelledby="exam-entry-title"><div class="exam-entry-text"><h2 id="exam-entry-title">Exam</h2><p class="exam-entry-sub">As close to the real thing as you’re going to get.</p></div><button id="exam-open" class="primary" data-tone="violet">${nextLabel('Take exam')}</button></section>`;
 }
 
@@ -227,7 +232,8 @@ export const IN_MISSED = '<span class="tag in-missed" data-tone="bad">In Missed<
 // (the back button to that card), else ''.
 // group: 'unit' (Unit 1 ... Unit 8 headings, A-Z inside each) or 'az' (one A-Z list with the letter bar).
 // flag: the entry card's Flag button (2.1.23, the owner: "put a flag ... on the far right side of source like it exists everywhere else").
-export function glossaryHtml({block, g, list, query, unit, entry, questionCount, save = '', flag = '', toCard = '', group = 'unit', replacing = false}) {
+// scholar: the entry has a Scholar item (2.2.0): an Open in Scholar button under the entry.
+export function glossaryHtml({block, g, list, query, unit, entry, questionCount, save = '', flag = '', toCard = '', group = 'unit', replacing = false, scholar = false}) {
   const letter = e => (e.term.match(/[A-Za-z]/)?.[0] || '#').toUpperCase();
   const letters = [...new Set(list.map(letter))];
   const head = `<div class="page-head"><p class="label">Block ${block.id} · ${plural(g.entries.filter(e => e.block === block.id).length,'term')} from the course</p><h1>Glossary</h1></div>`;
@@ -239,7 +245,8 @@ export function glossaryHtml({block, g, list, query, unit, entry, questionCount,
       <article class="panel gloss-entry" aria-labelledby="gloss-term"><div class="step-head"><span class="num">Unit ${entry.unit} · ${escape(block.units.find(u => u.id === entry.unit)?.title || '')}</span><h2 id="gloss-term">${escape(entry.term)}</h2></div>
       ${entry.aliases.length ? `<p class="label">${entry.aliases.map(escape).join(' · ')}</p>` : ''}<p class="gloss-short">${escape(entry.short)}</p>
       ${sourceRow(entrySource(entry, g.docs), flag, keyTermsHtml(entryTerms(entry, g)), save)}
-      ${pools ? `<div class="actions gloss-pools">${pools}</div>${replacing ? REPLACING_NOTE : ''}` : ''}</article>
+      ${pools ? `<div class="actions gloss-pools">${pools}</div>${replacing ? REPLACING_NOTE : ''}` : ''}
+      ${scholar ? `<div class="actions gloss-scholar"><button id="gloss-open-scholar" data-tone="scholar">${nextLabel('Open in Scholar')}</button></div>` : ''}</article>
       <div class="navrow actions">${toCard ? `<button id="gloss-card">${backLabel(toCard)}</button><button id="gloss-back">All terms</button>` : `<button id="gloss-back">${backLabel('All terms')}</button>`}</div>`;
   }
   const item = e => `<li><button type="button" class="card" data-entry="${escape(e.id)}"><strong>${escape(e.term)}</strong><span>${escape(e.short)}</span></button></li>`;
@@ -282,6 +289,69 @@ export function answerAnnouncement(event, attemptsBefore, session) {
   return event.type === 'next' ? '' : null;
 }
 
+// ---- Scholar (2.2.0) ----
+// Term list of one unit: unit choice (a segmented row), then each term with its summary. done: {itemId: right answers}.
+export function scholarListHtml({block, units, unit, items, done = {}}) {
+  const seg = units.map(u => `<label><input type="radio" name="scholar-unit" value="${u}" ${u === unit ? 'checked' : ''}>U${u}</label>`).join('');
+  const title = escape(block.units.find(u => u.id === unit)?.title || '');
+  const row = it => { const n = done[it.id] || 0, all = it.questions.length;
+    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${escape(it.term)}</strong><span>${escape(it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
+  return `<div class="page-head"><p class="label">Block ${block.id} · Scholar</p><h1>Scholar</h1></div>
+    <section class="panel scholar-units" data-tone="scholar"><fieldset><legend class="label">Unit</legend><div class="seg scholar-unit-seg">${seg}</div></fieldset>
+      <div class="step-head"><span class="num">Unit ${unit}</span><h2>${title}</h2></div></section>
+    <p class="status count" role="status">${plural(items.length,'term')}</p>
+    <ul class="scholar-list">${items.map(row).join('')}</ul>
+    <div class="navrow actions"><button id="back">${backLabel('Mode')}</button></div>`;
+}
+// Scholar question in the shape of a bank question, so its answers are the same tiles as in the other modes (answersHtml).
+export const scholarQuestion = qn => ({ id: qn.id, correctAnswerId: String(qn.key), answers: qn.answers.map((a, i) => ({ id: String(i), text: a.text, rationale: a.why })) });
+// tries: this question's picks in order. As in the other modes, a wrong pick flips with its own why (the Assisted flip);
+// the right pick or a second wrong one resolves the question and shows every why (the owner, 2026-11-16, "3b").
+export const scholarAnswerState = (qn, tries = []) => {
+  const wrong = tries.filter(i => i !== qn.key).map(String);
+  return { order: ['0', '1', '2', '3'], resolved: tries.includes(qn.key) ? 'correct' : tries.length >= 2 ? 'revealed' : null, stage: 0, eliminated: [], flippedWrong: wrong, wrongIds: wrong };
+};
+// One term. The sections form one connected accordion (the owner, 2026-11-16: "linked together rather than ... separate
+// pills"), each open unless the reader closed it (open: {section: false}). The guided question mirrors the question
+// screen (q-sheet, #N heading, stem, answers, navrow with Next at the right, tool-row with Hint) and teaches: a Hint before
+// the pick, a "Look again" pointer to the section or picture step that explains it after a wrong pick, and a Takeaway when
+// the question is over (the owner, 2026-11-16: hint, nudge, takeaway). No course-page lines.
+// tries: this question's picks; hint: the hint is shown; done(question): it is over; pic: {index, motion, playing}.
+// back: 'Glossary' | 'Card N' | '' when the term was opened from the Glossary or a card.
+const SEE_LABEL = { deeper: 'Deeper explanation', analogy: 'Analogy', scenario: 'Sample scenario', example: 'Everyday example' };
+export const seeLabel = (see, picture) => { const [part, n] = see.split(':'); return part !== 'picture' ? SEE_LABEL[part] : picture?.kind === 'steps' ? `Picture, step ${Number(n) + 1}` : `Picture: ${picture?.parts?.[Number(n)]?.label ?? `part ${Number(n) + 1}`}`; };
+// Everyday example: the "In the course: <definition>" line stays in the text; its source goes under it in the app's
+// attribution style (.excerpt figcaption, "Block Text · p. 15"; the owner, 2026-11-16).
+// Only the "In the course" line goes into the attribution figure; the illustration before it stays plain text (review 2026-11-16).
+export const exampleHtml = text => { const m = /^(.*?)\s*(In the course: .*), ([^,]+) p\.(\d+)\.$/s.exec(text);
+  return m ? `${m[1] ? `<p>${escape(m[1])}</p>` : ''}<div class="excerpt scholar-example"><figure><p>${escape(m[2])}.</p><figcaption>${escape(m[3])} · p. ${m[4]}</figcaption></figure></div>` : `<p>${escape(text)}</p>`; };
+export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, done, back = '', pic = {}, open = {}}) {
+  const qn = item.questions[q], st = scholarAnswerState(qn, tries), over = Boolean(st.resolved), n = item.questions.length;
+  const section = (kind, label, body) => `<details class="scholar-drop" data-section="${kind}"${open[kind] === false ? '' : ' open'}><summary><span class="label">${label}</span></summary><div class="scholar-drop-body">${body}</div></details>`;
+  const text = t => `<p>${escape(t)}</p>`;
+  const wrongNow = tries.length && !over;
+  // The tiles show Correct / Incorrect; this line is for screen readers only (the owner, 2026-11-16: the visible line went).
+  const feedback = !tries.length ? '' : st.resolved === 'correct' ? 'Correct.' : over ? 'Answer revealed. Read why each choice is right or wrong.' : 'Incorrect. Read why, then pick again.';
+  const quiz = `<div class="q-sheet scholar-q"><section class="question-focus" aria-label="Guided question"><div class="question-heading qhead"><p class="qnum">#${q + 1} <small>of ${n}</small></p><span class="unit-label">Guided question</span></div>
+      <h2 id="scholar-stem" class="stem" tabindex="-1">${escape(qn.stem)}</h2>
+      ${hint ? `<p class="scholar-hint" id="scholar-hint-text" tabindex="-1"><span class="label">Hint</span> ${escape(qn.hint)}</p>` : ''}</section>
+      <div class="answers scholar-answers" role="group" aria-label="Answers">${answersHtml(scholarQuestion(qn), st, { assisted: true })}</div>
+      <p class="sr-only" role="status" data-say="${escape(feedback)}"></p>
+      ${wrongNow ? `<p class="scholar-see"><span class="label">Look again</span> <button type="button" class="link-button" id="scholar-see" data-see="${escape(qn.see)}">${escape(seeLabel(qn.see, item.picture))}</button></p>` : ''}
+      ${over ? `<p class="scholar-takeaway"><span class="label">Takeaway</span> ${escape(qn.takeaway)}</p>` : ''}
+      <div class="navrow actions scholar-q-nav">${q > 0 ? `<button id="scholar-prev-q">${backLabel('Previous question')}</button>` : ''}${q < n - 1 ? `<button id="scholar-next-q"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Next question')}</button>` : ''}</div>
+      <div class="tool-row"><button id="scholar-hint" aria-controls="scholar-stem"${hint || over ? ' disabled' : ''}>${hint ? 'Hint shown' : 'Hint'}</button></div></div>`;
+  // Term nav (the owner, 2026-11-16): Next term always at the right; All terms takes Previous term's place on the first
+  // term; the way back (Glossary / Card N) under them.
+  const first = nav.previous ? `<button id="scholar-prev" data-scholar-item="${escape(nav.previous.id)}">${backLabel('Previous term')}</button>` : `<button id="scholar-list">${backLabel('All terms')}</button>`;
+  const second = [nav.previous ? `<button id="scholar-list">${backLabel('All terms')}</button>` : '', back ? `<button id="scholar-return">${backLabel(back)}</button>` : ''].join('');
+  return `<div class="page-head"><p class="label">Block ${block.id} · Scholar · Unit ${item.unit}</p><h1 id="scholar-term">${escape(item.term)}</h1></div>
+    <article class="panel scholar-item" data-tone="scholar" aria-labelledby="scholar-term">
+      <p class="scholar-summary">${escape(item.summary)}</p>
+      <div class="scholar-accordion">${item.picture ? section('picture', `Picture · ${item.picture.kind === 'steps' ? 'step through' : 'tap a part'}`, pictureHtml(item.picture, pic.index ?? 0, pic)) : ''}${section('deeper', 'Deeper explanation', text(item.deeper))}${section('analogy', 'Analogy', text(item.analogy))}${section('scenario', 'Sample scenario', text(item.scenario))}${section('example', 'Everyday example', exampleHtml(item.example))}${section('questions', `Guided question ${q + 1} of ${n}`, quiz)}</div></article>
+    <div class="navrow actions scholar-nav">${first}${nav.next ? `<button id="scholar-next" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.next.id)}">${nextLabel('Next term')}</button>` : ''}${second}</div>`;
+}
+
 // ---- Flash cards ----
 // saved: the card is in Manual (the SAVE button state). source: the card's question, or null for a highlight card.
 // back (optional, v1.2.0): the card back panel, shown only after the card has been flipped (cardBackHtml).
@@ -290,11 +360,12 @@ export function answerAnnouncement(event, attemptsBefore, session) {
 // Before the flip SAVE stands alone in that row.
 // missed: the card is in Missed Questions (the In Missed tag). glossEntry: the card's glossary entry after the first flip,
 // or null; it adds Open in Glossary to the row under Back (Hint stays under Next).
-export function flashScreenHtml({preview, set, bank, saved, missed = false, message, source, back = '', glossEntry = null}) {
+// scholar: the card's term has a Scholar item (2.2.0): Open in Scholar joins Open in Glossary after the first flip.
+export function flashScreenHtml({preview, set, bank, saved, missed = false, message, source, back = '', glossEntry = null, scholar = false}) {
   const card = preview.cards[preview.index];
   const save = saveButton({id:'flash-save', key:cardKey(card), saved}), row = back ? back.replace('<!--save-->', save) : sourceRow('', '', '', save);
   return `<h1 class="sr-only">Flash cards</h1>${studyToolbar({mode:'Flash Card',locked:true,endId:'flash-exit',status:`Card ${preview.index+1} of ${preview.cards.length}`})}
-    <section class="flash-study" aria-label="Flash card review">${set ? `<p class="flash-set-name label">Set · ${escape(set.name)}</p>` : ''}${cardHtml(preview,{unit:source ? questionUnitLabel(source,bank.blocks) : card.kind === 'highlight' ? 'Saved highlight' : '',flaggable:false,saveBox:row+`<p class="flash-message muted" role="status">${escape(message)}</p>`,missed,tools:glossEntry?`<button type="button" id="card-open-gloss" data-entry="${escape(glossEntry.id)}">Open in Glossary</button>`:''})}</section>`;
+    <section class="flash-study" aria-label="Flash card review">${set ? `<p class="flash-set-name label">Set · ${escape(set.name)}</p>` : ''}${cardHtml(preview,{unit:source ? questionUnitLabel(source,bank.blocks) : card.kind === 'highlight' ? 'Saved highlight' : '',flaggable:false,saveBox:row+`<p class="flash-message muted" role="status">${escape(message)}</p>`,missed,tools:glossEntry?`<button type="button" id="card-open-gloss" data-entry="${escape(glossEntry.id)}">Open in Glossary</button>${scholar?'<button type="button" id="card-open-scholar" data-tone="scholar">Open in Scholar</button>':''}`:''})}</section>`;
 }
 // Card back (2.1.3: Open in Glossary moved under Back; the bookmark was replaced by SAVE): the
 // SAVE · KEY TERMS · SOURCE · FLAG row (1.2.2; SAVE added in 2.0.0): the terms in the definition and the related terms are the Key terms drop-down,

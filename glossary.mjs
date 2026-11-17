@@ -86,10 +86,15 @@ export function searchEntries(g, { query = '', unit = 0 } = {}) {
 export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hierarchy-example': 'third-level-domain',
   'subdomain': 'third-level-domain', 'security-technical-implementation-guide-stig-b1': 'security-technical-implementation-guide-b1',
   'security-technical-implementation-guide-stig': 'security-technical-implementation-guide-b1',
-  'group-policy-configuration-set': 'group-policy-object-b5', 'proxy-outbound-control': 'proxy-server-b5',
+  'proxy-outbound-control': 'proxy-server-b5',
   'building-an-access-control-list-acl': 'access-control-list', 'access-control-list-acl': 'access-control-list',
   'availability-b4': 'availability', 'electromagnetic-interference-emi-b1': 'electromagnetic-interference', 'electromagnetic-interference-emi': 'electromagnetic-interference',
   'intrusion-detection-system-ids-b1': 'intrusion-detection-system', 'intrusion-detection-system-ids': 'intrusion-detection-system',
+  // Block 5 spec 3 bank, 2026-11-16: retired Block 5 entries follow to the new Block 5 entry of the same term.
+  'communications-security': 'communications-security-comsec', 'computer-security-compusec': 'computer-security',
+  'controlled-unclassified-information': 'controlled-unclassified-information-cui', 'demilitarized-zone-dmz': 'demilitarized-zone',
+  'freedom-of-information-act': 'freedom-of-information-act-foia', 'operations-security': 'operations-security-opsec',
+  'transmission-security': 'transmission-security-transec',
   // Block 2 new bank, 2026-11-15: the old Block 2 entries left, so these entries took the plain id.
   'administrator-account-b4': 'administrator-account', 'media-access-control-mac-address-b1': 'media-access-control-mac-address',
   // Block 2 new bank, 2026-11-15: retired Block 2 entries follow to the new Block 2 entry of the same term.
