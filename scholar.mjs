@@ -126,8 +126,9 @@ export function restoreScholarState(raw, s) {
   const item = sh.item === null ? null : itemById(s, sh.item);
   if (item && item.block === sh.block) return { ...sh, unit: item.unit, item: item.id, q: Math.min(sh.q, item.questions.length - 1), ...fit };
   if (!item && sh.item === null && unitsOf(s, sh.block).includes(sh.unit)) return { ...sh, ...fit };
-  // The place no longer fits (its term or unit was removed or renamed by a content update): open that block's first unit,
-  // or the first block with Scholar, and keep every pick and seen term (fresh review 2, 2026-11-16).
+  // The place no longer fits (a content update removed or renamed its term or unit): a removed term keeps its unit, a removed
+  // unit opens the block's first unit, a removed block the first block with Scholar; every pick and seen term is kept
+  // (fresh reviews 2 and 3, 2026-11-16).
   const block = unitsOf(s, sh.block).length ? sh.block : Number(Object.keys(s.index)[0]);
   if (!Number.isInteger(block) || !unitsOf(s, block).length) return null;
   const unit = block === sh.block && unitsOf(s, block).includes(sh.unit) ? sh.unit : unitsOf(s, block)[0];

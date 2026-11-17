@@ -401,7 +401,7 @@ function syncScreens() {
 $('#context-link')?.addEventListener('click',()=>{
   const to=$('#context-link').dataset.context;if(!bank||!to||examLive(exam))return;tools.close();
   if(to==='quiz'&&sessionOpen()){resumeStudy();positionStudyQuestion();return;}
-  if(to==='scholar'&&scholarState){pauseStudy();openScholar(null,scholarReturn,scholarState.block);}  // loads the place's block file first
+  if(to==='scholar'&&scholarState)openScholar(null,scholarReturn,scholarState.block,pauseStudy);  // loads the place's block file first
 });
 document.querySelectorAll('[data-screen-link]').forEach(link => link.addEventListener('click', () => {
   const id = link.dataset.screenLink;
@@ -836,9 +836,13 @@ function loadScholarBlock(b){
 }
 function scholarFailed(){const text='Scholar could not load. Check the connection and try again.';flashToast(text);const say=$('#answer-status');if(say)say.textContent=text;}
 // block: the block to open (a card may open a term of another block); the current block changes only once its file loads.
-async function openScholar(itemId=null,ret=null,block=blockId){
+// before: run once the file is here, just before Scholar opens (Resume pauses the quiz only then; fresh review 4).
+// A newer open, or a move to another screen while the file loads, cancels this one (no late jump into Scholar).
+let scholarOpenSeq=0;
+async function openScholar(itemId=null,ret=null,block=blockId,before=null){
   const us=unitsOf(scholar,block);if(!us.length)return;
-  if(!await loadScholarBlock(block)){scholarFailed();return;}
+  const seq=++scholarOpenSeq,from=step;
+  if(!await loadScholarBlock(block)){if(seq===scholarOpenSeq)scholarFailed();return;}
   // A place held at start (its block file could not load then) is checked before another block's place replaces it.
   // If its block still cannot load, its picks and seen terms (shape checked) carry into the new place and are checked when
   // that block loads (fresh review 2, 2026-11-16: an empty place used to overwrite it).
@@ -846,6 +850,8 @@ async function openScholar(itemId=null,ret=null,block=blockId){
     if(!scholarState){
       if(held.block===block||await loadScholarBlock(held.block)){scholarState=restoreScholarState(held,scholar);if(!scholarState)persist('scholar',null);}
       else scholarState=refitScholarState(scholarStateShape(held),scholar);}}  // loaded blocks' picks are checked now
+  if(seq!==scholarOpenSeq||step!==from)return;
+  before?.();
   if(blockId!==block){blockId=block;units=allUnits();}
   let st=scholarState&&scholarState.block===blockId?scholarState:{...newScholarState(blockId,us[0]),picks:{...scholarState?.picks},seen:[...(scholarState?.seen||[])]};
   if(itemId)st=moveScholar(st,{type:'item',id:itemId},scholar);
