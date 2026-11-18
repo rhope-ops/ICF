@@ -104,7 +104,7 @@ export const itemForEntry = (s, block, entryId) => (entryId && s?.byEntry.get(`$
 // most 2 (each an array: shown indexes in order, or a group per item); branch = per decision reached, the choice indexes
 // picked (a decision ends on its key or after min(2, choices - 1) wrong picks). seen: terms opened before (their reading
 // sections open on a term's first visit and start closed later).
-// Exact-version restore: schema 1 (2.2.x) is migrated exactly: its place is kept, seen is [], and its picks are dropped
+// Exact-version restore: schema 1 (the first saved form) is migrated exactly: its place is kept, seen is [], and its picks are dropped
 // (they were keyed by question id only and cannot be matched to the content they were made on; Scholar picks are practice
 // and never entered stats). An unknown schema or a damaged value is rejected.
 export const SCHOLAR_STATE_SCHEMA = 2;

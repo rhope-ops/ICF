@@ -131,7 +131,7 @@ export function questionUnitLabel(question, blocks) {
 export const reviewNumber = n => `#${String(n).padStart(2, '0')}`;
 export const reviewItem = (tone, label, text, why = '') => `<div class="item ${tone}"><span class="letter" aria-hidden="true">${tone === 'correct' ? '✓' : '✕'}</span><span class="answer-body"><span class="feedback-label">${label}</span><span class="answer-text"><span>${text}</span></span>${why}</span></div>`;
 // Only answered questions appear in the answer review, in pool order; wrong attempts keep their order.
-// gloss (optional, v1.2.0): {text(q, part, answerId, text) -> linked html, terms(q) -> Key terms drop-down}.
+// gloss (optional): {text(q, part, answerId, text) -> linked html, terms(q) -> Key terms drop-down}.
 // save(q): the SAVE button for the question's card, or '' where it has none; isOpen(id): a compact row was open.
 export function answerReviewHtml(session, missed = [], source = () => '', isFlagged = () => false, gloss = null, {save = () => '', isOpen = () => false} = {}) {
   // The correct answer appears once, with its memory cue and its explanation. Wrong attempts follow in order.

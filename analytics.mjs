@@ -1,5 +1,5 @@
 // On-device first-answer accuracy and exposure history; independent of grading/flags.
-// Question pool kinds (Random / Smart). v1.1.1 kept Smart Mode as a boolean in icf:smart: true maps to Smart.
+// Question pool kinds (Random / Smart). An older save kept Smart Mode as a boolean in icf:smart: true maps to Smart.
 export const POOL_KINDS = Object.freeze(['random', 'smart']);
 export const POOL_LABEL = Object.freeze({ random: 'Random', smart: 'Smart' });
 export const toPoolKind = (stored, legacySmart) => POOL_KINDS.includes(stored) ? stored : legacySmart === true ? 'smart' : 'random';

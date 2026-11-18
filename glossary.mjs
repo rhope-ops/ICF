@@ -79,7 +79,7 @@ export function searchEntries(g, { query = '', unit = 0 } = {}) {
 
 // Bookmarks: one list of entry ids (icf:glossaryBookmarks). SAVE replaced them; app.migrateBookmarks moves a
 // saved list once into Manual. Unknown or repeated ids are dropped.
-// A card term change renames its entry id; a saved list naming the old id keeps the card (
+// A card term change renames its entry id; a saved list naming the old id keeps the card (for example
 // B4-U4-Q020's card "Domain Name System (DNS) name hierarchy example" became Subdomain).
 // Three Block 5 cards have their course terms back; Group Policy Object and Proxy Server are
 // also Block 4 terms, so their Block 5 entries are "-b5" (build_glossary.assign_ids).

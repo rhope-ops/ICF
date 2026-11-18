@@ -103,7 +103,7 @@ export function questionsSetupHtml({block, mode, units, counts, pool, dynamic, r
     <div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary"${mode==='Hard'?' data-tone="gold"':''} id="mode-next">${nextLabel('Study')}</button></div>`;
 }
 
-// Flash card setup: saved sets and units (the card path of v1.1.1).
+// Flash card setup: saved sets and units.
 // setsBlock: the saved sets' block filter (this block by default, or ALL_BLOCKS); blocks: every block, for the filter.
 export function cardsSetupHtml({block, blocks = [block], library, pickSetId, catalog, units, counts, setsBlock = block.id}) {
   const setRows = library.sets.map(set => { const n = cardsInSet(set,catalog,setsBlock).length; return `<label class="card row"><input type="radio" name="card-set" value="${escape(set.id)}" ${set.id===pickSetId?'checked':''} ${n?'':'disabled'}><span><strong>${escape(set.name)}</strong>${set.id===MISSED_ID?' <span class="tag">Auto</span>':''}</span><span class="set-pick-count mono">${plural(n,'card')}</span></label>`; }).join('');
@@ -454,7 +454,7 @@ export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, 
 
 // ---- Flash cards ----
 // saved: the card is in Manual (the SAVE button state). source: the card's question, or null for a highlight card.
-// back (optional, v1.2.0): the card back panel, shown only after the card has been flipped (cardBackHtml).
+// back (optional): the card back panel, shown only after the card has been flipped (cardBackHtml).
 // Before the flip there is no Source row, Flag or glossary link, so nothing gives the hidden side away.
 // back: cardBackHtml markup made with save:'<!--save-->', so SAVE takes the left cell of the card's tools row.
 // Before the flip SAVE stands alone in that row.

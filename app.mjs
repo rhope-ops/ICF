@@ -20,8 +20,7 @@ function notice(message) { $('#storage-notice').textContent = message || ''; }
 // Write one saved value. A failed write shows the storage notice and returns false; success leaves other notices in place.
 function persist(key, value) { const error = store.write(key, value); if (error) notice(error); return !error; }
 let theme=window.icfTheme.choice;
-// Dark theme switch: a row of the gear menu: the light/dark toggle sits in the
-// settings screen"; it was a header switch).
+// Dark theme switch: a row of the gear menu (the light/dark toggle sits with the other settings).
 const themeSwitch=document.querySelector('#settings-dark');
 const syncThemeSwitch=()=>{if(themeSwitch)themeSwitch.checked=document.documentElement.dataset.theme==='dark';};
 if(themeSwitch){syncThemeSwitch();themeSwitch.onchange=()=>{theme=themeSwitch.checked?'dark':'light';window.icfTheme.set(theme);syncThemeSwitch();persist('theme',theme);};
@@ -38,7 +37,7 @@ let flags = read('flags', {});
 if (!flags || typeof flags !== 'object' || Array.isArray(flags) || Object.values(flags).some(f => !f || typeof f.questionId !== 'string' || typeof f.version !== 'string' || !Array.isArray(f.answerIds) || f.answerIds.some(id => typeof id !== 'string') || typeof f.note !== 'string' || !f.assessment)) { flags = {}; notice('Review notes could not be restored.'); }
 let understanding;
 try { understanding=restoreUnderstanding(read('understanding',{})); } catch { understanding={};notice('Understanding history could not be restored. New decisions will be kept on this device.'); }
-// Question pool: Random or Smart in icf:poolKind; v1.1.1 kept Smart Mode as a boolean in icf:smart.
+// Question pool: Random or Smart in icf:poolKind; an older save kept Smart Mode as a boolean in icf:smart.
 let stats,poolKind;
 { const r=inspectStats(read('stats',null));stats=r.stats;
   if(r.reset)notice('Question stats could not be read and were reset. Other progress is unchanged.');
@@ -1207,7 +1206,7 @@ function renderExamResults(){
 }
 // ---- Data files and source excerpts. The excerpt asset loads on demand. ----
 // Each data URL carries this build's content hash (index.html, #release-files), so code and data always match and
-// sw.js can keep a checked offline copy. Without the list (the test artifact) the plain path is used.
+// sw.js can keep a checked offline copy. Without the list (a host that serves the files as they are) the plain path is used.
 const releaseFiles=(()=>{try{return JSON.parse(document.getElementById('release-files').textContent);}catch{return {};}})();
 async function fetchJson(path){const tag=releaseFiles[path.slice(2)],response=await fetch(tag?`${path}?v=${tag}`:path,{cache:'no-store'});if(!response.ok)throw Error(`${path} ${response.status}`);return response.json();}
 function loadExcerptKit(){
@@ -1238,8 +1237,8 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('pagehide',()=>{if(session){session=transition(session,{type:'pause'});save();}});
 try {
-  // Offline copy: not awaited, never blocks or fails the start. Where workers are unavailable (the test
-  // artifact, private modes) the app runs from the network as before.
+  // Offline copy: not awaited, never blocks or fails the start. Where workers are unavailable (an embedding
+  // page, private modes) the app runs from the network as before.
   // A page that started without the worker (first visit, after the recovery page, a reload past the worker) tells
   // it which build runs here. When the network returns or the tab is shown again, the page asks the worker to
   // complete or repair its copy.
