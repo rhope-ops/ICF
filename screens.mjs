@@ -14,7 +14,7 @@ import { typeOf, resolved as scholarResolved, right as scholarRight, currentDeci
 export const duration = ms => { const n = Math.floor(ms/1000); return n >= 3600 ? `${Math.floor(n/3600)}:${String(Math.floor(n/60)%60).padStart(2,'0')}:${String(n%60).padStart(2,'0')}` : `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
 
 // ---- Shared setup controls ----
-// Question pool (v1.2.0): one choice, Random / Smart; it replaces the Smart Mode checkbox.
+// Question pool: one choice, Random / Smart; it replaces the Smart Mode checkbox.
 export const POOL_HELP={random:'A random mix from the selected units.',smart:'Unseen questions first, then missed ones.'};
 export function poolKindControl({kind}) {
   return `<fieldset class="pool-kind" id="pool-kind"><legend class="sr-only">Question pool</legend><div class="seg pool-kind-seg">${['random','smart'].map(k=>`<label><input type="radio" name="pool-kind" value="${k}" ${kind===k?'checked':''}>${POOL_LABEL[k]}</label>`).join('')}</div><em class="pool-help" id="pool-help">${POOL_HELP[kind]}</em></fieldset>`;
@@ -22,7 +22,7 @@ export function poolKindControl({kind}) {
 const dynamicControl = on => `<label class="card row" id="dynamic-choice"><input id="dynamic-cards" type="checkbox" aria-describedby="dynamic-help" ${on?'checked':''}><span><strong>Dynamic Flash Cards</strong><em id="dynamic-help">Automatically save missed questions as flash cards.</em></span></label>`;
 // Mode cards: the Mode screen and Marked practice use the same cards.
 const MODE_HELP={Assisted:'Timed key terms, then removes wrong choices.',Unassisted:'No timed help. Hint is available.',Hard:'Professional questions. No help. Gamers only.'};
-// Mode is the help level only (v1.2.0): Exam has its own entry under the study setup.
+// Mode is the help level only: Exam has its own entry under the study setup.
 export const modeCards=(name,current)=>STUDY_MODES.map(m=>`<label class="card" data-tone="${m==='Hard'?'gold':'blue'}"><input type="radio" name="${name}" value="${m}" ${current===m?'checked':''}><strong>${m}</strong><span>${MODE_HELP[m]}</span></label>`).join('');
 // Pool chips. A selection smaller than the first size shows its own count in that
 // slot (gold) and a note at the right; sizes larger than the selection are disabled.
@@ -39,9 +39,9 @@ export const poolSeg=(name,current,n=Infinity,empty='')=>{
 // ---- Welcome and Blocks ----
 export const welcomeHtml = ({nickname, open}) => `<section class="hero welcome-copy">${commBadge}<h1>Cyber <em>Fundamentals</em></h1><p class="label">Learn · Practice · Master</p><p class="lede">Pick a block and lock in.</p></section><form class="panel welcome-form" id="welcome"><div class="field"><label for="nickname">Nickname <span class="muted">(optional)</span></label><input id="nickname" maxlength="40" placeholder="Your nickname" autocomplete="nickname" value="${escape(nickname)}"></div><div class="welcome-actions"><button class="${open?'':'primary'}">Start</button>${open?'<button type="button" class="primary" id="welcome-resume">Resume</button>':''}</div><p class="privacy-note">Your nickname and progress stay on this device.</p></form>`;
 
-// For Review (2.1.28, the owner, 2026-11-10): the box shows only the open block: its marked questions (Review, Practice quiz; "Practice test" until 2.2.0, the owner 2026-11-16)
-// and its past results (Exam results when the last submitted exam is this block's; History (the owner, 2026-11-10; was Attempts) when this block has answered
-// questions). No open block: the box keeps only its title and one line. Layout is the 2.1.24 option C box.
+// For Review: the box shows only the open block: its marked questions (Review, Practice quiz)
+// and its past results (Exam results when the last submitted exam is this block's; History when this block has answered
+// questions). No open block: the box keeps only its title and one line.
 export function forReviewHtml({bank, block = null, understanding, stats, examBlock = null}) {
   const b = bank.blocks.find(x => x.id === block);
   if (!b) return `<section class="panel practice-section for-review is-empty"><div class="step-head"><h2>For Review</h2></div><p class="muted">Open a block to see its marked questions and results.</p></section>`;
@@ -62,7 +62,7 @@ export function blocksHtml({bank, nickname, open, understanding, missedReview, s
     ${bank.blocks.map(block => {
       const count = normal.filter(q => q.block === block.id).length, hard = hardBank.filter(q => q.block === block.id).length;
       const exams = formsFor(bank, block.id)?.order.length || 0;
-      // Collapsible blocks (the owner, 2026-11-10): each block is one row (Block N, title, chevron). One block is open at a time
+      // Collapsible blocks: each block is one row (Block N, title, chevron). One block is open at a time
       // (details name="block-list"): the last studied block, else the first block. Only blocks with questions are listed
       // (the app drops the others at load).
       const open = block.id === shown ? ' open' : '';
@@ -75,10 +75,9 @@ export function blocksHtml({bank, nickname, open, understanding, missedReview, s
     ${forReview}`;
 }
 
-// ---- Study hub and setups (v1.2.0) ----
+// ---- Study hub and setups ----
 // Study hub: three tiles (Questions, Flash cards, Glossary; on phones Glossary takes the full second row), then the
-// Scholar entry and the Exam entry, each after an "Or" divider. The 1.2 Scholar was removed in 1.2.3 (the owner,
-// 2026-11-08); Scholar returned in 2.2.0 as term study (the owner, 2026-11-16). scholar: the
+// Scholar entry and the Exam entry, each after an "Or" divider. Scholar is term study. scholar: the
 // block has Scholar content (a block without it shows no Scholar entry).
 const TILES=[['questions','Questions','Answer, score and retry.'],['cards','Flash cards','Terms and definitions.'],['glossary','Glossary','Course terms with their sources.']];
 export function studyHubHtml({block, scholar = false}) {
@@ -91,7 +90,7 @@ export function studyHubHtml({block, scholar = false}) {
     <section class="card exam-entry" data-tone="violet" aria-labelledby="exam-entry-title"><div class="exam-entry-text"><h2 id="exam-entry-title">Exam</h2><p class="exam-entry-sub">Prove your mastery of the material.</p></div><button id="exam-open" class="primary" data-tone="violet">${nextLabel('Take exam')}</button></section>`;
 }
 
-// One note on every path that starts a new Questions session over a paused one (UX review 2026-11-11, H2).
+// One note on every path that starts a new Questions session over a paused one.
 export const REPLACING_NOTE = '<p class="muted replacing-note">Starting replaces your paused study session; understanding choices and notes are kept.</p>';
 // Questions setup: help level, units, question pool (Random / Smart and size), Dynamic Flash Cards.
 // counts: {all: 'label', units: {unitId: n}}; pool: {kind, size, n, empty}.
@@ -159,13 +158,13 @@ function trackHtml(c, mode) {
   return `<div class="track" id="track"><span class="mono clock" id="clock" aria-hidden="true">${duration(ms)}</span><div class="track-body"><div class="track-bar"><div class="track-fill" id="track-fill" style="width:${fill}%"></div>${TRACK_MARKS.map(([at])=>`<i class="tick" style="left:${at/500}%"></i>`).join('')}</div><div class="marks" aria-hidden="true">${TRACK_MARKS.map(([at,kind,text])=>`<span class="${kind}${ms>=at?' hit':''}" style="left:${at/500}%">${text}</span>`).join('')}</div></div>${c.resolved?'':`<span id="countdown" class="countdown sr-only" role="timer" aria-live="off">${assistanceTimer(c,mode)}</span>`}</div>`;
 }
 
-// ---- Glossary in questions (v1.2.0) ----
-// A term link inside running text (stem, answers, rationales) is an inline span with role="button" (1.2.2): a <button>
+// ---- Glossary in questions ----
+// A term link inside running text (stem, answers, rationales) is an inline span with role="button": a <button>
 // is always an atomic box, so a long term broke the sentence into centred lines on phones. Enter and Space open it
 // (one keydown listener in app.mjs). Lists of terms (Key terms, Related) keep real buttons.
 const TERM_SPAN = ref => `<span role="button" tabindex="0" class="term-link" data-term="${escape(ref)}" aria-haspopup="dialog">`;
 // Stem with key-term marks and glossary links. links: glossary.stemLinks() spans; a link that partly overlaps a key-term
-// mark is split at the mark's edge into two spans with the same term (2.1.7; it was dropped), so the markup always nests
+// mark is split at the mark's edge into two spans with the same term, so the markup always nests
 // and the term still opens. Each link is an inline span (dotted underline, no colour change).
 export function linkedStem(q, {marks = false, links = []} = {}) {
   const kw = marks ? [...q.keywords].sort((a, b) => a.start - b.start) : [];
@@ -185,7 +184,7 @@ export function linkedStem(q, {marks = false, links = []} = {}) {
   }
   return out + escape(q.stem.slice(at));
 }
-// Any text block with its precomputed glossary spans ([start, end, ref]); used where everything is resolved (reviews).
+// Any text block with its precomputed glossary spans ([start, end, ref]); used where everything is resolved.
 export function linkedText(text, spans = []) {
   let out = '', at = 0;
   for (const [start, end, ref] of [...spans].sort((a, b) => a[0] - b[0])) { if (start < at) continue; out += escape(text.slice(at, start)) + `${TERM_SPAN(ref)}${escape(text.slice(start, end))}</span>`; at = end; }
@@ -207,9 +206,9 @@ export function studyHtml({session, bank, box, source, isFlagged, gloss = null})
   const stem=linkedStem(q,{marks:keywordHighlightEnabled(session,c),links:gloss?.links||[]});
   const number=session.pool.indexOf(q.id)+1,tries=tryLabel(session,c),retry=(c.wrongIds.length>0||c.resolved==='revealed')&&!reviewing;
   const status=retry&&!hard?'Retry queued':tries,tone=retry||!tries.startsWith('1st')?'try':'';
-  // The Flag pennant shows only with the Source cell, at the row's right (the owner, 2026-11-08): the excerpts once the answer
+  // The Flag pennant shows only with the Source cell, at the row's right: the excerpts once the answer
   // is known (correct or revealed) or the dashed held row after a miss. Before the answer neither shows. Back to an earlier
-  // appearance keeps the same row as the live view: a missed one shows the held row and Flag (the owner, 2026-11-16).
+  // appearance keeps the same row as the live view: a missed one shows the held row and Flag.
   const sourceCell=sourceVisible(c)?source(q):c.resolved?'<p class="excerpt-held"><span class="label">Source · held<span class="held-more"> until review</span></span></p>':'';
   const answers=answersHtml(q,c,{assisted,reviewing});
   return `<h1 class="sr-only">Question ${number} of ${p.pool}</h1>${studyToolbar({mode:session.nextMode||c.mode||session.mode,modes:locked?[session.mode]:['Assisted','Unassisted'],locked:reviewing||locked,status,statusTone:tone})}${ledgerHtml(session)}<article class="panel q-sheet"><section class="question-focus" aria-label="Current question"><div class="question-heading qhead"><p class="qnum">#${number} <small>of ${p.pool}${repeat?' · Repeat':''}</small><span class="sr-only">Question ${number} of ${p.pool}</span></p><span class="unit-label${box?.missed?' with-tag':''}">${box?.missed?`${IN_MISSED}<span class="unit-text">${escape(questionUnitLabel(q,bank.blocks))}</span>`:escape(questionUnitLabel(q,bank.blocks))}</span></div><h2 id="stem" class="stem" tabindex="-1">${stem}</h2>${assisted&&!reviewing&&!hard?trackHtml(c,session.mode):''}</section><div class="answers">${answers}</div>${sourceRow(sourceCell,sourceCell?flagButton({id:'flag-question',question:q.id,flagged:isFlagged(q.id)}):'',revealed&&gloss?.keyTerms?keyTermsHtml(gloss.keyTerms):'',box?saveButton({id:'save-question',key:box.key,saved:box.saved}):'')}</article><div class="navrow actions question-actions"><button id="previous" ${!session.history?.length||session.viewIndex===0?'disabled':''}>${backLabel('Back')}</button><button id="next" class="primary" ${!reviewing&&!revealed?'disabled':''}>${nextLabel('Next')}</button></div><div class="tool-row">${!reviewing&&!assisted&&!locked?`<button id="hint" aria-controls="stem" ${c.hintUsed||c.resolved?'disabled':''}>${c.hintUsed?'Hint shown':'Hint'}</button>`:''}${!reviewing&&!locked?`<button id="show-answer" ${c.resolved?'disabled':''}>Show Answer</button>`:''}</div>`.replace('<div class="tool-row"></div>','');
@@ -217,7 +216,7 @@ export function studyHtml({session, bank, box, source, isFlagged, gloss = null})
 
 // ---- Glossary screen ----
 // list: entries to show (search + unit filter); entry: the open entry or null; questionCount(e): {standard, hard} questions
-// with the term (2.1.22, the owner: one button per pool; the Hard one in the Hard gold; a pool with none shows no button).
+// with the term (one button per pool; the Hard one in the Hard gold; a pool with none shows no button).
 // Key terms of a glossary entry (card back and Glossary entry): the terms linked in its definition, then its related terms.
 export function entryTerms(entry, g) {
   const termName = ref => { const p = ref.startsWith('acr:') ? ref.slice(4) : g.byId.get(ref)?.term; return p || ref; };
@@ -232,8 +231,8 @@ export const IN_MISSED = '<span class="tag in-missed" data-tone="bad">In Missed<
 // save: the Save button for the entry's card or ''. toCard: 'Card N' when the entry was opened from a flash card
 // (the back button to that card), else ''.
 // group: 'unit' (Unit 1 ... Unit 8 headings, A-Z inside each) or 'az' (one A-Z list with the letter bar).
-// flag: the entry card's Flag button (2.1.23, the owner: "put a flag ... on the far right side of source like it exists everywhere else").
-// scholar: the entry has a Scholar item (2.2.0): an Open in Scholar button under the entry.
+// flag: the entry card's Flag button.
+// scholar: the entry has a Scholar item: an Open in Scholar button under the entry.
 export function glossaryHtml({block, g, list, query, unit, entry, questionCount, save = '', flag = '', toCard = '', group = 'unit', replacing = false, scholar = false}) {
   const letter = e => (e.term.match(/[A-Za-z]/)?.[0] || '#').toUpperCase();
   const letters = [...new Set(list.map(letter))];
@@ -273,9 +272,9 @@ export function splitSummary(text) {
   return m ? [m[1], text.slice(m[0].length)] : [text, ''];
 }
 // Term popover (desktop) / bottom sheet (phone). content: glossary.popover(). It opens on a short summary, the first sentence
-// of the definition; More expands the rest and the excerpts (the owner, 2026-11-16). save: the Save button for the term's
+// of the definition; More expands the rest and the excerpts. save: the Save button for the term's
 // flash card, beside the close button, or ''.
-// scholar (2.6.0, G2 of the Scholar review): the term has a Scholar item, so "Study in Scholar" opens it (one tap from a
+// scholar: the term has a Scholar item, so "Study in Scholar" opens it (one tap from a
 // missed question's key term to its explanation).
 export function termPopoverHtml(content, {more = false, docs = {}, save = '', scholar = false} = {}) {
   const e = content.entry, [summary, rest] = e ? splitSummary(e.short) : ['', ''];
@@ -293,11 +292,11 @@ export function answerAnnouncement(event, attemptsBefore, session) {
   return event.type === 'next' ? '' : null;
 }
 
-// ---- Scholar (2.2.0) ----
+// ---- Scholar ----
 // Term list of one unit: unit choice (a segmented row), then each term with its summary. done: {itemId: right answers}.
-// todo (2.6.0, G3): the first term of the unit whose guided questions are not all right, or null; review: show "Review this
+// todo: the first term of the unit whose guided questions are not all right, or null; review: show "Review this
 // unit" (G4: the unit's guided questions in a shuffled order, practice only).
-// 2.6.3 (the owner, 2026-11-17): each entry reuses its glossary entry (glossOf: entry id -> glossary entry or null): the
+// each entry reuses its glossary entry (glossOf: entry id -> glossary entry or null): the
 // one-line glossary definition instead of the Scholar summary, and a term longer than SHORT_NAME characters shows its glossary
 // short form (an all-capital alias such as CMOS) with the full name for screen readers. The term page keeps the full texts.
 const SHORT_NAME = 24;
@@ -320,31 +319,31 @@ export function scholarListHtml({block, units, unit, items, done = {}, todo = nu
 // Scholar question in the shape of a bank question, so its answers are the same tiles as in the other modes (answersHtml).
 export const scholarQuestion = qn => ({ id: qn.id, correctAnswerId: String(qn.key), answers: qn.answers.map((a, i) => ({ id: String(i), text: a.text, rationale: a.why })) });
 // The tiles of a Scholar question: the other modes' tiles, except that after the reveal a choice nobody picked stays neutral
-// (2.3.0 polish, the owner 2026-11-16) and keeps its why.
+// and keeps its why.
 const scholarTiles = (qn, st) => answersHtml(scholarQuestion(qn), st, { assisted: true, neutralUnpicked: true });
 // tries: this question's picks in order. As in the other modes, a wrong pick flips with its own why (the Assisted flip);
-// the right pick or a second wrong one resolves the question and shows every why (the owner, 2026-11-16, "3b").
+// the right pick or a second wrong one resolves the question and shows every why.
 export const scholarAnswerState = (qn, tries = [], max = 2) => {
   const wrong = tries.filter(i => i !== qn.key).map(String);
   return { order: qn.answers.map((_, i) => String(i)), resolved: tries.includes(qn.key) ? 'correct' : tries.length >= max ? 'revealed' : null, stage: 0, eliminated: [], flippedWrong: wrong, wrongIds: wrong };
 };
 // One branch decision in the answer-tile shape (2-3 choices; it ends after min(2, choices - 1) wrong picks).
 export const decisionQuestion = (qn, k) => ({ id: `${qn.id}-D${k}`, key: qn.steps[k].key, answers: qn.steps[k].choices });
-// One term. The sections form one connected accordion (the owner, 2026-11-16: "linked together rather than ... separate
-// pills"), each open unless the reader closed it (open: {section: false}). The guided question mirrors the question
+// One term. The sections form one connected accordion (linked together rather than as separate
+// pills), each open unless the reader closed it (open: {section: false}). The guided question mirrors the question
 // screen (q-sheet, #N heading, stem, answers, navrow with Next at the right, tool-row with Hint) and teaches: a Hint before
 // the pick, a "Look again" pointer to the section or picture step that explains it after a wrong pick, and a Takeaway when
-// the question is over (the owner, 2026-11-16: hint, nudge, takeaway). No course-page lines.
+// the question is over (hint, nudge, takeaway). No course-page lines.
 // tries: this question's picks; hint: the hint is shown; done(question): it is over; pic: {index, motion, playing}.
 // back: 'Glossary' | 'Card N' | '' when the term was opened from the Glossary or a card.
 const SEE_LABEL = { deeper: 'Deeper explanation', analogy: 'Analogy', scenario: 'Sample scenario', example: 'Everyday example' };
 export const seeLabel = (see, picture) => { const [part, n] = see.split(':'); return part !== 'picture' ? SEE_LABEL[part] : picture?.kind === 'steps' ? `Picture, step ${Number(n) + 1}` : `Picture: ${picture?.parts?.[Number(n)]?.label ?? `part ${Number(n) + 1}`}`; };
 // Everyday example: the "In the course: <definition>" line stays in the text; its source goes under it in the app's
-// attribution style (.excerpt figcaption, "Block Text · p. 15"; the owner, 2026-11-16).
-// Only the "In the course" line goes into the attribution figure; the illustration before it stays plain text (review 2026-11-16).
+// attribution style (.excerpt figcaption, "Block Text · p. 15").
+// Only the "In the course" line goes into the attribution figure; the illustration before it stays plain text.
 export const exampleHtml = text => { const m = /^(.*?)\s*(In the course: .*), ([^,]+) p\.(\d+)\.$/s.exec(text);
   return m ? `${m[1] ? `<p>${escape(m[1])}</p>` : ''}<div class="excerpt scholar-example"><figure><p>${escape(m[2])}.</p><figcaption>${escape(m[3])} · p. ${m[4]}</figcaption></figure></div>` : `<p>${escape(text)}</p>`; };
-// Hands-on task labels (2.3.0): the type tag above the stem of the hands-on question (shown first since 2.4.2).
+// Hands-on task labels: the type tag above the stem of the hands-on question (shown first).
 const TASK_LABEL = { tap: 'Tap the picture', order: 'Put in order', sort: 'Sort', branch: 'Scenario' };
 // The body of the guided question by type. draft: the arrangement being built (order: shown indexes in the current order;
 // sort: a group 0/1 or null per item). Returns {body, over, feedback, wrongNow, check}.
@@ -362,7 +361,7 @@ function guidedBody(item, qn, tries, draft) {
   if (t === 'order' || t === 'sort') {
     const last = tries[tries.length - 1], shown = over ? (t === 'order' ? qn.key : qn.key) : draft;
     // Over: solved = every row green; revealed (two wrong checks) = the right arrangement in neutral rows under a visible
-    // "Answer revealed" line, never green (fresh review 2026-11-16, MAJOR 2).
+    // "Answer revealed" line, never green.
     const marks = over ? null : last && same(last, draft) ? checkMarks(qn, last) : null, done = over ? (ok ? 'right' : 'revealed') : '';
     const mark = i => marks ? (marks[i] ? 'right' : 'wrong') : done;
     const markText = i => mark(i) === 'right' ? (over ? '' : 'In the right place') : mark(i) === 'wrong' ? 'Not here' : '';
@@ -392,14 +391,14 @@ function guidedBody(item, qn, tries, draft) {
     feedback: !tries.length ? '' : over ? end : now.length ? 'Incorrect. Read why, then pick again.' : `${(tries[k - 1] || []).includes(qn.steps[k - 1]?.key) ? 'Correct.' : 'Answer revealed.'} Decision ${k + 1} of ${qn.steps.length}.` };
 }
 const same = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]);
-// Row height probes of an order or sort question (the owner, 2026-11-16: answer heights as in quizzes): its rows in their two
+// Row height probes of an order or sort question (answer heights as in quizzes): its rows in their two
 // tallest states, after a wrong check (a mark line on each row) and at the end (the why on each row).
 export function scholarRowProbes(item, qn) {
   const wrong = typeOf(qn) === 'order' ? [...qn.key].reverse() : qn.key.map(g => 1 - g);
   return [guidedBody(item, qn, [wrong], wrong).body, guidedBody(item, qn, [qn.key]).body];
 }
 
-// The guided question without its navigation (2.6.0: shared by the term page and the unit review). see: false leaves out
+// The guided question without its navigation (shared by the term page and the unit review). see: false leaves out
 // "Look again" (the unit review has no reading sections on screen; the takeaway and every why still show).
 function guidedSection(item, qn, g, hint, {see = true} = {}) {
   const t = typeOf(qn), over = g.over;
@@ -413,7 +412,7 @@ function guidedSection(item, qn, g, hint, {see = true} = {}) {
       <div class="tool-row scholar-tools"><button id="scholar-hint" aria-controls="scholar-stem"${hint || over ? ' disabled' : ''}>${hint ? 'Hint shown' : 'Hint'}</button>${g.check || ''}</div>`;
 }
 
-// Unit review (2.6.0, G4 of the Scholar review): one guided question of a deck mixed across the unit's terms; practice only.
+// Unit review: one guided question of a deck mixed across the unit's terms; practice only.
 // deck: [{item, q}]; k: the place in it; tries, hint, draft as on the term page.
 export function scholarReviewHtml({block, unit, item, qn, k, total, tries = [], hint = false, draft = null}) {
   const g = guidedBody(item, qn, tries, draft), over = g.over;
@@ -427,20 +426,20 @@ export function scholarReviewHtml({block, unit, item, qn, k, total, tries = [], 
 }
 
 // started: some guided question of this term has a pick (the Reset questions link shows).
-// related (2.6.0, G5): the glossary's related terms [{id, term, item, part}]; item (a Scholar item id) opens that term in
+// related: the glossary's related terms [{id, term, item, part}]; item (a Scholar item id) opens that term in
 // Scholar, else the term opens its glossary pop-up.
 export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, done, back = '', pic = {}, open = {}, draft = null, started = false, related = []}) {
   const qn = item.questions[q], n = item.questions.length, t = typeOf(qn);
   const section = (kind, label, body) => `<details class="scholar-drop" data-section="${kind}"${open[kind] === false ? '' : ' open'}><summary><span class="label">${label}</span></summary><div class="scholar-drop-body">${body}</div></details>`;
-  // A blank line starts a new paragraph (2.5.3: an umbrella's Deeper has one paragraph per covered term).
+  // A blank line starts a new paragraph (an umbrella's Deeper has one paragraph per covered term).
   const text = t0 => t0.split(/\n\s*\n/).map(x => `<p>${escape(x.trim())}</p>`).join('');
   const g = guidedBody(item, qn, tries, draft), over = g.over;
-  // One counter (2.3.0 polish): the section title says "Guided question N of M"; the sheet shows only the task type of a
+  // One counter: the section title says "Guided question N of M"; the sheet shows only the task type of a
   // hands-on question. The tiles show Correct / Incorrect; the status line is for screen readers only.
   const quiz = `<div class="scholar-q" data-type="${t}">${guidedSection(item, qn, g, hint)}
       <div class="navrow actions scholar-q-nav">${q > 0 ? `<button id="scholar-prev-q">${backLabel('Previous question')}</button>` : ''}${q < n - 1 ? `<button id="scholar-next-q"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Next question')}</button>` : ''}</div>
       ${started ? '<p class="scholar-reset"><button type="button" class="link-button" id="scholar-reset">Reset this term\'s questions</button></p>' : ''}</div>`;
-  // Term nav (the owner, 2026-11-16): Next term always at the right; All terms takes Previous term's place on the first
+  // Term nav: Next term always at the right; All terms takes Previous term's place on the first
   // term; the way back (Glossary / Card N) under them.
   const first = nav.previous ? `<button id="scholar-prev" data-scholar-item="${escape(nav.previous.id)}">${backLabel('Previous term')}</button>` : `<button id="scholar-list">${backLabel('All terms')}</button>`;
   const second = [nav.previous ? `<button id="scholar-list">${backLabel('All terms')}</button>` : '', back ? `<button id="scholar-return">${backLabel(back)}</button>` : ''].join('');
@@ -461,15 +460,15 @@ export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, 
 // Before the flip SAVE stands alone in that row.
 // missed: the card is in Missed Questions (the In Missed tag). glossEntry: the card's glossary entry after the first flip,
 // or null; it adds Open in Glossary to the row under Back (Hint stays under Next).
-// scholar: the card's term has a Scholar item (2.2.0): Open in Scholar joins Open in Glossary after the first flip.
+// scholar: the card's term has a Scholar item: Open in Scholar joins Open in Glossary after the first flip.
 export function flashScreenHtml({preview, set, bank, saved, missed = false, message, source, back = '', glossEntry = null, scholar = false}) {
   const card = preview.cards[preview.index];
   const save = saveButton({id:'flash-save', key:cardKey(card), saved}), row = back ? back.replace('<!--save-->', save) : sourceRow('', '', '', save);
   return `<h1 class="sr-only">Flash cards</h1>${studyToolbar({mode:'Flash Card',locked:true,endId:'flash-exit',status:`Card ${preview.index+1} of ${preview.cards.length}`})}
     <section class="flash-study" aria-label="Flash card review">${set ? `<p class="flash-set-name label">Set · ${escape(set.name)}</p>` : ''}${cardHtml(preview,{unit:source ? questionUnitLabel(source,bank.blocks) : card.kind === 'highlight' ? 'Saved highlight' : '',flaggable:false,saveBox:row+`<p class="flash-message muted" role="status">${escape(message)}</p>`,missed,tools:glossEntry?`<button type="button" id="card-open-gloss" data-entry="${escape(glossEntry.id)}">Open in Glossary</button>${scholar?'<button type="button" id="card-open-scholar" data-tone="scholar">Open in Scholar</button>':''}`:''})}</section>`;
 }
-// Card back (2.1.3: Open in Glossary moved under Back; the bookmark was replaced by SAVE): the
-// SAVE · KEY TERMS · SOURCE · FLAG row (1.2.2; SAVE added in 2.0.0): the terms in the definition and the related terms are the Key terms drop-down,
+// Card back: Open in Glossary sits under Back; SAVE replaces the bookmark. The
+// SAVE · KEY TERMS · SOURCE · FLAG row: the terms in the definition and the related terms are the Key terms drop-down,
 // the question's course excerpts the Source drop-down, the card Flag at the right. Same order as the question screen.
 // entry: glossary entry or null; source: excerpt markup or ''; flagged: the card flag is saved; save: the Save button.
 export function cardBackHtml({entry, g, source = '', flagged = false, questionId = null, save = ''}) {
@@ -482,7 +481,7 @@ export const savedSetsScreenHtml = ({library, catalog, back, blocks = [], block}
 
 // ---- Results, Previous Attempts, Marked review ----
 // Unit accuracy bars (Results and Previous Attempts): one shared name column; tag(row) adds the right-hand note.
-// Columns (2.0.0): name · tag · bar · %. The tag (missed count, or first-answer count) has its own column, empty when none.
+// Columns: name · tag · bar · %. The tag (missed count, or first-answer count) has its own column, empty when none.
 function unitBarsHtml(rows,tag){return `<div class="bars">${rows.map(row=>{const v=row.asked?row.correct/row.asked:null;return `<div class="barrow"><span class="bar-name">${row.id?`<span class="unit-number">U${row.id}</span>`:''}<span class="bar-title">${escape(row.title)}</span></span><span class="bar-tag">${tag(row)}</span><span class="b" aria-hidden="true"><i style="width:${v===null?0:(v*100).toFixed(1)}%"></i></span><span class="mono ${scoreTone(v)}">${v===null?'—':`${Math.round(v*100)}%`}</span><span class="sr-only">${v===null?'Not attempted':`${row.correct} of ${row.asked} first answers correct`}</span></div>`;}).join('')}</div>`;}
 
 // Retake Quiz: the circular-arrow icon (aria-hidden) and the text label.
@@ -499,7 +498,7 @@ export function resultsHtml({session, bank, blockId, stats, understanding, sourc
   return `<div class="page-head"><p class="label">Latest session results<span class="tag" data-tone="${session.mode==='Hard'?'gold':'blue'}">${escape(session.mode)}</span></p><h1>Stats</h1></div><div class="stats"><div class="stat"><span class="label">Active time</span><strong>${duration(r.activeMs)}</strong><small>Pauses excluded</small></div><div class="stat"><span class="label">Avg / question</span><strong>${r.averageSeconds===null?'—':`${r.averageSeconds.toFixed(1)}s`}</strong><small>${plural(r.seen,'question')} answered</small></div><div class="stat"><span class="label">Accuracy</span><strong>${pct(r.accuracy)}</strong><small>${r.correct}/${r.correct+r.incorrect} answers</small></div><div class="stat"><div class="stat-split"><span class="label correct-label" aria-hidden="true">✓</span><span class="label stat-sep" aria-hidden="true">·</span><span class="label incorrect-label" aria-hidden="true">✕</span><strong class="correct-label">${r.correct}<span class="sr-only"> correct</span></strong><strong class="stat-sep" aria-hidden="true">·</strong><strong class="incorrect-label">${r.incorrect}<span class="sr-only"> incorrect</span></strong></div><small>First try ${pct(r.firstAccuracy)}</small></div></div>${extras.length?`<dl class="ledger-figures metrics" aria-label="Help used">${extras.map(([k,n])=>`<div><dt>${k}</dt><dd>${n}</dd></div>`).join('')}</dl>`:''}${toReview.length?`<div class="actions"><button class="primary" id="review-missed">Review ${session.kind==='not_understood'?'marked':'missed'} questions (${toReview.length})</button></div>`:''}<section class="panel unit-bars"><h2>First-answer accuracy by unit</h2><p class="label">All sessions on this device · ${escape(block.title)}</p>${unitBarsHtml(scores.rows,row=>missedBy[row.id]?`<em class="tag" data-tone="bad">${missedBy[row.id]} missed</em>`:'')}</section><section class="answer-review"><h2>Quiz review</h2>${review}</section><div class="navrow actions results-nav"><button id="again">${backLabel('Blocks')}</button><button id="retry-session">${retakeLabel}</button></div>`;
 }
 
-// block (2.1.28): the block chosen in For Review; only its units and exam history show. null shows every block.
+// block: the block chosen in For Review; only its units and exam history show. null shows every block.
 export const previousAttemptsHtml = ({bank, stats, hasResults, history = [], block = null}) => `<div class="page-head"><p class="label">On this device${block === null ? '' : ` · Block ${block}`}</p><h1>Previous Attempts</h1></div><p class="muted">Reveals count as missed.</p>${bank.blocks.filter(b => block === null || b.id === block).map(block=>{
     const scores=unitScores(stats,block.id,block.units),rows=[{title:'All units',...scores},...scores.rows];
     return `<section class="panel attempts-panel"><h2>${escape(block.title)}</h2>${unitBarsHtml(rows,row=>row.asked?`<em class="tag">${row.correct}/${row.asked}</em>`:'')}</section>`;
@@ -512,7 +511,7 @@ export function missedReviewHtml({bank, review, understanding, source, isFlagged
   return `<div class="page-head"><p class="label">Marked for review</p><h1 class="sr-only">Marked review</h1></div><article class="panel q-sheet review-sheet"><section class="question-focus"><div class="question-heading qhead"><span class="qnum">#${review.index+1} <small>of ${n}</small></span><span class="unit-label">${escape(questionUnitLabel(q,bank.blocks))}</span></div><h2 class="stem review-question" tabindex="-1" id="review-stem">${q.studyMode==='Hard'?escape(q.stem):highlightedStem(q)}</h2></section>${reviewItem('correct','Correct answer',escape(answer.text),`<em class="review-explanation">${escape(q.reviewCue || answer.rationale)}</em>`)}${sourceRow(source(q),flagButton({id:'review-flag',question:q.id,flagged:isFlagged(q.id)}),terms,save)}</article><fieldset class="mastery"><legend class="label">Mastered this material?</legend><div class="types">${[['yes','Yes','Unmark this question.'],['no','No','Keep it marked.']].map(([v,t,d])=>`<label class="card"><input type="radio" name="understood" value="${v}" ${record?.decision===v?'checked':''}><strong>${t}</strong><span>${d}</span></label>`).join('')}</div></fieldset><div class="navrow actions review-actions"><button id="review-previous" ${review.index?'':'disabled'}>${backLabel('Back')}</button><button id="review-next" class="primary" ${record?.decision?'':'disabled'}>${nextLabel(last?'Finish':'Next')}</button></div><div class="tool-row review-exit"><button id="leave-review">${backLabel('Blocks')}</button></div>`;
 }
 
-// ---- Exam (v1.1.0): setup panel, exam screen, submit check, results and review ----
+// ---- Exam: setup panel, exam screen, submit check, results and review ----
 const pct0 = ratio => `${Math.round(ratio * 100)}%`;
 const shortDate = ms => new Date(ms).toLocaleDateString(undefined, {day:'numeric', month:'short'});
 // The Exam panel on the Mode screen. forms: bank.examForms for the block or null; status: {cycle, taken, next}
@@ -544,14 +543,14 @@ function examAnswersHtml(q, order, picked) {
 const examTime = ms => { const n = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
 export const examClock = ms => examTime(Math.ceil(ms / 1000) * 1000);
 // The exam screen: top bar (Submit, pill, live clock), navigator, question sheet, Previous/Next and tools.
-// navOpen: phones fold the 30 cells under a Questions disclosure so the question shows first (UX review 2026-11-11, M9).
+// navOpen: phones fold the 30 cells under a Questions disclosure so the question shows first.
 export function examHtml({exam, bank, now, navOpen = true}) {
   const id = exam.pool[exam.index], q = bank.questions.find(x => x.id === id), counts = examCounts(exam), n = exam.pool.length;
   const left = Math.max(0, exam.deadline - now), last = exam.index === n - 1, flagged = exam.flagged.includes(id);
   const otherBlank = exam.pool.some((x, i) => i !== exam.index && exam.answers[x] === null);
   const cell = (qid, i) => { const answered = exam.answers[qid] !== null, flag = exam.flagged.includes(qid), here = i === exam.index;
     return `<button type="button" class="exam-cell${answered?' answered':''}${flag?' flagged':''}${here?' now':''}" data-exam-go="${i}" aria-label="Question ${i+1}, ${answered?'answered':'blank'}${flag?', flagged':''}"${here?' aria-current="step"':''}>${i+1}</button>`; };
-  // Clock at the left, Submit at the right (the owner, 2026-11-08), as Next sits at the right of Previous.
+  // Clock at the left, Submit at the right, as Next sits at the right of Previous.
   return `<h1 class="sr-only">Exam · Block ${exam.block}</h1><div class="toolbar study-toolbar study-top exam-top"><div class="meta exam-clock-cell"><span class="exam-clock${left<=300000?' low':''}" id="exam-clock-box" role="timer" aria-label="Time left"><span id="exam-clock">${examClock(left)}</span></span></div><span class="tag" data-tone="violet">Exam · Block ${exam.block}</span><button class="small" data-tone="violet" id="exam-submit">Submit</button></div>
     <section class="panel ledger exam-ledger" data-tone="violet" aria-label="Question navigator"><dl class="track-row ledger-figures"><div><dt>Answered</dt><dd>${counts.answered}<small>/${n}</small></dd></div><div><dt>Blank</dt><dd>${counts.blank}</dd></div><div><dt>Flagged</dt><dd>${counts.flagged}</dd></div></dl>
     <div class="exam-time" aria-hidden="true"><i id="exam-time-fill" style="width:${(100*(1-left/EXAM.limitMs)).toFixed(2)}%"></i></div>
@@ -586,15 +585,15 @@ function examHistoryHtml(history, currentId = null) {
 }
 
 const FILTER_NAMES = {missed:'Missed', blank:'Blank', changed:'Changed', flagged:'Flagged', all:'All'};
-// One review item: your answer against the correct one, the rationale, then the Save · Key terms · Source · Flag row. Exam reviews never offer Mark for review (the owner, 2026-11-08), old or new exams alike.
+// One review item: your answer against the correct one, the rationale, then the Save · Key terms · Source · Flag row. Exam reviews never offer Mark for review, old or new exams alike.
 function examReviewItem(item, {box, marked, source, isFlagged, termsFor = () => '', link = null, open = false}) {
   const T = (part, id, text) => link ? link(item.q, part, id, text) : escape(text);
   const q = item.q, right = q.answers.find(a => a.id === q.correctAnswerId), pick = item.picked && q.answers.find(a => a.id === item.picked);
   const why = (text, id) => `<em class="review-explanation">${T('rationale', id, text)}</em>`;
   const status = item.correct ? '<span class="tag" data-tone="good">Correct</span>' : item.blank ? '<span class="tag" data-tone="bad">Blank</span>' : '<span class="tag" data-tone="bad">Missed</span>';
   // One row per question (number, ✓ or ✕, stem) that opens to the full item, as first-try-correct rows in Quiz review
-  // (the owner, 2026-11-08: a 30-item review was about 15 screens long). Open: the summary shows the status tags in place of the
-  // clipped stem, and the full stem shows once below it (the owner, 2026-11-08: the open row was cramped).
+  // (a 30-item review would be about 15 screens long). Open: the summary shows the status tags in place of the
+  // clipped stem, and the full stem shows once below it (the open row was cramped).
   const mark = item.correct ? '<span class="correct-label" aria-hidden="true">✓</span>' : '<span class="incorrect-label" aria-hidden="true">✕</span>';
   const said = item.correct ? 'Correct' : item.blank ? 'Blank' : 'Missed';
   return `<details class="review-item review-compact exam-item" data-exam-item="${escape(q.id)}"${open?' open':''}><summary><strong class="review-number">${reviewNumber(item.number)}</strong>${mark}<span class="review-compact-stem">${escape(q.stem)}</span><span class="review-status" aria-hidden="true">${status}${item.changed?'<span class="tag">Changed</span>':''}${item.flagged?'<span class="tag">Flagged</span>':''}</span><span class="sr-only">${said}${item.changed?', changed':''}${item.flagged?', flagged':''}</span></summary>
@@ -653,7 +652,7 @@ export const oldNoteHtml = f => `<p>${escape(f.note)}</p><p class="muted">This n
 // ---- Layout (receives its elements) ----
 // Scroll only on entry, history and question changes, never on answer feedback or timer ticks.
 export const repositionStudy = (old, next) => next.step === 'study' && Boolean(next.question) && (old.screen !== 'study' || old.question !== next.question || old.appearance !== next.appearance);
-// Wide screens (2.1.8): after Next or Back, centre the sheet and its navigation row in the space under the sticky bars
+// Wide screens: after Next or Back, centre the sheet and its navigation row in the space under the sticky bars
 // (coverTop). A taller block starts just under the bars instead. The result stays inside the page's scroll range.
 export function centredScroll({top, bottom, scrollY, coverTop, viewHeight, maxScroll, gap = 8}) {
   const space = viewHeight - coverTop, height = bottom - top;

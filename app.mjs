@@ -20,7 +20,7 @@ function notice(message) { $('#storage-notice').textContent = message || ''; }
 // Write one saved value. A failed write shows the storage notice and returns false; success leaves other notices in place.
 function persist(key, value) { const error = store.write(key, value); if (error) notice(error); return !error; }
 let theme=window.icfTheme.choice;
-// Dark theme switch: a row of the gear menu since 2.2.0 (the owner, 2026-11-16: "integrate the light/dark toggle into the
+// Dark theme switch: a row of the gear menu: the light/dark toggle sits in the
 // settings screen"; it was a header switch).
 const themeSwitch=document.querySelector('#settings-dark');
 const syncThemeSwitch=()=>{if(themeSwitch)themeSwitch.checked=document.documentElement.dataset.theme==='dark';};
@@ -38,7 +38,7 @@ let flags = read('flags', {});
 if (!flags || typeof flags !== 'object' || Array.isArray(flags) || Object.values(flags).some(f => !f || typeof f.questionId !== 'string' || typeof f.version !== 'string' || !Array.isArray(f.answerIds) || f.answerIds.some(id => typeof id !== 'string') || typeof f.note !== 'string' || !f.assessment)) { flags = {}; notice('Review notes could not be restored.'); }
 let understanding;
 try { understanding=restoreUnderstanding(read('understanding',{})); } catch { understanding={};notice('Understanding history could not be restored. New decisions will be kept on this device.'); }
-// Question pool (v1.2.0): Random or Smart in icf:poolKind; v1.1.1 kept Smart Mode as a boolean in icf:smart.
+// Question pool: Random or Smart in icf:poolKind; v1.1.1 kept Smart Mode as a boolean in icf:smart.
 let stats,poolKind;
 { const r=inspectStats(read('stats',null));stats=r.stats;
   if(r.reset)notice('Question stats could not be read and were reset. Other progress is unchanged.');
@@ -49,7 +49,7 @@ poolKind=toPoolKind(read('poolKind',null),read('smart',false));
 let examNavOpen=false;
 let glossary=null,glossQuery='',glossUnit=0,glossEntry=null,termPop=null,glossGroup='unit',glossReturn=null;
 let targetedPoolSize='all';
-// Scholar (2.2.0; the index scholar.json loads at start, a block's file when its Scholar opens; the app works without them). scholarState: the saved place (icf:scholar).
+// Scholar (the index scholar.json loads at start, a block's file when its Scholar opens; the app works without them). scholarState: the saved place (icf:scholar).
 // scholarReturn: {to:'glossary', entry} or {to:'flash-card'} when an item was opened from there (a way back).
 // lastPlace: 'quiz' | 'scholar', the one the user was in last (the nav context button).
 let scholar=null,scholarState=null,scholarReturn=null,lastPlace=null;
@@ -61,30 +61,30 @@ let scholarPic={item:null,index:0,prev:null};
 let scholarOpen={};
 // Guided-question hints shown (question ids), until the page closes; a hint is help, not a score.
 const scholarHints=new Set();
-// Unit review (2.6.0, G4): {block, unit, deck: [{item, q}], k, picks}; in memory only (practice; never saved or scored).
+// Unit review: {block, unit, deck: [{item, q}], k, picks}; in memory only (practice; never saved or scored).
 let scholarReview=null;const reviewHints=new Set(),reviewDraft=new Map();
-// Order and sort tasks (2.3.0): the arrangement being built, per question id (not saved; a check is saved as a try).
+// Order and sort tasks: the arrangement being built, per question id (not saved; a check is saved as a try).
 const scholarDraft=new Map();
 // The term whose section state was set: on a term's first visit every section is open, on later visits the reading
-// sections start closed so the guided question sits near the top (the owner, 2026-11-16).
+// sections start closed so the guided question sits near the top.
 let scholarOpenFor=null;
-let scholarPicOpen=null;  // an umbrella opened for a covered entry: its picture section opens even on a return visit (2.5.3)
+let scholarPicOpen=null;  // an umbrella opened for a covered entry: its picture section opens even on a return visit
 // Set by a pick, so that the next render announces the answer line once.
 let scholarSay=false;
-// Picture loop (the owner, 2026-11-16: "animations automatically loop with a small button to cancel it"): on unless the
+// Picture loop: on unless the
 // reader paused it with the button (kept for every term until the page closes) or asked for reduced motion. A manual step
 // or part pauses only the term on screen (scholarPic.manual). PIC_MS per step.
 let scholarPlay=!window.matchMedia('(prefers-reduced-motion: reduce)').matches,picTimer=null;const PIC_MS=4000;
 let flashPreview = null, flashSetId = null, flashMessage = '', cardSets;
 // Card source on setup, Saved-sets screen state and Dynamic Flash Cards.
 let pickSetId = null, setsReturn = 'blocks', pendingCard = null, cardCatalog = null;
-// Saved sets block filter (the owner, 2026-11-16): the current block by default; a choice holds while that block stays current.
+// Saved sets block filter: the current block by default; a choice holds while that block stays current.
 let setsView = null;
 const setsBlock = () => setsView && setsView.for === blockId ? setsView.value : blockId ?? ALL_BLOCKS;
 function bindSetsBlock(id) { const select = $(`#${id}`); if (!select) return;
   select.onchange = () => { setsView = {for:blockId, value:setsBlockValue(select.value)}; keepScroll(render); $(`#${id}`)?.focus({preventScroll:true}); }; }
 let dynamicCards = read('dynamicCards', true) !== false;
-// Card sets (2.0.0): Missed Questions and Manual. An older library (schema 1 or 2) migrates on load and is saved at once
+// Card sets: Missed Questions and Manual. An older library (schema 1 or 2) migrates on load and is saved at once
 // as schema 3; damaged data is left in storage untouched until the next card change.
 let cardSetsRead = false;
 { const raw = read('cardSets', null);
@@ -101,11 +101,11 @@ let lastStudy = null;
 let bank, session = null, step = profile.visited ? 'blocks' : 'welcome', blockId = null, units = [], poolSize = 30, filter = 'Slides and Text', mode = 'Assisted';
 let last = performance.now(), modalWasRunning = false, hiddenWasRunning = false, lastSaved = 0;
 const currentBlock = () => bank.blocks.find(block => block.id === blockId);
-// Last studied block (the owner, 2026-11-10: "like b"): saved when a question session, a block's flash cards, an exam or a
-// marked review starts. Opening a block's Mode screen or the Glossary does not count (the owner, 2026-11-10). The Blocks list
+// Last studied block: saved when a question session, a block's flash cards, an exam or a
+// marked review starts. Opening a block's Mode screen or the Glossary does not count. The Blocks list
 // opens this block; an unknown block or one without questions falls back to the first block.
 let lastBlock = null;
-// The block whose Previous Attempts the For Review box opened (2.1.28); null shows every block.
+// The block whose Previous Attempts the For Review box opened; null shows every block.
 let attemptsBlock = null;
 const servedBlock = id => Number.isInteger(id) && bank.questions.some(q => q.block === id);
 function noteBlock(id){ if (servedBlock(id) && id !== lastBlock) { lastBlock = id; persist('lastBlock', id); } }
@@ -164,7 +164,7 @@ function persistCardSets(next) {
   cardSets = next; return true;
 }
 // The question screen's SAVE state once the answer is known; null before it. An earlier question (after Back) shows
-// SAVE too (2.1.3); only the live question runs the Dynamic Flash Cards write to Missed Questions, once per appearance.
+// SAVE too; only the live question runs the Dynamic Flash Cards write to Missed Questions, once per appearance.
 // missed: the card is in Missed Questions (the In Missed tag; SAVE itself shows Manual only).
 function questionCard(c,q,reviewing){
   if(!c.resolved)return null;
@@ -176,11 +176,11 @@ function questionCard(c,q,reviewing){
   return {key:cardKey(card),saved:manualHas(cardSets,card),missed:inMissed(card),card};
 }
 const inMissed=card=>setHasCard(cardSets.sets.find(s=>s.id===MISSED_ID),card);
-// SAVE (2.0.0): the button toggles the card in Manual. The polite status line announces the change; a short
+// SAVE: the button toggles the card in Manual. The polite status line announces the change; a short
 // viewport toast shows it (aria-hidden, fixed near the bottom, so it covers no content beside the button) and hides after 2 s.
 let saveNoteTimer=0;
 // One Manual toggle for every Save button. The screen re-renders and every Save button of the card on the page, the term
-// pop-up's included, shows the new state at once (the owner, 2026-11-16: the pop-up and question Save share one state).
+// pop-up's included, shows the new state at once (the pop-up and question Save share one state).
 // Returns the announced line, or null when the write failed.
 function toggleManual(card){
   const on=!manualHas(cardSets,card);
@@ -202,7 +202,7 @@ function bindSave(card,scope=main){
   };
 }
 // A toast fixed near the bottom of the viewport (above the safe area), so it never covers the card above
-// the tools row. The polite status line carries the announcement; the toast is aria-hidden. Also the exam flag (2.1.22).
+// the tools row. The polite status line carries the announcement; the toast is aria-hidden. Also the exam flag.
 function flashToast(text,row){
   document.querySelectorAll('.save-toast').forEach(n=>n.remove());clearTimeout(saveNoteTimer);
   document.body.insertAdjacentHTML('beforeend',`<div class="save-toast" aria-hidden="true"><span class="tag">${escape(text)}</span></div>`);
@@ -212,7 +212,7 @@ function flashToast(text,row){
   saveNoteTimer=setTimeout(()=>document.querySelectorAll('.save-toast').forEach(n=>n.remove()),2000);
 }
 function save() { if (session) persist('session',sessionSnapshot(session)); }
-// 2.1.3: SAVE replaced the glossary bookmark. Saved bookmarks (icf:glossaryBookmarks, a list of entry ids) move once into
+// SAVE replaced the glossary bookmark. Saved bookmarks (icf:glossaryBookmarks, a list of entry ids) move once into
 // Manual as the cards of their source questions, then the key is removed. Damaged card sets or a failed write keep the key.
 function migrateBookmarks(){
   const raw=read('glossaryBookmarks',null);if(raw===null||!glossary||!cardSetsRead)return;
@@ -259,7 +259,7 @@ function centreSheet(first, last, {cover = headerHeight(), instant = false} = {}
   const top = screens.centredScroll({top:a.getBoundingClientRect().top, bottom:b.getBoundingClientRect().bottom, scrollY:window.scrollY, coverTop:cover, viewHeight:window.innerHeight, maxScroll:document.documentElement.scrollHeight-window.innerHeight});
   window.scrollTo({top, behavior:instant||window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
 }
-// Programmatic focus target: a heading takes tabindex=-1 so screen readers hear the screen or entry name (UX review 2026-11-11, M6/M7).
+// Programmatic focus target: a heading takes tabindex=-1 so screen readers hear the screen or entry name.
 function focusHeading(h) { if (!h) return false; h.tabIndex = -1; h.focus({preventScroll:true}); return true; }
 function navigate(next) { step = next; render(); if (!focusHeading(main.querySelector('h1'))) main.focus({preventScroll:true}); resetNavigationView(); }
 const available = (selectedMode=mode) => eligible(questionsForMode(bank.questions,selectedMode), units, filter, blockId);
@@ -270,14 +270,14 @@ function showDialog(title, body, bind = () => {}, {label = '', closeFirst = fals
   dialog.dataset.tone = tone;
   dialog.innerHTML = `<div class="step-head dialog-head">${label ? `<span class="num">${escape(label)}</span>` : ''}<h2 id="dialog-title">${escape(title)}</h2></div>${body}`;
   const last = dialog.lastElementChild, row = last?.classList.contains('actions') ? last : dialog.appendChild(Object.assign(document.createElement('div'), {className:'actions'}));
-  // closeFirst: Close at the left and the action at the right (the exam submit check, the owner 2026-11-08).
+  // closeFirst: Close at the left and the action at the right (the exam submit check).
   row.insertAdjacentHTML(closeFirst ? 'afterbegin' : 'beforeend', '<button id="close-dialog" class="dialog-close">Close</button>');
   $('#close-dialog').onclick = () => dialog.close(); bind();
   // A content swap in an open dialog (Diagnostics -> Edit) moves focus to its first field; a fresh dialog lets showModal choose.
   if (!dialog.open) dialog.showModal(); else (dialog.querySelector('input,textarea,select') || $('#close-dialog')).focus();
 }
 // In-app confirmation (replaces the browser confirm box): one red action, then Close.
-// Focus starts on Close, never on the red action: one stray Enter must not delete anything (UX review 2026-11-11, H1).
+// Focus starts on Close, never on the red action: one stray Enter must not delete anything.
 function confirmDialog(title, text, action, run, label = '') {
   showDialog(title, `<p>${text}</p><div class="actions"><button class="danger fill" id="confirm-action">${escape(action)}</button></div>`, () => { $('#confirm-action').onclick = () => { dialog.close(); run(); }; }, {label});
   $('#close-dialog').focus();
@@ -344,7 +344,7 @@ $('#settings-pin-question').onchange=event=>{pinQuestion=event.target.checked;do
 $('#reset').onclick = () => { tools.close(); confirmDialog('Delete local data', 'Deletes your nickname, sessions, exams and exam history, scores, settings, saved card sets and review notes on this device. Export notes first: Diagnostics, then Download.', 'Delete', resetLocalData, 'This device'); };
 // Delete Local Data: clear storage, then return every saved setting and record to its fresh-device value.
 function resetLocalData() {
-  // A failed clear stops here: the data is still on the device, so the app must not look reset (UX review 2026-11-11, M11).
+  // A failed clear stops here: the data is still on the device, so the app must not look reset.
   const failed = store.clear(); if (failed) { notice(failed); return; }
   theme=window.icfTheme.defaultChoice;window.icfTheme.set(theme);syncThemeSwitch();
   pinQuestion=true;document.documentElement.dataset.pinQuestion='true';$('#settings-pin-question').checked=true;
@@ -375,7 +375,7 @@ function chooseBlock(id, next = 'units') {
 }
 // Nav bar: Blocks · Mode · Study · Results. Unavailable items stay visible and disabled. Study is one link for Questions,
 // Cards and Glossary: it opens the one used last. A lit item on a sub-screen (a setup, Saved card sets, Previous
-// Attempts) opens its section's main screen (1.2.2); only on the main screen itself does a tap do nothing.
+// Attempts) opens its section's main screen; only on the main screen itself does a tap do nothing.
 const SCREEN_OF={blocks:'blocks','saved-card-sets':'blocks',units:'units','not-understood-setup':'units',mode:'units','cards-setup':'units','exam-setup':'units',exam:'units',scholar:'units',glossary:'study',study:'study','flash-card':'study','missed-review':'results',results:'results','exam-results':'results','previous-attempts':'results'};
 // Saved card sets belongs to the section it was opened from (Blocks, or Mode through the Cards setup).
 const sectionOf = at => at === 'saved-card-sets' ? (setsReturn === 'units' ? 'units' : 'blocks') : SCREEN_OF[at];
@@ -394,7 +394,7 @@ function syncScreens() {
     if (here) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
     link.setAttribute('aria-disabled',String(!open));link.title=open?'':({study:'Choose Questions, Cards or Glossary in Mode',results:'No finished session'})[id]||'';
   });
-  // Context button (the owner, 2026-11-16): Resume Quiz / Resume Scholar, whichever was left last.
+  // Context button: Resume Quiz / Resume Scholar, whichever was left last.
   const ctx=$('#context-link');if(!ctx)return;
   const to=contextTarget({quiz:sessionOpen(),scholar:Boolean(scholar&&scholarState),last:lastPlace,here:step==='study'?'quiz':step==='scholar'?'scholar':null});
   ctx.hidden=!to;ctx.dataset.context=to||'';if(to==='scholar')ctx.dataset.tone='scholar';else delete ctx.dataset.tone;
@@ -417,7 +417,7 @@ document.querySelectorAll('[data-screen-link]').forEach(link => link.addEventLis
   if (!blockId) blockId = bank.blocks[0].id;
   navigate(id);
 }));
-// Phones (2.1.14, the owner 2026-11-09; the 1.2.1 behavior): the screen row (Blocks, Mode, Study, Results) is the header's
+// Phones: the screen row (Blocks, Mode, Study, Results) is the header's
 // second row and is always visible. Any scroll down slides the first row (logo, theme, settings) away. Only an
 // intentional scroll up brings it back: 48 px or more of upward scroll that follows a finger dragging down, a wheel
 // turned up or an up scroll key, within 1 s. A tap, the app's own scrolls (Next, Back), layout jumps and the bounce at
@@ -454,7 +454,7 @@ const headerHeight = () => $('header').getBoundingClientRect().height - ($('head
 function renderBlocks() {
   main.innerHTML = screens.blocksHtml({bank, nickname:profile.nickname, open:sessionOpen(), understanding, missedReview, stats, examBlock:exam?.submitted ? exam.block : null, current:lastBlock});
   main.querySelectorAll('[data-block]').forEach(button => button.onclick = () => chooseBlock(Number(button.dataset.block)));
-  // One open block at a time (2.1.28, the owner, 2026-11-10): opening a block closes the others, also where a browser
+  // One open block at a time: opening a block closes the others, also where a browser
   // ignores details name=; For Review then shows the open block only, or stays empty when no block is open.
   const cards = [...main.querySelectorAll('details.block-card')];
   cards.forEach(card => card.addEventListener('toggle', () => {
@@ -473,8 +473,8 @@ function bindForReview() {
   const box = main.querySelector('.for-review'); if (!box) return;
   const shown = Number(box.dataset.reviewFor);
   if ($('#exam-results-link')) $('#exam-results-link').onclick = () => navigate('exam-results');
-  // Marked for review (2.1.3): Review opens the one-by-one review at once (as on Results) and continues a started one;
-  // Practice quiz (Practice test until 2.2.0) is the marked-question test, with its unit choice (every unit selected first).
+  // Marked for review: Review opens the one-by-one review at once (as on Results) and continues a started one;
+  // Practice quiz is the marked-question test, with its unit choice (every unit selected first).
   box.querySelectorAll('[data-review-block]').forEach(button => button.onclick = () => {
     const id = Number(button.dataset.reviewBlock), marked = notUnderstoodQuestions(bank, understanding, null, id).map(q => q.id);
     blockId = id; units = allUnits();
@@ -487,7 +487,7 @@ function bindForReview() {
   if ($('#saved-results')) $('#saved-results').onclick = () => { attemptsBlock = shown; navigate('previous-attempts'); };
 }
 // Per-unit counts for the setup list: questions of the chosen help level (Assisted and Unassisted share the Standard pool;
-// Hard has its own; the owner, 2026-11-10), or the flash cards the Standard questions supply.
+// Hard has its own), or the flash cards the Standard questions supply.
 function unitCounts(cards, selectedMode = 'Unassisted') {
   const pool = questionsForMode(bank.questions, cards ? 'Unassisted' : selectedMode), measure = list => cards ? previewCards(list).length : list.length;
   const all = measure(eligible(pool, allUnits(), filter, blockId));
@@ -551,7 +551,7 @@ function render() {if(['study','flash-card','glossary'].includes(step))lastStudy
   }
 
   // Entering the question screen (Start, Retry, Practice, a Glossary pool, Study resume) places the question as Next and
-  // Back do: phones put it under the header, wide screens centre the sheet through Back/Next (the owner, 2026-11-16).
+  // Back do: phones put it under the header, wide screens centre the sheet through Back/Next.
   if (screens.repositionStudy({screen:oldScreen,question:oldQuestion,appearance:oldAppearance},{step,question:nextQuestion,appearance})) {
     positionStudyQuestion();
     if (oldScreen !== 'study') centreSheet('.q-sheet','.question-actions',{instant:true});
@@ -660,7 +660,7 @@ function sessionDone(){return Boolean(session&&(session.ended||session.finished)
 function pauseStudy(){if(step==='study'&&sessionOpen()&&!session.paused)send({type:'pause'},false);}
 function resumeStudy(){step='study';send({type:'resume'});main.focus({preventScroll:true});}
 // Scholar order and sort rows: before an answer, every row of a list already has the tallest answered row height, on every
-// width, so a reveal moves nothing (the owner, 2026-11-17). Answer tiles hold by CSS (answersHtml, .answers:has(.back)).
+// width, so a reveal moves nothing. Answer tiles hold by CSS (answersHtml, .answers:has(.back)).
 const scholarHold=new Map();
 const probeAt=(width,cls,html)=>{const probe=document.createElement('div');probe.className=cls;probe.setAttribute('aria-hidden','true');probe.inert=true;
   Object.assign(probe.style,{position:'absolute',left:'0',top:'0',width:`${width}px`,visibility:'hidden',pointerEvents:'none'});
@@ -689,7 +689,7 @@ function retrySession() {
 function renderResults() {
   main.dataset.screen='results';
   const toReview=reviewIds(session,understanding);
-  // Quiz review SAVE (2.0.0): the question screen's button, writing to Manual only (Missed is a separate set). Open compact rows
+  // Quiz review SAVE: the question screen's button, writing to Manual only (Missed is a separate set). Open compact rows
   // stay open across the re-render a press causes.
   const cardOf=q=>cardForQuestion(catalogCards(),q.id),save=q=>{const card=cardOf(q);return card?saveButton({key:cardKey(card),saved:manualHas(cardSets,card)}):'';};
   const openKey=id=>`${session.id}:${id}`;
@@ -722,10 +722,10 @@ function renderMissedReview(){
   $('#review-next').onclick=()=>{if(!understandingRecord(understanding,bank.version,q.id)?.decision)return;if(missedReview.index+1===missedReview.ids.length){missedReview=null;saveMissedReview();navigate('blocks');}else{missedReview.index++;saveMissedReview();render();$('#review-stem').focus({preventScroll:true});resetNavigationView();centreSheet('.review-sheet','.review-actions');}};
   $('#review-flag').onclick=()=>flagQuestion(q);
 }
-// Mode screen (v1.2.0): help level, question pool (Random / Smart) and size, Dynamic Flash Cards,
+// Mode screen: help level, question pool (Random / Smart) and size, Dynamic Flash Cards,
 // and the separate Exam entry. Exam ignores the Setup units and pool size: it always samples the whole block.
 function renderMode() {
-  // An empty selection the user made survives a Random/Smart redraw (UX review 2026-11-11, M3).
+  // An empty selection the user made survives a Random/Smart redraw.
   if (!units.length && !keepEmptyUnits) units = allUnits();
   keepEmptyUnits = false;
   const count=()=>available().length;
@@ -736,7 +736,7 @@ function renderMode() {
     const c=unitCounts(false,mode);main.querySelectorAll('.unit-panel [data-count]').forEach(e=>{e.textContent=e.dataset.count==='all'?c.all:String(c.units[e.dataset.count]??0);});
     $('#mode-next').disabled=!n;
     $('#mode-availability').textContent=screens.modeAvailability({mode,count:n,poolSize,hardPending:bank.hardMode?.status==='pending_review'});
-    // 2.1.22 (the owner): one warning, always under the size toggle (no longer also under the units).
+    // one warning, always under the size toggle (no longer also under the units).
     syncPool($('#pool-size'),'pool-size',poolSize,n,size=>{poolSize=size;update();},!units.length?screens.NO_UNITS:mode==='Hard'?'':poolShortfall(n,poolSize));
   };
   bindUnitChoices('unit',update);
@@ -753,7 +753,7 @@ function renderHub() {
   main.querySelectorAll('[data-study]').forEach(b=>b.onclick=()=>{if(b.dataset.study==='glossary'){glossEntry=null;glossReturn=null;}navigate(go[b.dataset.study]);});
   if(!glossary)main.querySelector('[data-study="glossary"]')?.setAttribute('disabled','');
   $('#exam-open').onclick=()=>navigate('exam-setup');
-  if($('#scholar-open'))$('#scholar-open').onclick=()=>openScholar(null,null,blockId,null,null,true);  // 2.5.4 (the owner, 2026-11-17): Open Scholar shows the term list, never the last term
+  if($('#scholar-open'))$('#scholar-open').onclick=()=>openScholar(null,null,blockId,null,null,true);  // Open Scholar shows the term list, never the last term
 }
 function renderCardsSetup() {
   const pick = cardSets.sets.find(set => set.id === pickSetId) || null;
@@ -776,17 +776,17 @@ function renderCardsSetup() {
   $('#back').onclick = () => navigate('units');
 }
 function renderExamSetup() {
-  // Exam questions are their own set (the owner, 2026-11-08), drawn by form when the bank has forms, otherwise the Standard draw.
+  // Exam questions are their own set, drawn by form when the bank has forms, otherwise the Standard draw.
   main.innerHTML=screens.examSetupScreenHtml({blockId, examSetup:examSetupMarkup()});
   const next=formStatus(examCycles,formsFor(bank,blockId),blockId).next,enough=next||standardPool(bank.questions,blockId).length>=EXAM.size;
   $('#mode-next').disabled=!enough;$('#mode-availability').textContent=enough?'':'Not enough questions for an exam.';
   $('#back').onclick=()=>{navigate('units');main.querySelector('#exam-open')?.focus({preventScroll:true});};
   $('#mode-next').onclick=beginExam;
 }
-// ---- Scholar (2.2.0) ----
+// ---- Scholar ----
 // Open Scholar for the current block: at an item (from the Glossary or a card) or at the saved place of this block, else
 // at the first unit's term list. ret: the way back ({to:'glossary', entry} | {to:'flash-card'}) or none (from Mode).
-// A block's Scholar file (the owner, 2026-11-16, "2 a"): fetched once, when that block's Scholar opens. true when loaded.
+// A block's Scholar file: fetched once, when that block's Scholar opens. true when loaded.
 const scholarLoads={};let scholarPending=null;  // a saved place whose block file could not load at start
 function loadScholarBlock(b){
   if(!scholar)return Promise.resolve(false);if(blockLoaded(scholar,b))return Promise.resolve(true);
@@ -798,7 +798,7 @@ function loadScholarBlock(b){
 }
 function scholarFailed(){const text='Scholar could not load. Check the connection and try again.';flashToast(text);const say=$('#answer-status');if(say)say.textContent=text;}
 // block: the block to open (a card may open a term of another block); the current block changes only once its file loads.
-// before: run once the file is here, just before Scholar opens (Resume pauses the quiz only then; fresh review 4).
+// before: run once the file is here, just before Scholar opens (Resume pauses the quiz only then).
 // A newer open, or a move to another screen while the file loads, cancels this one (no late jump into Scholar).
 let scholarOpenSeq=0;
 async function openScholar(itemId=null,ret=null,block=blockId,before=null,part=null,list=false){
@@ -807,7 +807,7 @@ async function openScholar(itemId=null,ret=null,block=blockId,before=null,part=n
   if(!await loadScholarBlock(block)){if(seq===scholarOpenSeq)scholarFailed();return;}
   // A place held at start (its block file could not load then) is checked before another block's place replaces it.
   // If its block still cannot load, its picks and seen terms (shape checked) carry into the new place and are checked when
-  // that block loads (fresh review 2, 2026-11-16: an empty place used to overwrite it).
+  // that block loads (an empty place used to overwrite it).
   if(scholarPending){const held=scholarPending;scholarPending=null;
     if(!scholarState){
       if(held.block===block||await loadScholarBlock(held.block)){scholarState=restoreScholarState(held,scholar);if(!scholarState)persist('scholar',null);}
@@ -818,7 +818,7 @@ async function openScholar(itemId=null,ret=null,block=blockId,before=null,part=n
   let st=scholarState&&scholarState.block===blockId?scholarState:{...newScholarState(blockId,us[0]),picks:{...scholarState?.picks},seen:[...(scholarState?.seen||[])]};
   if(itemId)st=moveScholar(st,{type:'item',id:itemId},scholar);
   else if(list)st=moveScholar(st,{type:'list'},scholar);  // picks and seen terms stay
-  // A covered entry (umbrella, 2.5.3) opens its umbrella with the picture at the part that shows it.
+  // A covered entry (umbrella) opens its umbrella with the picture at the part that shows it.
   if(Number.isInteger(part)&&st.item===itemId){scholarPicOpen=itemId;scholarPic={item:itemId,index:part,prev:null,manual:true};}
   scholarReturn=ret;saveScholar(st);navigate('scholar');
 }
@@ -856,7 +856,7 @@ function renderScholar(){
   const qn=item.questions[st.q],tries=triesOf(scholarState,qn);
   const related=(glossary?.byId.get(item.entry)?.related||[]).map(id=>glossary.byId.get(id)).filter(e=>e&&e.block===item.block).map(e=>{const it=itemForEntry(scholar,e.block,e.id);return {id:e.id,term:e.term,item:it&&it.id!==item.id?it.id:null,part:it?.part};}).filter(r=>r.item||!itemForEntry(scholar,item.block,r.id));
   main.innerHTML=screens.scholarItemHtml({block,item,q:st.q,tries,started:item.questions.some(x=>triesOf(scholarState,x).length),hint:scholarHints.has(qn.id),nav:neighbours(scholar,st),done:x=>resolved(x,triesOf(scholarState,x)),back,pic:picOptions(),open:scholarOpen,draft:draftOf(qn,tries),related});
-  main.querySelectorAll('.scholar-related [data-scholar-item]').forEach(b=>b.onclick=()=>{const part=b.dataset.part===undefined?null:Number(b.dataset.part);  // the part first, so one render keeps focus on the heading (review of PR 112)
+  main.querySelectorAll('.scholar-related [data-scholar-item]').forEach(b=>b.onclick=()=>{const part=b.dataset.part===undefined?null:Number(b.dataset.part);  // the part first, so one render keeps focus on the heading
     if(Number.isInteger(part)){scholarPicOpen=b.dataset.scholarItem;scholarPic={item:b.dataset.scholarItem,index:part,prev:null,manual:true};}open(b.dataset.scholarItem);});
   main.querySelectorAll('.scholar-related .term-link').forEach(b=>b.onclick=()=>openTermPop(b,{phase:'review',block:item.block}));
   scholarPic.prev=null;
@@ -872,7 +872,7 @@ function renderScholar(){
   // Order: Move up / Move down (buttons, no drag). Sort: one radio group per item. Check saves the arrangement as a try.
   main.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{const d=[...draftOf(qn,tries)],i=Number(b.dataset.move),j=i+Number(b.dataset.dir);[d[i],d[j]]=[d[j],d[i]];scholarDraft.set(qn.id,d);keepScroll(render);
     const again=main.querySelector(`[data-move="${j}"][data-dir="${b.dataset.dir}"]`);(again&&!again.disabled?again:main.querySelector(`[data-move="${j}"]:not(:disabled)`))?.focus({preventScroll:true});
-    // Say where the step went (the place number is drawn for sight only; fresh review 2026-11-16).
+    // Say where the step went (the place number is drawn for sight only).
     sayScholar(`${qn.steps[d[j]].text} Moved to place ${j+1} of ${d.length}.`);});
   main.querySelectorAll('.scholar-sort-seg input').forEach(r=>r.onchange=()=>{const d=[...draftOf(qn,tries)],i=Number(r.closest('[data-sort]').dataset.sort);d[i]=Number(r.value);scholarDraft.set(qn.id,d);keepScroll(render);main.querySelector(`[name="sort-${i}"][value="${r.value}"]`)?.focus({preventScroll:true});});
   if($('#scholar-reset'))$('#scholar-reset').onclick=()=>{for(const x of item.questions){scholarHints.delete(x.id);scholarDraft.delete(x.id);}
@@ -884,10 +884,10 @@ function renderScholar(){
   if($('#scholar-prev-q'))$('#scholar-prev-q').onclick=()=>move({type:'question',index:st.q-1});
   if($('#scholar-hint'))$('#scholar-hint').onclick=()=>{scholarHints.add(item.questions[st.q].id);keepScroll(render);$('#scholar-hint-text')?.focus({preventScroll:true});};
   // The answer line is announced after the render, so a screen reader hears a change in an existing live region.
-  // Only the render that follows a pick speaks; a Hint or Look again render stays quiet (review 2026-11-16, evening).
+  // Only the render that follows a pick speaks; a Hint or Look again render stays quiet.
   { const say=main.querySelector('.scholar-q [data-say]');if(scholarSay&&say?.dataset.say)setTimeout(()=>{if(say.isConnected)say.textContent=say.dataset.say;},150);scholarSay=false; }
   // Look again: open the section that explains the question (a picture step is shown and its loop paused), then go there.
-  // The same for an umbrella's "Also covers" links (2.5.3): each opens the picture at the part that shows that term.
+  // The same for an umbrella's "Also covers" links: each opens the picture at the part that shows that term.
   main.querySelectorAll('#scholar-see, .scholar-also [data-see]').forEach(b=>b.onclick=()=>{const [part,n]=b.dataset.see.split(':');scholarOpen[part]=true;
     if(part==='picture'){scholarPic={item:item.id,index:Number(n),prev:scholarPic.index,manual:true};}
     render();const box=main.querySelector(`[data-section="${part}"]`);box?.scrollIntoView({block:'start'});box?.querySelector('summary')?.focus({preventScroll:true});});
@@ -895,7 +895,7 @@ function renderScholar(){
   $('#scholar-list').onclick=()=>{const id=item.id;scholarReturn=null;saveScholar(moveScholar(scholarState,{type:'list'},scholar));render();window.scrollTo({top:0,behavior:'instant'});main.querySelector(`[data-scholar-item="${CSS.escape(id)}"]`)?.focus({preventScroll:false});};
   if($('#scholar-return'))$('#scholar-return').onclick=()=>{const r=scholarReturn;scholarReturn=null;if(r.to==='glossary'){glossEntry=r.entry;navigate('glossary');}else navigate('flash-card');};
 }
-// Unit review screen (2.6.0, G4): the term page's guided-question handlers on a practice state that is never saved.
+// Unit review screen: the term page's guided-question handlers on a practice state that is never saved.
 function renderScholarReview(block){
   const rv=scholarReview,d=rv.deck[rv.k],item=itemById(scholar,d.item),qn=item?.questions[d.q];
   if(!qn){scholarReview=null;render();return;}
@@ -931,10 +931,10 @@ function mountPicture(item){
   const panel=main.querySelector('[data-section="picture"] > .scholar-drop-body');if(!panel)return;
   const next=document.createElement('div');next.innerHTML=pictureHtml(item.picture,scholarPic.index,picOptions());scholarPic.prev=null;
   // Drawing and captions are replaced; the controls stay and take the new state, so focus and screen readers are not disturbed
-  // on each loop tick (review 2026-11-16).
+  // on each loop tick.
   { const old=panel.querySelector('.pic-frame'),fresh=next.querySelector('.pic-frame');if(old&&fresh)old.replaceWith(fresh); }
   // The caption box is kept and its text changed, so a screen reader hears the new caption from the existing live region.
-  // Attributes first: a box that was muted for the loop must be live again before its text changes (review 2026-11-16, evening).
+  // Attributes first: a box that was muted for the loop must be live again before its text changes.
   { const old=panel.querySelector('.pic-captions'),fresh=next.querySelector('.pic-captions');if(old&&fresh){
     for(const k of ['role','aria-live'])fresh.hasAttribute(k)?old.setAttribute(k,fresh.getAttribute(k)):old.removeAttribute(k);old.innerHTML=fresh.innerHTML;} }
   next.querySelectorAll('.pic-controls button').forEach(b=>{const old=b.id?panel.querySelector('#'+b.id):panel.querySelector(`[data-pic-part="${b.dataset.picPart}"]`);if(!old)return;
@@ -972,7 +972,7 @@ function renderGlossary() {
   const entry=glossEntry?glossary.byId.get(glossEntry):null;
   const card=entry&&cardForQuestion(catalogCards(),entry.sourceId);
   const save=card?saveButton({id:'gloss-save',key:cardKey(card),saved:manualHas(cardSets,card)}):'';
-  // 2.1.23: the entry's card Flag at the far right of the Source row, as on the card back (same flag key and dialog).
+  // the entry's card Flag at the far right of the Source row, as on the card back (same flag key and dialog).
   const flagSource=card?bank.questions.find(q=>q.id===card.questionId):null;
   const flag=flagSource?flagButton({id:'flag-card',question:flagSource.id,label:'Flag card',card:true,flagged:Boolean(flags[`${bank.version}/${flagSource.id}/card`])}):'';
   // Back to the card the entry was opened from (Card N), while that card session is still open.
@@ -1012,7 +1012,7 @@ function reviewGloss(){
 // A re-render (e.g. the 200 ms tick when an Assisted stage advances) replaces the link that opened the popover:
 // follow the new copy of that link, or close when it is gone, so focus and position never use a detached element.
 const termAnchor=from=>from?.isConnected?from:document.querySelector(`.term-link[data-term="${CSS.escape(from?.dataset?.term??'')}"]`);
-// An open term popover pauses the question like the gear menu; Tab out of it closes it (UX review 2026-11-11, M12).
+// An open term popover pauses the question like the gear menu; Tab out of it closes it.
 let termWasRunning=false;
 function closeTermPop(){if(!termPop)return;const {el,from}=termPop;termPop=null;el.remove();termAnchor(from)?.focus?.({preventScroll:true});
   if(termWasRunning){termWasRunning=false;if(step==='study'&&session&&!session.ended&&!dialog.open&&!tools.isOpen())send({type:'resume'},false);}}
@@ -1021,22 +1021,22 @@ function placeTermPop(){
   const anchor=termAnchor(termPop.from);if(!anchor){closeTermPop();return;}
   termPop.from=anchor;const {el}=termPop,r=anchor.getBoundingClientRect(),w=Math.min(360,window.innerWidth-24);
   el.style.width=`${w}px`;el.style.left=`${Math.max(12,Math.min(window.innerWidth-w-12,r.left))}px`;
-  // 2.1.9: open above the link when the window has no room below it and room above (a Key terms row near the bottom).
+  // open above the link when the window has no room below it and room above (a Key terms row near the bottom).
   const h=el.offsetHeight,below=r.bottom+6+h<=window.innerHeight,above=r.top-6-h>=0;
   el.style.top=`${(below||!above?r.bottom+6:r.top-6-h)+window.scrollY}px`;
 }
-// ref: an entry from the popover's own See row (2.1.22). The See button is removed with the old popover, so the new one
+// ref: an entry from the popover's own See row. The See button is removed with the old popover, so the new one
 // stays anchored to the link that opened the first popover (desktop closed it at once: the anchor was detached).
-// block: the block of the question, card or entry the link is in; a link opens only that block's entries (decision 7).
+// block: the block of the question, card or entry the link is in; a link opens only that block's entries.
 function openTermPop(button,{phase,ref:seeRef=null,block=blockId}){
   if(!glossary)return;
   const ref=seeRef??button.dataset.term;
   const content=popover(glossary,ref,{block});if(!content)return;
   closeTermPop();
   const el=document.createElement('div');el.className='term-pop';el.setAttribute('role','dialog');el.setAttribute('aria-labelledby','term-pop-title');
-  // Save beside the close button: the term's flash card in Manual (the owner, 2026-11-16). A glossary-only term has no card.
+  // Save beside the close button: the term's flash card in Manual. A glossary-only term has no card.
   const card=content.entry?cardForQuestion(catalogCards(),content.entry.sourceId):null;
-  // Study in Scholar (2.6.0): not during a live exam (the nav hides Scholar there) and not from Scholar itself.
+  // Study in Scholar: not during a live exam (the nav hides Scholar there) and not from Scholar itself.
   const study=content.entry&&!examLive(exam)&&step!=='scholar'?itemForEntry(scholar,content.entry.block,content.entry.id):null;
   const draw=(more=false)=>{
     const save=card?saveButton({id:'term-pop-save',key:cardKey(card),saved:manualHas(cardSets,card)}):'';
@@ -1075,7 +1075,7 @@ function renderNotUnderstoodSetup() {
   if (quizScope === 'units') bindUnitChoices('review-unit',count); else count();
   // Marked practice uses the same Random / Smart choice as the Mode screen.
   main.querySelectorAll('[name="pool-kind"]').forEach(r=>r.onchange=()=>{poolKind=toPoolKind(r.value);persist('poolKind',poolKind);main.querySelector('#pool-help').textContent=screens.POOL_HELP[poolKind];});
-  // Hard: the Study button takes the gold tone, as on the Questions setup (UX review 2026-11-11, L2).
+  // Hard: the Study button takes the gold tone, as on the Questions setup.
   main.querySelectorAll('[name="practice-mode"]').forEach(r => r.onchange = () => { mode = r.value; if (mode === 'Hard') $('#practice-confirm').dataset.tone = 'gold'; else delete $('#practice-confirm').dataset.tone; count(); });
   $('#practice-cancel').onclick = () => navigate('blocks');
   $('#practice-confirm').onclick = () => {
@@ -1085,13 +1085,13 @@ function renderNotUnderstoodSetup() {
     navigate('study');
   };
 }
-// ---- Exam Mode (v1.1.0). Pure logic in exam.mjs; this part owns the clock, storage and events. ----
+// ---- Exam Mode. Pure logic in exam.mjs; this part owns the clock, storage and events. ----
 // Re-render without moving the page (results filters, save boxes, marks).
 function keepScroll(run){const y=window.scrollY;run();window.scrollTo({top:y,behavior:'instant'});}
 function examSetupMarkup(){
   const block=currentBlock();
   const forms=formsFor(bank,block.id),status=formStatus(examCycles,forms,block.id);
-  // No forms for this block (2.0.0 bank): the Standard draw and its 1.2.6 blueprint.
+  // No forms for this block: the Standard draw and its blueprint.
   return screens.examSetupHtml({block, forms, status, plan:status.next?null:blueprint(standardPool(bank.questions,block.id)),
     last:examHistory.filter(h=>h.block===block.id).at(-1)||null, studyOpen:sessionOpen()});
 }
@@ -1121,9 +1121,9 @@ function sendExam(event){
   exam=next;persist('exam',exam);
   if(wasLive&&exam.submitted){examSubmitted();return;}
   render();
-  // 2.1.22 (the owner): the flag (button or F) flashes a toast, as SAVE does. The button label carries the state for screen readers.
+  // the flag (button or F) flashes a toast, as SAVE does. The button label carries the state for screen readers.
   if(event.type==='flag'&&step==='exam')flashToast(exam.flagged.includes(exam.pool[exam.index])?'Question flagged':'Flag removed',$('#exam-flag')?.closest('.exam-flag-row'));
-  // The toast is aria-hidden; the status line tells screen readers what F and 1-9 changed (UX review 2026-11-11, M12).
+  // The toast is aria-hidden; the status line tells screen readers what F and 1-9 changed.
   if(step==='exam'&&(event.type==='flag'||event.type==='answer')){const qid=exam.pool[exam.index];$('#answer-status').textContent=event.type==='flag'?(exam.flagged.includes(qid)?'Question flagged':'Flag removed'):`Answer ${'ABCDEFGH'[exam.orders[qid].indexOf(event.id)]||''} selected`;}
 }
 function examSubmitted(){
@@ -1238,7 +1238,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('pagehide',()=>{if(session){session=transition(session,{type:'pause'});save();}});
 try {
-  // Offline copy (2.1.68): not awaited, never blocks or fails the start. Where workers are unavailable (the test
+  // Offline copy: not awaited, never blocks or fails the start. Where workers are unavailable (the test
   // artifact, private modes) the app runs from the network as before.
   // A page that started without the worker (first visit, after the recovery page, a reload past the worker) tells
   // it which build runs here. When the network returns or the tab is shown again, the page asks the worker to
@@ -1247,7 +1247,7 @@ try {
     navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(()=>{if(fresh)tell({type:'stage',files:releaseFiles});}).catch(()=>{});
     window.addEventListener('online',()=>tell({type:'fill'}));document.addEventListener('visibilitychange',()=>{if(!document.hidden)tell({type:'fill'});}); } catch {}
   bank=validateBank(await fetchJson('./questions.json'));
-  // Only blocks with questions show anywhere in the app (the owner, 2026-11-10: "all blocks should only show up if they have questions").
+  // Only blocks with questions show anywhere in the app.
   bank.blocks=bank.blocks.filter(b=>bank.questions.some(q=>q.block===b.id));
   // Glossary: optional; without it the Glossary tile is off and questions show no term links.
   try{glossary=restoreGlossary(await fetchJson('./glossary.json'));}catch{glossary=null;}
@@ -1281,11 +1281,11 @@ try {
     if(exam.submitted){finalizeExam();resultsKind=sessionDone()&&!wasLive?'study':'exam';if(wasLive){step='exam-results';examFilter='missed';blockId=exam.block;units=allUnits();}}
     else{step='exam';blockId=exam.block;units=allUnits();}
   }
-  $('#app-version').textContent=`ICF Companion v${APP_VERSION} · 17 Nov 2026`;
+  $('#app-version').textContent=`ICF Companion v${APP_VERSION} · 18 Nov 2026`;
   render();
 
 } catch (error) {
-  // UX review 2026-11-11, M10: offline is the likely cause only when the browser reports it; Diagnostics needs a bank.
+  // Offline is the likely cause only when the browser reports it; Diagnostics needs a bank.
   const offline=navigator.onLine===false;
   main.innerHTML=`<h1>Study content could not be opened.</h1><p>${offline?'You are offline. Connect to the Internet, then reload.':'Reload the page. If this message stays, your saved progress is still on this device.'}</p><div class="actions"><button class="primary" id="reload-app">Reload</button></div>`;
   $('#reload-app').onclick=()=>location.reload();

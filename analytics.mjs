@@ -3,10 +3,10 @@
 export const POOL_KINDS = Object.freeze(['random', 'smart']);
 export const POOL_LABEL = Object.freeze({ random: 'Random', smart: 'Smart' });
 export const toPoolKind = (stored, legacySmart) => POOL_KINDS.includes(stored) ? stored : legacySmart === true ? 'smart' : 'random';
-// Fields that only Scholar used (help-free, confidence and confused-pair counts; Scholar removed in 1.2.3, the owner
-// 2026-11-08). They are dropped on load; every other count of the question stays as it was.
+// Fields that only Scholar used (help-free, confidence and confused-pair counts; the old Scholar is gone).
+// They are dropped on load; every other count of the question stays as it was.
 const SCHOLAR_KEYS=['freeAsked','freeCorrect','confSure','confUnsure','confGuess','guessCorrect','sureWrong'];
-// Stats restore: a damaged record is dropped on its own and the other records stay (1.2.4). Only an unknown
+// Stats restore: a damaged record is dropped on its own and the other records stay. Only an unknown
 // schema or a damaged outer shape starts empty. `dropped` counts what was lost, so the app can tell the user;
 // without that, the next save would silently overwrite the stored stats.
 export function inspectStats(raw) {
@@ -17,7 +17,7 @@ export function inspectStats(raw) {
   if(raw==null)return {stats:empty(),dropped:0,reset:false};
   if(!object(raw)||raw.schema!==1||!object(raw.questions)||!object(raw.sessions))return {stats:empty(),dropped:0,reset:true};
   const question=r=>object(r)&&[r.seen,r.correct,r.asked,r.misses].every(count)&&r.correct+r.misses===r.asked&&r.asked<=r.seen&&identities(r.units)&&r.units.length>0&&Number.isSafeInteger(r.block)&&r.block>=1&&
-    // Exam answers (v1.1.0) are part of asked/correct and also counted here, so study accuracy can leave them out.
+    // Exam answers are part of asked/correct and also counted here, so study accuracy can leave them out.
     (r.examAsked===undefined&&r.examCorrect===undefined||[r.examAsked,r.examCorrect].every(count)&&r.examCorrect<=r.examAsked&&r.examAsked<=r.asked&&r.examCorrect<=r.correct);
   const session=r=>object(r)&&identities(r.seen)&&identities(r.scored)&&r.scored.every(n=>r.seen.includes(n))&&count(r.correct)&&count(r.asked)&&r.asked===r.scored.length&&r.correct<=r.asked;
   const out=empty();let dropped=0;

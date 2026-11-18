@@ -1,15 +1,14 @@
-// Scholar pictures (2.2.0, the owner 2026-11-16: "an interactive picture for each term"; dialog: both kinds, every term,
-// drawn diagrams). Pure: a picture description in, SVG and control markup out. No DOM, storage or network access.
+// Scholar pictures: an interactive, drawn diagram for each term, of both kinds. Pure: a picture description in, SVG and control markup out. No DOM, storage or network access.
 // Colours come only from CSS tokens through classes (styles.css .pic-*), so both themes and forced colours work.
 // kind 'steps': Back / Next step through captions; each step lights, hides and moves parts. kind 'explore': each part
 // is a button; the chosen part is lit and its caption shows. Captions are stacked in one grid cell so the caption box
-// always holds the tallest caption (the owner's fixed-height comment, 2026-11-16).
+// always holds the tallest caption (the box keeps a fixed height).
 import { escape, ICON } from './presentation.mjs';
 
 export const VIEW = { w: 400, h: 240 };
-// Drawn shapes (icons). The shape kit of 2.5.3 (the owner, 2026-11-17: "this is the foundation for the other blocks") adds
+// Drawn shapes (icons). The shape kit also adds
 // people, documents and objects, so a picture can show who does what to what, not only network gear.
-// The picture kit addition (Scholar spec review 2026-11-17, section C: 753 course terms sorted by kind) adds the hardware and place
+// The picture kit addition adds the hardware and place
 // shapes most named by the terms the kit could not draw (building, disk, chip), a cable link, a layer stack (ranked or
 // layered bands) and a timeline (an axis with marks). A stack or timeline, like a panel or frame, is not a drawn shape.
 const ICONS = ['pc', 'switch', 'router', 'server', 'person', 'doc', 'lock', 'alert', 'envelope', 'shield', 'cloud', 'clock', 'building', 'disk', 'chip'];
@@ -53,7 +52,7 @@ export function pictureProblem(p) {
   }
   for (const l of p.scene.links || []) if (!isObj(l) || !isText(l.id) || ids.has(l.id) || !ids.has(l.from) || !ids.has(l.to) || !LINK_KINDS.includes(l.kind) || (l.labelAt !== undefined && !(l.labelAt >= 0 && l.labelAt <= 1))) return `link ${l?.id}`; else ids.add(l.id);
   for (const g of p.scene.groups || []) if (!isObj(g) || !isText(g.id) || !isText(g.label) || ids.has(g.id) || !Array.isArray(g.members) || !g.members.length || !g.members.every(m => ids.has(m))) return `group ${g?.id}`; else ids.add(g.id);
-  // Picture standard (Scholar product spec, 2.5.3): a picture shows what happens or how parts relate, so it draws at least
+  // Picture standard: a picture shows what happens or how parts relate, so it draws at least
   // one shape (a table panel, text or a frame alone is a table of the text), and every step or part changes what is shown.
   if (!p.scene.nodes.some(n => ICONS.includes(n.type))) return 'no drawn shape (a panel, text or frame alone)';
   const all = targetIds(p), known = list => list === undefined || (Array.isArray(list) && list.every(id => all.has(id)));
@@ -76,7 +75,7 @@ export function pictureProblem(p) {
 // ---- Drawing ----
 const SIZE = { pc: [30, 30], switch: [60, 20], router: [30, 30], server: [24, 34], text: [0, 0], person: [26, 30], doc: [22, 28], lock: [22, 28],
   alert: [30, 26], envelope: [30, 20], shield: [24, 30], cloud: [34, 22], clock: [28, 28], building: [32, 32], disk: [28, 30], chip: [30, 30] };
-// Label width estimate: capitals are wider (COMSEC overflowed its group box on phones; 2.5.3 sweep).
+// Label width estimate: capitals are wider (COMSEC overflowed its group box on phones).
 const textW = t => [...(t || '')].reduce((a, c) => a + (/[A-Z0-9]/.test(c) ? 8 : 6.5), 0);
 const box = n => n.type === 'text' ? { x: n.x - textW(n.label) / 2, y: n.y - 12, w: textW(n.label), h: 16 }
   : n.type === 'frame' ? { x: n.x, y: n.y, w: n.segments.reduce((a, s) => a + s.w, 0), h: 22 }
@@ -85,7 +84,7 @@ const box = n => n.type === 'text' ? { x: n.x - textW(n.label) / 2, y: n.y - 12,
   : n.type === 'timeline' ? { x: n.x, y: n.y - 6, w: n.w, h: 28 }
   : { x: n.x - SIZE[n.type][0] / 2, y: n.y - SIZE[n.type][1] / 2, w: SIZE[n.type][0], h: SIZE[n.type][1] };
 const centre = n => { const b = box(n); return [b.x + b.w / 2, b.y + b.h / 2]; };
-// st: {on, off, fresh}: lit, hidden, and lit now but not in the previous state (fresh parts fade in; animation 2.2.0).
+// st: {on, off, fresh}: lit, hidden, and lit now but not in the previous state (fresh parts fade in).
 const cls = (id, st) => `${st.on.has(id) ? ' is-on' : ''}${st.fresh.has(id) ? ' is-new' : ''}${st.off.has(id) ? ' is-off' : ''}`;
 const label = (x, y, text, extra = '') => text ? `<text class="pic-label${extra}" x="${x}" y="${y}" text-anchor="middle">${escape(text)}</text>` : '';
 
@@ -135,8 +134,8 @@ function nodeSvg(n, st) {
 }
 
 // A link runs between the edges of its two boxes, not their centres: a dimmed box is see-through, so a line drawn to the
-// centre of a frame or panel crossed its label (Block 5 Scholar, 2026-11-16). Icons hid that part of the line anyway.
-// A link that would cross its own icon's label starts where it leaves the label (2.5.3 picture sweep): a downward or
+// centre of a frame or panel crossed its label. Icons hid that part of the line anyway.
+// A link that would cross its own icon's label starts where it leaves the label: a downward or
 // diagonal line no longer runs through the name under the icon.
 function edge(n, [x, y], [tx, ty], clear = true) {
   const b = box(n), dx = tx - x, dy = ty - y;
@@ -161,14 +160,14 @@ function linkSvg(l, nodes, st) {
   return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${plugs}${l.label ? linkLabel(l, x1, y1, x2, y2) : ''}</g>`;
 }
 
-// A line's label sits beside the line, never on it (the owner, 2026-11-17): its centre moves along the normal (up, or right
+// A line's label sits beside the line, never on it: its centre moves along the normal (up, or right
 // on a vertical line) far enough that the label box clears the line; a flat line keeps the old 7 px gap (11 px to the centre).
 export function linkLabel(l, x1, y1, x2, y2) {
   const t = l.labelAt ?? 0.5, px = x1 + (x2 - x1) * t, py = y1 + (y2 - y1) * t, len = Math.hypot(x2 - x1, y2 - y1) || 1;
   let nx = -(y2 - y1) / len, ny = (x2 - x1) / len;
   if (ny > 0.05 || (Math.abs(ny) <= 0.05 && nx < 0)) [nx, ny] = [-nx, -ny];
   const hw = textW(l.label) * 0.58, hh = 6, base = l.kind === 'trunk' ? 20 : l.kind === 'cable' ? 14 : 11, d = l.kind === 'trunk' && Math.abs(ny) > 0.9 ? base : Math.max(base, hw * Math.abs(nx) + hh * Math.abs(ny) + 4 + base - 11);
-  // The other side when it leaves the 400 x 240 frame by less (review 2026-11-17); a near-flat trunk keeps its fixed 20 px gap, a steep one uses the angle too.
+  // The other side when it leaves the 400 x 240 frame by less; a near-flat trunk keeps its fixed 20 px gap, a steep one uses the angle too.
   const out = s => { const cx = px + s * nx * d, cy = py + s * ny * d;
     return Math.max(0, 4 - (cx - hw)) + Math.max(0, cx + hw - (VIEW.w - 4)) + Math.max(0, 4 - (cy - hh)) + Math.max(0, cy + hh - (VIEW.h - 4)); };
   if (out(-1) < out(1)) [nx, ny] = [-nx, -ny];
@@ -176,7 +175,7 @@ export function linkLabel(l, x1, y1, x2, y2) {
 }
 
 function groupSvg(g, nodes, st, i) {
-  // The box holds each member's icon and its label (textW; 5.5 px per character let a label touch the box, 2.5.3).
+  // The box holds each member's icon and its label (textW; 5.5 px per character let a label touch the box).
   const bs = g.members.map(id => nodes.get(id)).filter(Boolean).map(n => { const b = box(n), lw = textW(n.label); return lw > b.w && !BOXES.includes(n.type) ? { ...b, x: n.x - lw / 2, w: lw } : b; });
   const x = Math.min(...bs.map(b => b.x)) - 10, y = Math.min(...bs.map(b => b.y)) - 18, r = Math.max(Math.max(...bs.map(b => b.x + b.w)) + 10, Math.min(...bs.map(b => b.x)) - 4 + textW(g.label) * 1.05 + 4), bt = Math.max(...bs.map(b => b.y + b.h)) + 22;
   return `<g class="pic-group pic-group-${i % 3}${cls(g.id, st)}" data-pic-id="${escape(g.id)}"><rect x="${x}" y="${y}" width="${r - x}" height="${bt - y}" rx="8"/><text class="pic-label pic-small pic-group-label" x="${x + 6}" y="${y + 11}">${escape(g.label)}</text></g>`;
@@ -184,7 +183,7 @@ function groupSvg(g, nodes, st, i) {
 
 // from: where the packet was in the previous step (0-1 along the same link), null for no motion, or 'new' when the
 // previous step had no packet on this link: then it fades in at its place, since a glide from the line start crossed
-// labels and icons (the owner, 2026-11-17). The glide is an SVG animateTransform (0.45 s), so it runs once per render and
+// labels and icons. The glide is an SVG animateTransform (0.45 s), so it runs once per render and
 // needs no script; reduced motion passes from = null.
 function packetSvg(k, links, nodes, from = null) {
   const l = links.get(k.on), [x1, y1] = centre(nodes.get(l.from)), [x2, y2] = centre(nodes.get(l.to));
@@ -194,16 +193,16 @@ function packetSvg(k, links, nodes, from = null) {
 }
 
 // The SVG for one state. index: the step (steps) or the chosen part (explore; -1 = none).
-// Animation (the owner, 2026-11-16, "1 a"): prev is the state shown before (null on first draw); packets glide from their
+// Animation: prev is the state shown before (null on first draw); packets glide from their
 // previous place and newly lit parts fade in. still: reduced motion, so nothing moves or fades.
 const stateOf = (p, index) => p.kind === 'steps' ? p.steps[Math.min(Math.max(index, 0), p.steps.length - 1)] : (p.parts[index] || {});
-// fixed: a state to draw instead of a step or part ({light, hide}; the tap board of a guided question, 2.3.0).
+// fixed: a state to draw instead of a step or part ({light, hide}; the tap board of a guided question).
 export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = null } = {}) {
   const nodes = new Map(p.scene.nodes.map(n => [n.id, n])), links = new Map((p.scene.links || []).map(l => [l.id, l]));
   const s = fixed || stateOf(p, index), before = fixed || prev === null || still || prev === index ? null : stateOf(p, prev);
   const on = new Set(s.light || []), off = new Set(s.hide || []);
   const st = { on, off, fresh: before ? new Set([...on].filter(id => !(before.light || []).includes(id))) : new Set() };
-  // The n-th packet on a line glides from the n-th packet that was on that line (two packets can share a line; review 2026-11-17).
+  // The n-th packet on a line glides from the n-th packet that was on that line (two packets can share a line).
   const nth = (list, k) => list.filter(b => b.on === k.on).indexOf(k);
   const from = k => !before ? null : ((before.packets || []).filter(b => b.on === k.on)[nth(s.packets, k)]?.at ?? 'new');
   const dim = on.size ? ' has-light' : '';
@@ -215,14 +214,14 @@ export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = n
 }
 
 // The picture body (the term page wraps it in its collapsible section): drawing, controls and the held caption box.
-// Controls (the owner, 2026-11-16): steps = rewind and forward icon buttons on the left; both kinds have a Flag-sized
+// Controls: steps = rewind and forward icon buttons on the left; both kinds have a Flag-sized
 // play/pause button at the right. playing: the loop runs (app.mjs advances it); captions are not announced meanwhile.
 export function pictureHtml(p, index = 0, { motion = {}, playing = false } = {}) {
   const steps = p.kind === 'steps', list = steps ? p.steps : p.parts, i = steps ? Math.min(Math.max(index, 0), list.length - 1) : index;
   const now = k => steps ? k === i : k === i + 1;
   const captions = (steps ? list : [{ caption: 'Choose a part of the picture to read about it.' }, ...list])
     .map((s, k) => `<p class="pic-caption${now(k) ? ' is-now' : ''}"${now(k) ? '' : ' aria-hidden="true"'}>${steps ? `<span class="label pic-step">Step ${k + 1} of ${list.length}</span> ` : ''}${escape(s.caption)}</p>`).join('');
-  // The label names the action (review 2026-11-16: aria-pressed with "Pause" read as contradictory); data-playing is the state.
+  // The label names the action (aria-pressed with "Pause" read as contradictory); data-playing is the state.
   const play = `<button type="button" id="pic-play" class="flag-btn pic-play" data-playing="${playing}" aria-label="${playing ? 'Pause the picture' : 'Play the picture'}" title="${playing ? 'Pause' : 'Play'}">${playing ? ICON.pause : ICON.play}</button>`;
   const controls = steps
     ? `<div class="pic-controls"><button type="button" id="pic-back" class="flag-btn pic-nav" aria-label="Previous step" title="Previous step"${i === 0 ? ' disabled' : ''}>${ICON.rewind}</button><button type="button" id="pic-next" class="flag-btn pic-nav" aria-label="Next step" title="Next step"${i === list.length - 1 ? ' disabled' : ''}>${ICON.forward}</button>${play}</div>`
@@ -230,9 +229,9 @@ export function pictureHtml(p, index = 0, { motion = {}, playing = false } = {})
   return `<div class="pic-body"><div class="pic-frame">${pictureSvg(p, i, motion)}</div>${controls}<div class="pic-captions"${playing ? ' aria-live="off"' : ' role="status"'}>${captions}</div></div>`;
 }
 
-// ---- Tap board (2.3.0, the owner 2026-11-16: "tap the picture") ----
+// ---- Tap board ----
 // The ids an answer's at names: a node, link, group, segment, panel line, stack band or timeline mark, or part:<n> (the ids that part lights).
-// A group also covers its members, so a tap on a computer inside a VLAN box answers with that box (fresh review 2026-11-16).
+// A group also covers its members, so a tap on a computer inside a VLAN box answers with that box.
 export const tapIds = (p, at) => /^part:\d+$/.test(at) ? (p.parts?.[Number(at.slice(5))]?.light || [])
   : [at, ...((p.scene.groups || []).find(g => g.id === at)?.members || [])];
 // The term's picture with no step or part lit; each answer's target carries data-tap="<answer index>" and, after a pick,

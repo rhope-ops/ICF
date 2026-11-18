@@ -49,14 +49,14 @@ export function validateBank(bank) {
   }
   for (const q of bank.questions) {
     if (!q.id || ids.has(q.id) || !blocks.has(q.block) || !q.stem || !Array.isArray(q.units) || !q.units.length || q.units.some(u => !blocks.get(q.block).has(u)) ||
-      // 2.0.0: an Exam-tier item (studyMode and difficulty 'Exam') is exam-only; see engine.questionsForMode.
+      // an Exam-tier item (studyMode and difficulty 'Exam') is exam-only; see engine.questionsForMode.
       ![undefined,'Hard','Exam'].includes(q.studyMode) || q.studyMode === 'Hard' && q.difficulty !== 'Hard' || (q.studyMode === 'Exam') !== (q.difficulty === 'Exam') ||
       !['slides','text'].includes(q.sourceGroup) || !['Easy','Medium','Hard','Exam'].includes(q.difficulty) || !Array.isArray(q.answers) || q.answers.length !== 4 ||
       new Set(q.answers.map(a => a.id)).size !== 4 || new Set(q.answers.map(a => a.text.trim().toLowerCase())).size !== 4 || q.answers.some(a => !a.id || !a.text || !a.rationale) || !q.answers.some(a => a.id === q.correctAnswerId) ||
       !['pending_player_testing','pending_owner_approval'].includes(q.testing?.status) || !['no_concern_identified','needs_testing'].includes(q.testing?.quality_assessment?.status) ||
       !['low','medium','high','very_high'].includes(q.testing?.distinctness_assessment?.overlap_confidence) ||
       !Array.isArray(q.testing?.quality_assessment?.concerns) || q.testing.quality_assessment.concerns.some(c => c.material_defect)) throw Error('Invalid question content');
-    if (q.spec !== undefined && q.spec !== 3) throw Error('Invalid question content'); // spec 3.0.x marker
+    if (q.spec !== undefined && q.spec !== 3) throw Error('Invalid question content'); // marker of the current question bank
     if (!Array.isArray(q.keywords) || !q.keywords.length) throw Error('Missing key terms');
     if (q.reviewCue !== undefined && (typeof q.reviewCue !== 'string' || !q.reviewCue.trim() || q.reviewCue.split(/\s+/).length > 25)) throw Error('Invalid review cue');
     const spans = [];

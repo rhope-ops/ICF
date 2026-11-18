@@ -1,7 +1,7 @@
-// Glossary (v1.2.0): pure lookups over glossary.json (built from the authored
+// Glossary: pure lookups over glossary.json (built from the authored
 // flash cards and the course excerpts). No DOM, storage or network access. Every text shown comes from that file.
 
-// Block scope (the owner, 2026-11-11, decision 7 "All blocks"): each block is self-contained. Links, answer terms and
+// Block scope: each block is self-contained. Links, answer terms and
 // related lists name entries of the question's own block; an acronym carries {expansion, blocks: {"<block>": {entry, see}}},
 // and a lookup takes the block from the question (q.block) or an explicit {block}.
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -28,14 +28,14 @@ export const entryOf = (g, id) => g.byId.get(id) || null;
 export const entryForCard = (g, card) => card && card.kind !== 'highlight' ? g.entries.find(e => e.sourceId === card.questionId) || null : null;
 const refEntry = (g, ref, block) => ref.startsWith('acr:') ? acronymOf(g, ref.slice(4), block)?.entry || null : ref;
 
-// Exposure rule (the owner, 2026-11-16: no stem term is underlined or linked before a correct answer).
+// Exposure rule: no stem term is underlined or linked before a correct answer.
 // phase: 'live' (not resolved yet) | 'missed' (resolved by a miss, live) | 'resolved' (the correct answer is known: a correct
 // selection or a reveal) | 'review' (an earlier appearance or a review screen) | 'exam' (exam not submitted).
 // - Live, missed or a live exam: no stem links in any mode.
 // - Resolved / review: every stem link, full entries.
 // Returns stem spans [{start, end, ref}] for the question.
 export function stemLinks(g, q, { phase }) {
-  // The owner, 2026-11-16: links appear with the Key terms button, after any answer (right, wrong or revealed); never before.
+  // Links appear with the Key terms button, after any answer (right, wrong or revealed); never before.
   if (phase !== 'resolved' && phase !== 'review' && phase !== 'missed') return [];
   return (g.questionLinks[q.id]?.stem || []).map(([start, end, ref]) => ({ start, end, ref }));
 }
@@ -62,7 +62,7 @@ export function keyTerms(g, q, max = 6) {
   // The question's own card entry (every question but an Exam item has one).
   const own = g.questionEntry?.[q.id]; if (own && !ids.includes(own)) ids.unshift(own);
   for (const a of q.answers) add(L.rationales[a.id] || []);
-  // 2.1.7: the limit never cuts the own card entry or the key's own term (an entry already named past the limit was
+  // the limit never cuts the own card entry or the key's own term (an entry already named past the limit was
   // cut, e.g. the MX Record card on its own Hard question); it moves to the front in place of the last other term.
   const out = ids.slice(0, max), key = (g.answerTerms[q.id] || {})[q.correctAnswerId];
   for (const id of [key, own]) if (id && !out.includes(id)) {
@@ -77,11 +77,11 @@ export function searchEntries(g, { query = '', unit = 0 } = {}) {
   return g.entries.filter(e => (!unit || e.unit === unit) && (!t || e.term.toLowerCase().includes(t) || e.aliases.some(a => a.toLowerCase().includes(t)) || e.short.toLowerCase().includes(t)));
 }
 
-// Bookmarks (until 2.1.3): one list of entry ids (icf:glossaryBookmarks). SAVE replaced them; app.migrateBookmarks moves a
+// Bookmarks: one list of entry ids (icf:glossaryBookmarks). SAVE replaced them; app.migrateBookmarks moves a
 // saved list once into Manual. Unknown or repeated ids are dropped.
-// A card term change renames its entry id; a saved list naming the old id keeps the card (2026-11-09 bank follow-up:
+// A card term change renames its entry id; a saved list naming the old id keeps the card (
 // B4-U4-Q020's card "Domain Name System (DNS) name hierarchy example" became Subdomain).
-// Owner decision 9a (2026-11-11): three Block 5 cards have their course terms back; Group Policy Object and Proxy Server are
+// Three Block 5 cards have their course terms back; Group Policy Object and Proxy Server are
 // also Block 4 terms, so their Block 5 entries are "-b5" (build_glossary.assign_ids).
 export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hierarchy-example': 'third-level-domain',
   'subdomain': 'third-level-domain', 'security-technical-implementation-guide-stig-b1': 'security-technical-implementation-guide-b1',
@@ -90,7 +90,7 @@ export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hier
   'building-an-access-control-list-acl': 'access-control-list', 'access-control-list-acl': 'access-control-list',
   'availability-b4': 'availability', 'electromagnetic-interference-emi-b1': 'electromagnetic-interference', 'electromagnetic-interference-emi': 'electromagnetic-interference',
   'intrusion-detection-system-ids-b1': 'intrusion-detection-system', 'intrusion-detection-system-ids': 'intrusion-detection-system',
-  // Block 5 spec 3.1.0, 2026-11-17: facet entries follow to their parent concept; renamed cards to their new entry.
+  // Block 5: facet entries follow to their parent concept; renamed cards to their new entry.
   'anti-virus-detection': 'anti-virus', 'application-security-vulnerabilities': 'application-vulnerabilities', 'authentication-factor-location': 'authentication-factors',
   'baseline-configuration-risk-gap': 'baseline-configuration', 'botnet-command-server': 'botnet', 'cirt-responsibilities': 'computer-incident-response-team',
   'cmos-boot-setting': 'complementary-metal-oxide-semiconductor', 'communications-security-authenticity-goal': 'communications-security-comsec', 'computer-security-scope': 'computer-security',
@@ -112,20 +112,20 @@ export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hier
   'spyware-privacy-threat': 'spyware', 'transparent-proxy-server': 'proxy-server-b5', 'trojan-horse-back-door': 'trojan-horse',
   'unauthorized-access-methods': 'unauthorized-access', 'unauthorized-access-threat': 'unauthorized-access', 'wireless-zone': 'wireless',
   'worm-network-spread': 'worm',
-  // Block 5 spec 3 bank, 2026-11-16: retired Block 5 entries follow to the new Block 5 entry of the same term.
+  // Block 5: retired Block 5 entries follow to the new Block 5 entry of the same term.
   'communications-security': 'communications-security-comsec', 'computer-security-compusec': 'computer-security',
   'controlled-unclassified-information': 'controlled-unclassified-information-cui', 'demilitarized-zone-dmz': 'demilitarized-zone',
   'freedom-of-information-act': 'freedom-of-information-act-foia', 'operations-security': 'operations-security-opsec',
   'transmission-security': 'transmission-security-transec',
-  // Block 2 new bank, 2026-11-15: the old Block 2 entries left, so these entries took the plain id.
+  // Block 2: the old Block 2 entries left, so these entries took the plain id.
   'administrator-account-b4': 'administrator-account', 'media-access-control-mac-address-b1': 'media-access-control-mac-address',
-  // Block 2 new bank, 2026-11-15: retired Block 2 entries follow to the new Block 2 entry of the same term.
+  // Block 2: retired Block 2 entries follow to the new Block 2 entry of the same term.
   'accountable-property-officer-apo': 'accountable-property-officer', 'advanced-technology-attachment-ata': 'advanced-technology-attachment',
   'approved-product-list-apl': 'approved-product-list', 'approved-products-certification-office-apco': 'approved-products-certification-office',
   'arithmetic-logic-unit-alu': 'arithmetic-logic-unit', 'central-processing-unit-cpu': 'central-processing-unit',
   'parallel-ata-pata': 'parallel-ata', 'serial-ata-sata': 'serial-ata',
   'united-states-government-configuration-baseline-usgcb': 'united-states-government-configuration-baseline', 'universal-serial-bus-usb-host-controller': 'universal-serial-bus-host-controller',
-  // Block 1 new bank, 2026-11-15: retired Block 1 entries follow to the new Block 1 entry of the same term.
+  // Block 1: retired Block 1 entries follow to the new Block 1 entry of the same term.
   'address-resolution-protocol-arp': 'address-resolution-protocol-b1', 'air-force-instruction-afi': 'air-force-instruction',
   'department-of-defense-manual-dodm': 'department-of-defense-manual', 'domain-name-system-dns': 'domain-name-system-b1',
   'dynamic-host-configuration-protocol-dhcp': 'dynamic-host-configuration-protocol-b1', 'electrostatic-discharge-esd': 'electrostatic-discharge',

@@ -1,8 +1,8 @@
-/* ICF Companion v2.0.0. Layers: tokens, base, components, screens, utilities. Each selector is written once;
+/* ICF Companion. Layers: tokens, base, components, screens, utilities. Each selector is written once;
    phone rules (max-width:640px) nest inside their selector.
-   --paper page  --sheet card/panel  --ink text  --muted secondary text  --rule dividers/tracks  --control borders of controls (>=3:1 on sheet and paper; UX review 2026-11-11, M8)  --focus focus ring
+   --paper page  --sheet card/panel  --ink text  --muted secondary text  --rule dividers/tracks  --control borders of controls (>=3:1 on sheet and paper)  --focus focus ring
    --shadow: floating menu, dialog, term popover and SAVE toast only (no other shadows; every fill is flat)
-   --blue nav current + primary action + selected choice   --violet Exam only   --gold Hard only   --scholar (teal) Scholar only (the owner, 2026-11-16)
+   --blue nav current + primary action + selected choice   --violet Exam only   --gold Hard only   --scholar (teal) Scholar only
    --good / --bad answer states (+ -soft fills)   --warn status and storage notices (text only; the bad hue)
    --tone/--tone-soft/--tone-ink: blue by default; [data-tone="blue|violet|gold|scholar|good|bad|warn"] on a card, panel, tag,
    button, seg or dialog retints it and everything inside   --blue-ink: text on any tone fill
@@ -28,7 +28,7 @@
 [data-tone="bad"]{--tone:var(--bad);--tone-soft:var(--bad-soft)}
 [data-tone="warn"]{--tone:var(--warn);--tone-soft:var(--bad-soft)}
 }
-/* body stays outside the layers: an unlayered host style (the Claude artifact page wraps the app in
+/* body stays outside the layers: an unlayered host style (an embedding page may wrap the app in
    a body rule with a white background, black text and a 14px font) beats every layered rule and turned the page white with black text. */
 body{margin:0;padding:0;min-height:100vh;background:var(--paper);color:var(--ink);font:500 var(--t4)/1.4 var(--f);font-variant-numeric:tabular-nums;overflow-anchor:none;-webkit-text-size-adjust:100%}
 @layer base{
@@ -54,12 +54,12 @@ main:focus-visible{outline:none}
 .mono{font-size:var(--t2);font-weight:500;letter-spacing:.03em}
 .label{font-weight:600;font-size:var(--t2);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);& .tag{margin-left:8px}}
 /* A tag inside an uppercase label line (Stats "Latest session results", question head unit line): vertical-align:middle
-   centres it on the x-height, 1.1 px below the capitals' midpoint; lift it onto the cap-height midpoint (the owner, 2026-11-09). */
+   centres it on the x-height, 1.1 px below the capitals' midpoint; lift it onto the cap-height midpoint. */
 :is(.label,.unit-label)>.tag{translate:0 -.09em}
 .correct-label{color:var(--good)}
 .incorrect-label{color:var(--bad)}
 .status{font-size:var(--t3);font-weight:600;color:var(--warn);&:empty{display:none}&.count:not(.warn){color:var(--muted)}}
-/* Top bar. Phones (2.1.14): logo · theme · gear on the first row, the screen links on a second row that always shows;
+/* Top bar. Phones: logo · theme · gear on the first row, the screen links on a second row that always shows;
    the first row slides away on scroll down (header.nav-only, app.mjs). */
 header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;min-height:64px;padding:env(safe-area-inset-top,0px) var(--gutter) 0;background:var(--sheet);border-bottom:1px solid var(--rule);
   @media (max-width:640px){flex-wrap:wrap;row-gap:0;min-height:0;padding-top:calc(env(safe-area-inset-top,0px) + 6px);transition:transform .2s ease-out;&.nav-only{transform:translateY(calc(-1 * var(--top-row,56px)))}html[data-exam="live"] &{padding-bottom:6px}}}
@@ -68,8 +68,8 @@ html:has(header.nav-only){--header-cover:calc(var(--header-height) - var(--top-r
 #home{display:flex;align-items:center;gap:10px;margin-right:auto;min-height:44px;text-decoration:none;color:inherit;
   & strong{font-weight:700;font-size:var(--t5);letter-spacing:.04em;& span{color:var(--muted);font-weight:500}}
   html[data-exam="live"] &{pointer-events:none}}
-/* Logo K (2026-11-14): fixed brand colours in both themes, not theme tokens. */
-/* Header mark (2.1.72, the owner 2026-11-16): the Rhope fulcrum E bold logo, fixed colours in both themes. */
+/* Logo K: fixed brand colours in both themes, not theme tokens. */
+/* Header mark: the fulcrum E bold logo, fixed colours in both themes. */
 .mark{--mark-blue:#00308F;--mark-yellow:#FFCD00;--mark-white:#FFF;display:block;width:44px;height:44px;flex:0 0 44px;@media (max-width:640px){width:38px;height:38px;flex-basis:38px}}
 .mark-disc{fill:var(--mark-blue)}
 .mark-ring{fill:none;stroke:var(--mark-white);stroke-width:8}
@@ -111,7 +111,7 @@ button{font:700 var(--t4)/1 var(--f);letter-spacing:.06em;text-transform:upperca
 .lbl{display:inline-block;white-space:nowrap;& >.ico:first-child{margin-right:.4em}& >.ico:last-child{margin-left:.4em}}
 .ico{display:inline-block;height:1cap;width:auto;aspect-ratio:1;vertical-align:baseline;overflow:visible}
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-/* 2.1.22: glossary entry pools, Standard then Hard (gold), side by side when they fit, else stacked full width. */
+/* glossary entry pools, Standard then Hard (gold), side by side when they fit, else stacked full width. */
 .gloss-pools{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));margin-top:12px}
 .navrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;& >button{width:100%}}
 .tool-row{display:flex;justify-content:space-between;gap:10px;& >button{min-width:calc((100% - 10px)/6);min-height:44px;padding:0 14px;font-size:var(--t3);&:only-child{margin-left:auto}}}
@@ -154,7 +154,7 @@ select{-webkit-appearance:none;appearance:none;width:100%;min-height:44px;font:6
     &:first-child{border-left:0}&:has(input:checked){background:var(--tone);color:var(--tone-ink)}&:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:-3px}&:has(input:disabled){opacity:.35;cursor:not-allowed}
     &.pool-fit{color:var(--warn);&:has(input:checked){background:var(--sheet);box-shadow:inset 0 0 0 2px var(--warn)}}
     @media (max-width:640px){min-width:0;padding:0 8px;font-size:var(--t3)}}}
-/* 2.1.22 (the owner): the pool warning always sits under the size toggle. */
+/* the pool warning always sits under the size toggle. */
 .pool-row{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .pool-note{font-size:var(--t3);font-weight:600;color:var(--warn)}
 .pool-kind{display:grid;gap:8px;@media (max-width:640px){& .seg{width:100%}& .seg label{flex:1 1 0}}}
@@ -179,7 +179,7 @@ details>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:p
   & >.drop>.drop-toggle,& >:not(.drop):not(.flag-btn){grid-row:1;grid-column:3/var(--b);min-width:0}& >.drop-terms>.drop-toggle{grid-column:var(--a)/3}
   &.no-terms>.drop>.drop-toggle,&.no-terms>:not(.drop):not(.flag-btn),&.no-source>.drop-terms>.drop-toggle{grid-column:var(--a)/var(--b)}
   & >.flag-btn{grid-row:1;grid-column:4}& >.save-btn{grid-column:1;margin:0}}
-/* 2.1.3: a row with SAVE and no FLAG (glossary entry, highlight card) splits the rest equally: no empty Flag column. */
+/* a row with SAVE and no FLAG (glossary entry, highlight card) splits the rest equally: no empty Flag column. */
 .source-row.no-flag:not(.no-save){grid-template-columns:48px minmax(0,1fr) minmax(0,1fr);--b:4}
 /* SAVE note: a short tag above the row after a press (aria-hidden; the status line speaks). Absolutely placed: nothing moves. */
 /* SAVE toast: fixed, centred near the bottom of the viewport, above the safe area; it sits over the
@@ -194,9 +194,9 @@ details>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:p
 .excerpt-held{display:flex;align-items:center;min-height:48px;padding:6px 14px;border:2px dashed var(--rule);border-left:4px solid var(--rule);border-radius:var(--r2);@media (max-width:640px){padding:6px 8px;& .label{font-size:var(--t1);letter-spacing:.03em}& .held-more{display:none}}}
 /* Item: one answer card for the quiz (live, correct, wrong, eliminated), the exam (picked) and reviews (correct / wrong). */
 .answers{display:grid;gap:8px}
-/* Answer hold (the owner, 2026-11-17): tiles that reveal a why are equal on every width, sized by the tallest answered tile. */
+/* Answer hold: tiles that reveal a why are equal on every width, sized by the tallest answered tile. */
 .answers:has(.back){grid-auto-rows:1fr}
-/* Floor (the owner, 2026-11-17): one tile height from question to question; room for the answer line and 2 why lines on wide
+/* Floor: one tile height from question to question; room for the answer line and 2 why lines on wide
    screens (all 1,445 questions), 4 on phones (98%); a longer tile grows and 1fr keeps the four equal. Line units scale with zoom.
    The px part is the .item border and padding plus the row gap (keep in step with .item): wide 4 + 20 + 1, plus 1px so the
    floor rounds to the full 2-line height (93px, not 92.6); phones 4 + 16. */
@@ -211,12 +211,12 @@ details>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:p
   & :is(.back,.review-explanation){grid-column:2;display:block;font-style:italic;font-size:var(--t2);line-height:1.38;color:var(--muted);animation:reveal .25s ease-out;& em{font-style:inherit}}
   & .back.pending{visibility:hidden;animation:none}
   @media (hover:hover){&:hover:not([aria-disabled="true"]):not(:disabled):not(.correct,.wrong,.picked){border-color:var(--blue)}}
-  /* Quiet right / wrong in every mode (the owner, 2026-11-17, from Scholar's 2026-11-16 look; app 2.5.3): a light fill and a soft border;
+  /* Quiet right / wrong in every mode (as in Scholar): a light fill and a soft border;
      the ✓ / ✕ marker in the letter box keeps the strong colour (4.5:1 or more), so shape and colour, not the border, carry the state. */
   &.correct{border-color:var(--good-quiet-line);background:var(--good-quiet);& :is(.feedback-label,.letter){color:var(--good);border-color:var(--good)}}
   &.wrong{border-color:var(--bad-quiet-line);background:var(--bad-quiet);& :is(.feedback-label,.letter){color:var(--bad);border-color:var(--bad)}}
   &.picked{border-color:var(--blue);background:var(--blue-soft);& .letter{background:var(--blue);border-color:var(--blue);color:var(--blue-ink)}& .feedback-label{color:var(--blue)}}
-  /* Exam tiles always hold the "Your answer" row, hidden until picked, so picking does not grow the tile (2.1.49). */
+  /* Exam tiles always hold the "Your answer" row, hidden until picked, so picking does not grow the tile. */
   &[data-exam-answer]:not(.picked) .feedback-label{visibility:hidden}
   &.eliminated,&:disabled{opacity:.5;border-style:dashed}&[aria-disabled="true"]{cursor:default;opacity:1}&:not(button){cursor:default;min-height:0}
   @media (max-width:640px){padding:8px 10px;gap:0 8px;& .answer-text{font-size:var(--t3)}}}
@@ -273,7 +273,7 @@ dialog{border:1px solid var(--rule);border-radius:var(--r3);background:var(--she
 .pop-expansion{font-weight:700}
 .pop-see .link-button{display:inline;min-height:0;padding:2px 0;font-size:var(--t3)}
 .term-link{display:inline;min-height:0;padding:0;border:0;border-radius:2px;background:none;font:inherit;letter-spacing:inherit;text-transform:none;white-space:normal;color:inherit;cursor:pointer;text-decoration:underline dotted;text-decoration-thickness:1px;text-underline-offset:3px;&:hover{border:0;text-decoration-style:solid}}
-/* A list excerpt's short first line is its heading (2.1.72). */
+/* A list excerpt's short first line is its heading. */
 .excerpt-head{font-weight:700;letter-spacing:.02em}
 .term-excerpts{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:8px;& >li{display:grid;gap:2px;padding-left:12px;border-left:3px solid var(--rule)}
   & blockquote{font-size:var(--t3);line-height:1.4;display:grid;gap:4px;& ul{margin:0;padding-left:1.15em;display:grid;gap:2px;& ul{margin-top:2px;list-style:circle}}}& .label{font-size:var(--t1)}}
@@ -295,12 +295,12 @@ footer{text-align:center;color:var(--muted);font-size:var(--t1);padding:0 16px m
 /* Exam setup figures (Questions · Time limit · Pass) and block figures (Units · Standard · Hard · Exams) on phones: one row
    from 360 px (no wrapped cell, no empty border). */
 :is(.exam-figures,.block-figures){@media (max-width:640px){flex-wrap:nowrap;& div{flex:0 1 auto;min-width:0;padding-right:10px;margin-right:10px}& dd{font-size:var(--t6);white-space:nowrap;& small{font-size:var(--t2)}}}}
-/* Single-action rule (the owner, 2026-11-10, approved "a for both"; 2.1.30): a button that stands alone in a box takes the right column of a
+/* Single-action rule (both layouts): a button that stands alone in a box takes the right column of a
    two-column grid, the width and place of Next in .navrow (Blocks Mode, Resume, Take exam). */
 .block-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;& >button{grid-column:2;width:100%}}
 .practice-section{border-style:dashed}
 .resume-panel{grid-template-columns:1fr 1fr;column-gap:10px;align-items:center;& >#resume{grid-column:2;width:100%}@media (max-width:640px){& >div{grid-column:1/-1}}}
-/* 2.1.24 For Review (the owner, option C): labelled groups, two columns on desktop and two rows on phones; equal buttons,
+/* For Review: labelled groups, two columns on desktop and two rows on phones; equal buttons,
    two per row on phones. */
 .review-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;@media (max-width:640px){grid-template-columns:1fr}}
 .review-group{display:grid;gap:10px;align-content:start;& >.label{margin:0}& >button{width:100%}
@@ -341,10 +341,10 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
   &.flip-out{transform:perspective(1200px) rotateY(90deg);transition-timing-function:ease-in}&.flip-in{transform:perspective(1200px) rotateY(-90deg);transition:none}
   &[data-side="definition"] .flash-content{font-weight:500;font-size:var(--t5);line-height:1.4;text-transform:none}}
 .flash-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;min-width:0}
-/* In Missed: the card is in Missed Questions (2.1.3). Beside the unit on the card and the question heading. */
+/* In Missed: the card is in Missed Questions. Beside the unit on the card and the question heading. */
 .flash-meta{display:flex;flex-wrap:wrap;justify-content:end;align-items:center;gap:6px 10px;min-width:0}
 .unit-label.with-tag{display:inline-flex;align-items:center;gap:10px}
-/* 2.1.22 (the owner, 2026-11-10: the In Missed midpoint still missed UNIT N): the unit text and the tag are trimmed to their
+/* The unit text and the tag are trimmed to their
    capitals (text-box), so centring the two boxes puts the pill midpoint on the unit capitals' midpoint, and equal 6 px
    padding centres the tag's capitals in its pill. The label-line lift (translate -.09em) does not apply here.
    Browsers without text-box (Firefox) keep box centring, within about 1 px. */
@@ -358,13 +358,13 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 /* Card sets head: Manage sets spans the label and title rows (a 44 px button in the title row pushed the label
    11 px away); other step-heads keep their layout. */
 .card-set-pick .step-head>button{grid-row:1/span 2;align-self:center}
-/* Saved sets by block (2.1.72): the block filter and one heading per block in a set's card list. */
+/* Saved sets by block: the block filter and one heading per block in a set's card list. */
 .sets-block{margin-bottom:12px}.sets-filter .sets-block{margin:0}
 .set-block{margin:12px 0 4px}
 .set-cards{& summary{color:var(--blue);font-weight:600}& ul{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}& li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;border-top:1px solid var(--rule);& >span{min-width:0;overflow-wrap:anywhere}}}
 /* Results */
 .results-nav,.review-toolbar{margin-top:4px;@media (max-width:640px){flex-wrap:nowrap;& >button{min-width:0;padding:0 10px;font-size:var(--t3)}}}
-/* 2.1.23 (the owner, artifact comment 2026-11-10: "put this button back on the left"): Blocks is now the only exit, and the
+/* Blocks is now the only exit, and the
    tool-row rule moves a lone button right; here it stays left, where it sat beside Latest session results. */
 .review-exit{margin-top:-8px;& >button:only-child{margin-left:0}}
 /* Glossary screen */
@@ -416,7 +416,7 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 .exam-item[open] .review-compact-stem{display:none}
 .exam-item[open] .review-status{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0}
 /* An open exam row matches a Quiz review item: 16 px under the header, 10 px between blocks, question at the review-item size.
-   Margins, not gap: a details element's content does not take the grid gap (the owner, 2026-11-08). */
+   Margins, not gap: a details element's content does not take the grid gap. */
 .exam-item .review-question{font-size:var(--t4);line-height:1.4}
 }
 @layer utilities{
@@ -463,17 +463,17 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 .pic-parts [aria-pressed="true"]{border-color:Highlight;color:Highlight}
 }
 }
-/* Block list (the owner, 2026-11-10): each block is a details row; open shows figures and actions. Margins, not gap, inside
+/* Block list: each block is a details row; open shows figures and actions. Margins, not gap, inside
    details. */
 details.block-card{gap:0;& >summary{min-height:48px;justify-content:space-between;& .step-head{flex:1;min-width:0}}& >.block-figures{margin-top:12px}& >.block-actions{margin-top:12px}}
 
-/* UX review 2026-11-11 (preview): */
+/* Small-screen and spacing fixes: */
 @layer screens{
 /* L8: dialog titles 1.75rem (28 px), as the screen-head rule specifies. */
 dialog .dialog-head h2{font-size:1.75rem}
-/* The owner, 2026-11-11 (4a): Hint at the left of the card row, also alone on the card front. */
+/* Hint at the left of the card row, also alone on the card front. */
 .tool-row>.card-hint:only-child{margin-left:0}
-/* The owner, 2026-11-11 (4a): below 375 px the drop-down labels take 11 px, so "KEY TERMS 6" fits at 360 px. */
+/* Below 375 px the drop-down labels take 11 px, so "KEY TERMS 6" fits at 360 px. */
 .source-row .drop-toggle .label{@media (max-width:374.98px){font-size:.6875rem;letter-spacing:.02em}}
 /* L13: Key terms list entries get a full-row hit area; inline term links in prose stay inline. */
 .term-list .term-link{display:flex;align-items:center;min-height:44px;width:100%}
@@ -484,13 +484,13 @@ dialog .dialog-head h2{font-size:1.75rem}
 /* M9: on phones the exam navigator folds under its figures row. */
 .exam-nav-box{& .legend{margin-top:10px}&>summary{display:none}@media (max-width:640px){&>summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 12px;border:2px solid var(--control);border-radius:var(--r2);font:700 var(--t3)/1 var(--f);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;list-style:none;&::-webkit-details-marker{display:none}&::after{content:"";width:8px;height:8px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg) translateY(-2px)}}&[open]>summary{margin-bottom:8px;&::after{transform:rotate(-135deg) translateY(-2px)}}}}
 }
-/* Scholar (2.2.0, the owner 2026-11-16): teal tone; hub entry after the tiles, term list, term page, guided questions. */
+/* Scholar: teal tone; hub entry after the tiles, term list, term page, guided questions. */
 @layer screens{
 .scholar-entry h2{color:var(--scholar)}
 .context-link{&[data-tone]{color:var(--tone);border-bottom-color:var(--tone)}& .ctx-arrow{margin-right:4px}@media (max-width:640px){& .ctx-long{display:none}}html[data-exam="live"] &{display:none}}
 .scholar-units{& .seg{flex-wrap:wrap}}
 .scholar-list{list-style:none;margin:0;padding:0;display:grid;gap:6px;& .card{padding:10px 14px;grid-template-columns:minmax(0,1fr) auto;gap:0 10px;& >*{grid-column:1/-1}
-  /* 2.6.3: one entry height on every unit and width (the owner, 2026-11-17): term on one line (a long term
+  /* one entry height on every unit and width: term on one line (a long term
      shows its glossary short form); three body lines below (the glossary definition, or "Also" + 2 lines of it), cut with an
      ellipsis, with the progress tag at their right; the full texts stay on the term page. */
   & >strong{max-width:100%;margin-bottom:2px;font-size:var(--t4);text-transform:none;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -502,7 +502,7 @@ dialog .dialog-head h2{font-size:1.75rem}
   & >.tag{grid-column:2;grid-row:2/span 3;justify-self:end;align-self:center}
   &:has(>.tag) >span:not(.tag){grid-column:1}}}
 .scholar-item{gap:14px;& .scholar-summary{font-size:var(--t5);font-weight:600;line-height:1.3}}
-/* Term-page sections (the owner, 2026-11-16): each one a collapsible with the Source / Key terms pill and panel. */
+/* Term-page sections: each one a collapsible with the Source / Key terms pill and panel. */
 .scholar-accordion{border:1px solid var(--rule);border-left:4px solid var(--scholar);border-radius:var(--r2);background:var(--sheet)}
 .scholar-drop{& + .scholar-drop{border-top:1px solid var(--rule)}
   & >summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 14px;list-style:none;cursor:pointer;&:focus-visible{outline-offset:-3px}&::-webkit-details-marker{display:none}& >.label{color:var(--scholar)}}
@@ -512,13 +512,13 @@ dialog .dialog-head h2{font-size:1.75rem}
 .scholar-q{display:grid;gap:16px;& .question-focus{position:static}& .stem:focus{outline:none}}
 .scholar-hint,.scholar-see,.scholar-takeaway{line-height:1.45;& >.label{color:var(--scholar);margin-right:6px}}
 .scholar-takeaway{padding:10px 12px;border-left:4px solid var(--scholar);border-radius:var(--r1);background:var(--scholar-soft)}
-/* Term nav (the owner's comment on the preview, 2026-11-16): Previous term left, Next term right, All terms under Previous. */
-/* Term nav and question nav (the owner, 2026-11-16: "next is always on the right side. unified UI nav"; All terms takes
+/* Term nav : Previous term left, Next term right, All terms under Previous. */
+/* Term nav and question nav (Next is always on the right; All terms takes
    Previous term's place on the first term). */
 .scholar-nav{& #scholar-next{grid-column:2;grid-row:1}& >:first-child{grid-column:1;grid-row:1}}
 .scholar-q-nav{grid-template-columns:repeat(2,minmax(0,1fr));& >button{width:100%;min-width:0;white-space:normal;line-height:1.15;padding:6px 10px}& .lbl{white-space:normal;text-wrap:balance}& #scholar-next-q{grid-column:2}& #scholar-prev-q{grid-column:1}&:empty{display:none}}
-/* 2.3.0 polish (the owner, 2026-11-16): no inner box around the guided question; answer heights as in quizzes (since 2.5.0 the
-   .answers:has(.back) hold, the owner, 2026-11-17); Hint at the left of the tool row as on the question screen, Check at the right. */
+/* No inner box around the guided question; answer heights as in quizzes (the
+   .answers:has(.back) hold); Hint at the left of the tool row as on the question screen, Check at the right. */
 .scholar-q{& .scholar-task{color:var(--scholar);margin:0 0 4px}& .stem{margin:0}}
 .scholar-revealed{margin:0;color:var(--scholar)}
 .scholar-row.is-revealed{border-color:var(--scholar);background:var(--sheet)}
@@ -526,7 +526,7 @@ dialog .dialog-head h2{font-size:1.75rem}
 .scholar-tools{justify-content:space-between;& >#scholar-hint:only-child{margin-left:0}& >#scholar-check{margin-left:auto}}
 /* Hands-on rows (order, sort): a row per step or item; a check marks each row right or wrong. */
 .scholar-rows{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-/* min-height: the row hold (2.5.0: every row the tallest answered row on every width), set by app.mjs holdScholarHeights. */
+/* min-height: the row hold (every row the tallest answered row on every width), set by app.mjs holdScholarHeights. */
 .scholar-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;align-content:start;min-height:var(--row-hold,0px);padding:8px 10px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);
   &.is-right{border-color:var(--good-quiet-line);background:var(--good-quiet);& .feedback-label{color:var(--good)}}
   &.is-wrong{border-color:var(--bad-quiet-line);background:var(--bad-quiet);& .feedback-label{color:var(--bad)}}
@@ -544,10 +544,10 @@ dialog .dialog-head h2{font-size:1.75rem}
   @media (hover:hover){&:not(.is-done) [data-tap]:not([data-tap-state]):hover :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar);stroke-width:3}}}
 .scholar-tap-help{margin:-8px 0 0;font-size:var(--t2)}
 }
-/* A wide invisible line over each link, so a thin link can be tapped (2.3.0 tap board). Outside the layers on purpose: it
+/* A wide invisible line over each link, so a thin link can be tapped (tap board). Outside the layers on purpose: it
    must win over every layered link stroke, forced colours included. */
 :is(.pic,.scholar-tap) .pic-link .pic-hit{stroke:transparent;stroke-width:18;fill:none;stroke-dasharray:none}
-/* Scholar pictures (2.2.0, the owner 2026-11-16): drawn from tokens only. Lit parts take the teal; with any part lit, the
+/* Scholar pictures: drawn from tokens only. Lit parts take the teal; with any part lit, the
    others fade. Captions share one grid cell, so the box keeps the tallest caption's height. */
 @layer screens{
 .pic-body{display:grid;gap:8px}
@@ -577,13 +577,13 @@ dialog .dialog-head h2{font-size:1.75rem}
   & .is-on.pic-cable line{stroke-width:5}& .is-on.pic-cable .pic-plug{stroke-width:10}
   &.has-light :is(.pic-node,.pic-link,.pic-group,.pic-row,.pic-seg,.pic-band,.pic-mark):not(.is-on):not(:has(.is-on)){opacity:.4}
   & .is-off{display:none}
-  /* Animation (the owner, 2026-11-16, "1 a"): parts lit by this step fade in; the global reduced-motion rule stops it. */
+  /* Animation: parts lit by this step fade in; the global reduced-motion rule stops it. */
   & .is-new{animation:pic-in .25s ease-out}
   & [data-pic-id]{cursor:pointer}
   /* Phones draw the 400-unit picture at about 360 px: larger labels keep them at 11-13 px on screen. */
   @media (max-width:640px){& .pic-label{font-size:13.5px}& .pic-small{font-size:12px}& .pic-mono{font-size:11.5px}}}
-/* Picture controls (the owner, 2026-11-16): rewind and forward icon buttons on the left, the play/pause at the right, all
-   Flag-sized. Part buttons (the owner, 2026-11-17: "buttons are varying width" on phones): an equal-width grid on a line of
+/* Picture controls: rewind and forward icon buttons on the left, the play/pause at the right, all
+   Flag-sized. Part buttons (equal widths on phones): an equal-width grid on a line of
    its own under the play/pause, 2 columns on phones and up to 4 on wider screens; a label may wrap, a row shares one height. */
 .pic-controls{display:flex;align-items:center;gap:8px;& .pic-nav{margin-left:0}& .pic-play{margin-left:auto}& .flag-btn:disabled{opacity:.4}
   &:has(.pic-parts){flex-wrap:wrap;& .pic-parts{flex:1 0 100%}}}
@@ -593,7 +593,7 @@ dialog .dialog-head h2{font-size:1.75rem}
   & [aria-pressed="true"]{border-color:var(--scholar);background:var(--scholar-soft);color:var(--ink)}}
 @media (min-width:561px){.pic-parts{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
 .scholar-also{margin:0;color:var(--muted);& .label{color:var(--scholar);margin-right:4px}& .link-button{font-weight:600}}
-/* 2.6.0 (Scholar review G2-G5): related terms, Study in Scholar, next term, unit review */
+/* Related terms, Study in Scholar, next term, unit review */
 .scholar-related{margin:0;color:var(--muted);& .label{color:var(--scholar);margin-right:4px}& .link-button{font-weight:600;min-height:24px;padding:2px 0}}
 .pop-scholar{margin:8px 0 0;& .link-button{color:var(--scholar);font-weight:700;min-height:44px}}
 .scholar-todo,.scholar-review-start{margin:0 0 8px;display:flex;& button{flex:1 1 auto;max-width:100%;white-space:normal;line-height:1.2;min-height:48px}}

@@ -763,7 +763,7 @@ const catalog = [
 // End of generated catalog.
 
 // Generated card links; do not edit.
-// Approved 2026-11-07 (the owner): each Hard question uses one existing normal card.
+// Each Hard question uses one existing normal card.
 // There are no Hard-only cards.
 export const HARD_CARD_MAP = Object.freeze({
  "B3-H-U1-Q018": "B3-U1-Q056",
@@ -1149,7 +1149,7 @@ export const HARD_CARD_MAP = Object.freeze({
  "B5-H-U7-Q090": "B5-U7-Q135"
 });
 
-// Approved 2026-11-07 (the owner): near-duplicate normal cards merged. The linked question keeps
+// Near-duplicate normal cards merged. The linked question keeps
 // its own place in the bank and studies the kept card; saved sets migrate to the kept ID.
 export const MERGED_CARDS = Object.freeze({  });
 // End of generated card links.
@@ -1264,7 +1264,7 @@ export function setHasCard(set, card) {
 }
 export const manualHas = (library, card) => setHasCard(library.sets.find(s => s.id === MANUAL_ID), card);
 
-// Saved cards by block (the owner, 2026-11-16): the one library holds every block's cards, and each view shows one block
+// Saved cards by block: the one library holds every block's cards, and each view shows one block
 // (the current block by default) or ALL_BLOCKS, so any block can open the cards of every block. The block comes from the
 // card's question ID (B4-U2-Q020 is Block 4), so the stored schema is unchanged. Highlight cards have no block and show
 // in every view.

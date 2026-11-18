@@ -1,4 +1,4 @@
-// Offline copy worker (2.1.68; the owner, 2026-11-15: caching that an update cannot break).
+// Offline copy worker (caching that an update cannot break).
 // Rule 1: a file enters the cache only when the SHA-256 of its bytes matches the hash in its URL (?v=) or in the
 //   build's file list (index.html, #release-files). While a host serves a stale file, the page gets that file,
 //   as without a worker, but it is never stored.

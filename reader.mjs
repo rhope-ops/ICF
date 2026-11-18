@@ -1,5 +1,5 @@
 // Source excerpt presentation: escaped markup only. Loaded only on demand, after
-// the correct answer is known. The app has no reader (the owner, 2026-11-07), so an
+// the correct answer is known. The app has no reader, so an
 // excerpt names its document and physical page and links nowhere.
 import { escape, pageLabel, dropHtml, excerptBody } from './presentation.mjs';
 

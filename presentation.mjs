@@ -9,7 +9,7 @@ export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many
 export const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({1:'st',2:'nd',3:'rd'}[n % 10] || 'th')}`;
 // Excerpt and highlight-card source line: "Block Text · p. 37".
 export const pageLabel = (label, n) => `${label} · p. ${n}`;
-// COMM badge, one flat accent colour (the owner, 2026-11-11: "flat is fine"; was a duotone spec): Welcome and the Blocks screen head.
+// COMM badge, one flat accent colour (flat, not a duotone): Welcome and the Blocks screen head.
 export const commBadge = '<span class="comm-badge" role="img" aria-label="USAF Communications and Information badge"></span>';
 
 export function highlightedStem(question) {
@@ -37,15 +37,15 @@ const ICON_STROKE = 'fill="none" stroke="currentColor" stroke-width="2.25" strok
 export const ICON = {
   back: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M14.5 8H2M7.5 2.5 2 8l5.5 5.5" ${ICON_STROKE}/></svg>`,
   next: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M1.5 8H14M8.5 2.5 14 8l-5.5 5.5" ${ICON_STROKE}/></svg>`,
-  // Up / down (2.3.0): move a step in a Scholar order task (buttons, no drag; WCAG 2.5.7).
+  // Up / down: move a step in a Scholar order task (buttons, no drag; WCAG 2.5.7).
   up: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M8 14.5V2M2.5 7.5 8 2l5.5 5.5" ${ICON_STROKE}/></svg>`,
   down: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M8 1.5V14M2.5 8.5 8 14l5.5-5.5" ${ICON_STROKE}/></svg>`,
-  // Swap (the owner, 2026-11-16): a right arrow over a left arrow, before "Quiz" / "Scholar" on the nav context button.
+  // Swap: a right arrow over a left arrow, before "Quiz" / "Scholar" on the nav context button.
   swap: `<svg class="ico" viewBox="1 1 14 14" aria-hidden="true" focusable="false"><path d="M2 4.75H14M11 1.75 14 4.75 11 7.75M14 11.25H2M5 8.25 2 11.25 5 14.25" ${ICON_STROKE}/></svg>`,
-  // Play / pause of the Scholar picture loop (the owner, 2026-11-16): Flag-sized button, filled triangle or two bars.
+  // Play / pause of the Scholar picture loop: Flag-sized button, filled triangle or two bars.
   play: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M6.5 4.5v11l9-5.5Z" ${ICON_STROKE}/></svg>`,
   pause: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M7 4.5v11M13 4.5v11" ${ICON_STROKE}/></svg>`,
-  // Rewind / forward of a Scholar picture (the owner, 2026-11-16): two triangles, as on a media player.
+  // Rewind / forward of a Scholar picture: two triangles, as on a media player.
   rewind: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 5 4 10l6 5ZM16.5 5l-6 5 6 5Z" ${ICON_STROKE}/></svg>`,
   forward: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 5l6 5-6 5ZM3.5 5l6 5-6 5Z" ${ICON_STROKE}/></svg>`,
   retry: `<svg class="ico" viewBox="1 0.2 14 14" aria-hidden="true" focusable="false"><path d="M12.6 5.4A5.3 5.3 0 1 1 8 2.8M6.2 1 8.2 2.8 6.2 4.6" ${ICON_STROKE}/></svg>`,
@@ -54,12 +54,12 @@ export const ICON = {
   save: `<svg class="flag-ico" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path class="flag-cloth" d="M3.5 3.5h10l3 3v10h-13Z" ${ICON_STROKE}/><path class="save-slot" d="M6.5 3.5v3.5h6V3.5M6.5 16.5v-4.5h7v4.5" ${ICON_STROKE}/></svg>`,
 };
 // Flag: a square icon button beside the Source row. A saved flag fills the pennant.
-// card: the card Flag carries data-flag-card, so question-flag updates never touch it (UX review 2026-11-11, M5).
+// card: the card Flag carries data-flag-card, so question-flag updates never touch it.
 export const flagButton = ({id = '', question, label = 'Flag question', flagged = false, card = false}) =>
   `<button type="button" class="flag-btn" ${id ? `id="${escape(id)}" ` : ''}data-flag-${card ? 'card' : 'question'}="${escape(question)}" aria-label="${escape(label)}" title="${escape(label)}" aria-pressed="${flagged}">${ICON.flag}</button>`;
 // Excerpt body (the question Source drop-down, term pop-ups and glossary entries): the build's blocks, paragraphs
 // ({p}) and real lists ({ul: [{t, sub?}]}), or the text as one paragraph. A short first line with no end punctuation
-// right above a list is its heading ("Patch Management"; the owner, 2026-11-16: bullets show as real lists).
+// right above a list is its heading ("Patch Management": bullets show as real lists).
 const excerptHeading = (b, next) => next?.ul && b.p.length <= 60 && b.p.split(' ').length <= 8 && !/[.,;!?]$/.test(b.p);
 export const excerptBody = x => { const blocks = x.blocks || [{p: x.text}];
   return blocks.map((b, i) => b.p !== undefined ? `<p${i === 0 && excerptHeading(b, blocks[1]) ? ' class="excerpt-head"' : ''}>${escape(b.p)}</p>`
@@ -68,7 +68,7 @@ export const excerptBody = x => { const blocks = x.blocks || [{p: x.text}];
 // key: the card key (question ID, or a highlight card ID).
 export const saveButton = ({id = '', key, saved = false}) =>
   `<button type="button" class="flag-btn save-btn" ${id ? `id="${escape(id)}" ` : ''}data-save-card="${escape(key)}" aria-label="${saved ? 'Saved as a flash card' : 'Save as a flash card'}" title="Save as a flash card" aria-pressed="${saved}">${ICON.save}</button>`;
-// Answer tools row: SAVE · KEY TERMS · SOURCE · FLAG on one row at every width (SAVE added at the left in 2.0.0). Each drop-down is a toggle
+// Answer tools row: SAVE · KEY TERMS · SOURCE · FLAG on one row at every width (SAVE sits at the left). Each drop-down is a toggle
 // button followed by its panel; the row is a grid, so the toggles and the Flag share line 1 and an open panel takes the
 // full row width under them. DOM order (toggle, its panel, next toggle, Flag) is the keyboard and screen-reader order.
 // count: the number on the toggle, in blue ("KEY TERMS 6"); unit: the screen-reader word after it ("excerpts", "terms").
@@ -81,9 +81,9 @@ export const sourceRow = (source, flag, terms = '', save = '') => source || term
 export const backLabel = text => `<span class="lbl">${ICON.back}${escape(text)}</span>`;
 export const nextLabel = text => `<span class="lbl">${escape(text)}${ICON.next}</span>`;
 
-// neutralUnpicked (Scholar, 2.3.0): after the reveal, a wrong choice nobody picked keeps its why but is not marked red.
+// neutralUnpicked: after the reveal, a wrong choice nobody picked keeps its why but is not marked red.
 // Every tile carries its why from the start; a pending why is hidden but keeps its space, so all tiles hold their answered
-// height and a reveal moves nothing (the owner, 2026-11-17). The marker and tile colour show Correct / Incorrect.
+// height and a reveal moves nothing. The marker and tile colour show Correct / Incorrect.
 export function answersHtml(q,c,{assisted,reviewing=false,neutralUnpicked=false}) {
   const revealed=['correct','revealed'].includes(c.resolved)||assisted&&c.stage>=4;
   return c.order.map((id,i)=>{
@@ -126,13 +126,13 @@ export function questionUnitLabel(question, blocks) {
   return question.units.map(id=>`Unit ${id} · ${block?.units.find(unit=>unit.id===id)?.title||'Course unit'}`).join(' / ');
 }
 
-// Review answer card (2.0.0): the quiz .item in its correct or wrong state, with the ✓ / ✕ marker in the letter box.
-// Review row numbers: two digits (#01–#09) so every row's number and stem line up (the owner, 2026-11-09).
+// Review answer card: the quiz .item in its correct or wrong state, with the ✓ / ✕ marker in the letter box.
+// Review row numbers: two digits (#01–#09) so every row's number and stem line up.
 export const reviewNumber = n => `#${String(n).padStart(2, '0')}`;
 export const reviewItem = (tone, label, text, why = '') => `<div class="item ${tone}"><span class="letter" aria-hidden="true">${tone === 'correct' ? '✓' : '✕'}</span><span class="answer-body"><span class="feedback-label">${label}</span><span class="answer-text"><span>${text}</span></span>${why}</span></div>`;
 // Only answered questions appear in the answer review, in pool order; wrong attempts keep their order.
 // gloss (optional, v1.2.0): {text(q, part, answerId, text) -> linked html, terms(q) -> Key terms drop-down}.
-// save(q) (2.0.0): the SAVE button for the question's card, or '' where it has none; isOpen(id): a compact row was open.
+// save(q): the SAVE button for the question's card, or '' where it has none; isOpen(id): a compact row was open.
 export function answerReviewHtml(session, missed = [], source = () => '', isFlagged = () => false, gloss = null, {save = () => '', isOpen = () => false} = {}) {
   // The correct answer appears once, with its memory cue and its explanation. Wrong attempts follow in order.
   const T = (q, part, id, text) => gloss ? gloss.text(q, part, id, text) : escape(text);
@@ -141,10 +141,10 @@ export function answerReviewHtml(session, missed = [], source = () => '', isFlag
     const why=(text,id=null)=>`<em class="review-explanation">${id?T(q,'rationale',id,text):escape(text)}</em>`;
     const n=session.pool.indexOf(q.id)+1, compact=!wrong.length&&!missed.includes(q.id);
     const body=`${missed.includes(q.id)&&!wrong.length?'<p><span class="tag" data-tone="bad">Missed in this session</span></p>':''}${reviewItem('correct','Correct answer',T(q,'answer',right.id,right.text),(q.reviewCue&&q.reviewCue!==right.rationale?why(q.reviewCue):'')+why(right.rationale,right.id))}${wrong.length?`<div class="answer-attempts">${wrong.map((a,i)=>{const pick=q.answers.find(x=>x.id===a.answerId);return reviewItem('wrong',wrong.length===1?'Your answer':`${ordinal(i+1)} answer`,T(q,'answer',pick.id,pick.text),why(pick.rationale,pick.id));}).join('')}</div>`:''}${sourceRow(source(q),flagButton({question:q.id,label:`Flag question ${n}`,flagged:isFlagged(q.id)}),gloss?gloss.terms(q):'',save(q))}`;
-    // First-try correct: one line that opens to the full item (the owner, 2026-11-08); the flag shows when it is open.
+    // First-try correct: one line that opens to the full item; the flag shows when it is open.
     if(compact)return `<details class="review-item review-compact" data-review-item="${escape(q.id)}"${isOpen(q.id)?' open':''}><summary><strong class="review-number">${reviewNumber(n)}</strong><span class="correct-label" aria-hidden="true">✓</span><span class="review-compact-stem">${escape(q.stem)}</span><span class="sr-only">Correct on the first try</span></summary>${body}</details>`;
-    // Not first-try correct: the same ✕ as the Exam review rows (the owner, 2026-11-08: ✓ rows had a mark, missed rows had none).
-    // Header: number · mark · stem in three grid columns, 8 px apart, as the compact rows (2.0.0); the stem keeps its own span.
+    // Not first-try correct: the same ✕ as the Exam review rows (✓ rows have a mark, so missed rows have one too).
+    // Header: number · mark · stem in three grid columns, 8 px apart, as the compact rows; the stem keeps its own span.
     return `<article class="review-item"><h3 class="review-head"><strong class="review-number">${reviewNumber(n)}</strong><span class="incorrect-label review-mark" aria-hidden="true">✕</span><span class="review-stem"><span class="sr-only">Missed on the first try. </span>${T(q,'stem',null,q.stem)}</span></h3>${body}</article>`;
   }).join('');
 }

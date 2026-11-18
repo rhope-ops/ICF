@@ -1,5 +1,5 @@
-// Scholar (2.2.0, the owner 2026-11-16): pure lookups over scholar.json, the block files and the saved Scholar place. No DOM, storage or
-// network access. Every text shown comes from a block file, one item per concept entry (no facets; the owner, 2026-11-16).
+// Scholar: pure lookups over scholar.json, the block files and the saved Scholar place. No DOM, storage or
+// network access. Every text shown comes from a block file, one item per concept entry (no facets).
 // Sample answers are practice only: they never enter stats, Results, missed cards or exam cycles.
 
 import { pictureProblem } from './pictures.mjs';
@@ -8,8 +8,8 @@ const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isText = v => typeof v === 'string' && v.trim() !== '';
 const PARTS = ['summary', 'deeper', 'analogy', 'scenario', 'example'];
 const citesOk = c => Array.isArray(c) && c.length > 0 && c.every(x => isObj(x) && isText(x.doc) && Number.isInteger(x.page));
-// Guided question types (2.3.0, the owner 2026-11-16): the file has the A-D question (no type) first and a hands-on one
-// second; the app shows the hands-on one first (2.4.2, the owner 2026-11-16). Hands-on: tap (the 4 answers
+// Guided question types: the file has the A-D question (no type) first and a hands-on one
+// second; the app shows the hands-on one first. Hands-on: tap (the 4 answers
 // are parts of the term's picture, answer.at), order (steps shown out of order, key = the shown indices in the right order),
 // sort (items into 2 groups, key = the group of each item) or branch (2-3 linked decisions, each with its own key).
 const isIdx = (v, n) => Number.isInteger(v) && v >= 0 && v < n;
@@ -27,11 +27,11 @@ const questionOk = q => isObj(q) && isText(q.id) && isText(q.v) && isText(q.stem
 const itemOk = (it, block, unit) => isObj(it) && isText(it.id) && isText(it.entry) && isText(it.term) && it.block === block && it.unit === unit &&
   PARTS.every(p => isText(it[p])) && citesOk(it.cites) && coversOk(it) && (it.picture === undefined || pictureProblem(it.picture) === null) && Array.isArray(it.questions) && it.questions.length > 0 && it.questions.every(questionOk);
 
-// scholar.json is an index (schema 2; the owner, 2026-11-16, "2 a"): per block its file, content version and the entry ids of
+// scholar.json is an index (schema 2): per block its file, content version and the entry ids of
 // each unit. A block's items come from its own file (scholar-B<n>.json), loaded when that block's Scholar opens and added
 // with addScholarBlock. Before that, itemForEntry answers from the index (id, block, unit, entry) so the Glossary and the
 // cards can offer "Open in Scholar".
-// Umbrella terms (2.5.3): an item's covers are other entries of its unit, each shown by one picture step or part.
+// Umbrella terms: an item's covers are other entries of its unit, each shown by one picture step or part.
 const coversOk = it => it.covers === undefined || (Array.isArray(it.covers) && it.covers.length > 0 && it.covers.every(c => isObj(c) && isText(c.entry) && isText(c.term)
   && Number.isInteger(c.part) && c.part >= 0 && c.part < ((it.picture?.steps || it.picture?.parts || []).length)));
 const entriesOk = v => Array.isArray(v) && v.length > 0 && v.every(isText) && new Set(v).size === v.length;
@@ -79,7 +79,7 @@ export function addScholarBlock(s, raw) {
       for (const c of it.covers || []) { if (ix.covers?.[c.entry]?.join() !== [it.entry, c.part].join()) return null; byEntry.set(`${b}/${c.entry}`, { ...it, part: c.part }); }
     }
   }
-  // Every cover the index names was set by an item of this file, and every item cover is in the index (fresh review 2.5.3).
+  // Every cover the index names was set by an item of this file, and every item cover is in the index.
   const fileCovers = Object.values(raw.units).flat().flatMap(it => (it.covers || []).map(c => c.entry));
   if (new Set(fileCovers).size !== fileCovers.length || fileCovers.length !== Object.keys(ix.covers || {}).length || fileCovers.some(e => !ix.covers[e])) return null;
   return { ...s, blocks: { ...s.blocks, [b]: shown }, byId, byEntry };
@@ -98,17 +98,17 @@ export const itemById = (s, id) => s?.byId.get(id) || null;
 export const itemForEntry = (s, block, entryId) => (entryId && s?.byEntry.get(`${block}/${entryId}`)) || null;
 
 // ---- Saved place (storage key "scholar") ----
-// Schema 2 (2.3.0): {schema: 2, block, unit, item: item id | null, q: question index, picks: {questionId: tries}, seen: [item id]}.
-// tries per type: choose / tap = the answer indexes picked, in order, at most 2 (the owner, 2026-11-16, "3b": a wrong pick
+// Schema 2: {schema: 2, block, unit, item: item id | null, q: question index, picks: {questionId: tries}, seen: [item id]}.
+// tries per type: choose / tap = the answer indexes picked, in order, at most 2 (a wrong pick
 // shows only its own why; the right pick or a second wrong one reveals all); order / sort = the arrangements checked, at
 // most 2 (each an array: shown indexes in order, or a group per item); branch = per decision reached, the choice indexes
 // picked (a decision ends on its key or after min(2, choices - 1) wrong picks). seen: terms opened before (their reading
-// sections start closed; the owner, 2026-11-16: "sections open on a term's first visit, closed later").
+// sections open on a term's first visit and start closed later).
 // Exact-version restore: schema 1 (2.2.x) is migrated exactly: its place is kept, seen is [], and its picks are dropped
 // (they were keyed by question id only and cannot be matched to the content they were made on; Scholar picks are practice
 // and never entered stats). An unknown schema or a damaged value is rejected.
 export const SCHOLAR_STATE_SCHEMA = 2;
-// Saved picks are keyed by question id and content version (id@v, 2.3.0), so a question whose content changed never shows
+// Saved picks are keyed by question id and content version (id@v), so a question whose content changed never shows
 // picks made on its old content: its key is unknown and its picks are dropped.
 export const pickKey = qn => `${qn.id}@${qn.v}`;
 export const triesOf = (state, qn) => state?.picks[pickKey(qn)] || [];
@@ -129,7 +129,7 @@ export function triesFit(qn, v) {
 // The stored place, checked by shape only (exact keys and types; schema 1 is migrated exactly: picks dropped, seen []).
 // null when damaged. It does not need any content, so a place whose block file is not loaded can keep its progress.
 export function scholarStateShape(raw) {
-  // Exact shape (review 2026-11-16): no unknown keys.
+  // Exact shape: no unknown keys.
   if (!isObj(raw) || !(raw.schema === 1 || raw.schema === 2) || Object.keys(raw).sort().join() !== KEYS[raw.schema] || !Number.isInteger(raw.block) || !Number.isInteger(raw.unit) || !Number.isInteger(raw.q) || !isObj(raw.picks)) return null;
   if (raw.schema === 1 && !Object.values(raw.picks).every(v => ints(v) && v.length >= 1 && v.length <= 2 && new Set(v).size === v.length && v.every(i => i < 4))) return null;
   if (!Object.entries(raw.picks).every(([k, v]) => isText(k) && triesShape(v))) return null;
@@ -145,13 +145,13 @@ export function restoreScholarState(raw, s) {
   if (!sh || !s) return null;
   const fit = fitPicks(sh.picks, sh.seen, s);
   // A saved item that moved to another unit (a content update) keeps the place in its new unit; a q past the end only
-  // means the item lost a question: keep the place at its last question (review 2026-11-16, evening).
+  // means the item lost a question: keep the place at its last question.
   const item = sh.item === null ? null : itemById(s, sh.item);
   if (item && item.block === sh.block) return { ...sh, unit: item.unit, item: item.id, q: Math.min(sh.q, item.questions.length - 1), ...fit };
   if (!item && sh.item === null && unitsOf(s, sh.block).includes(sh.unit)) return { ...sh, ...fit };
   // The place no longer fits (a content update removed or renamed its term or unit): a removed term keeps its unit, a removed
   // unit opens the block's first unit, a removed block the first block with Scholar; every pick and seen term is kept
-  // (fresh reviews 2 and 3, 2026-11-16).
+  //.
   const block = unitsOf(s, sh.block).length ? sh.block : Number(Object.keys(s.index)[0]);
   if (!Number.isInteger(block) || !unitsOf(s, block).length) return null;
   const unit = block === sh.block && unitsOf(s, block).includes(sh.unit) ? sh.unit : unitsOf(s, block)[0];
@@ -159,8 +159,7 @@ export function restoreScholarState(raw, s) {
 }
 // Picks and seen terms are checked against the content of their own block. Picks of questions that no longer exist, or no
 // longer fit their question (a content update changed it), are dropped. A block whose file is not loaded yet keeps its
-// picks and seen terms as they are (shape checked above) until it loads: then refitScholarState checks them (fresh review
-// 2026-11-16: at start only the saved place's block loads, and the other blocks' progress must survive).
+// picks and seen terms as they are (shape checked above) until it loads: then refitScholarState checks them (at start only the saved place's block loads, and the other blocks' progress must survive).
 const blockOf = id => Number((/^S-B(\d+)-/.exec(id) || [])[1]);
 function fitPicks(picks, seen, s) {
   const byQ = new Map([...s.byId.values()].flatMap(it => it.questions.map(x => [pickKey(x), x])));
@@ -181,7 +180,7 @@ export function moveScholar(state, event, s) {
   if (event.type === 'item') { const it = itemById(s, event.id); return it ? { ...next, block: it.block, unit: it.unit, item: it.id, q: 0 } : state; }
   if (event.type === 'list') return { ...next, item: null, q: 0 };
   // seen: the term was read (its reading sections start closed on later visits).
-  // reset (the owner, 2026-11-16: "an option to reset guided questions"; "per-term only"): clear the picks of one term;
+  // reset: clear the picks of one term;
   // the place moves to its question 1.
   if (event.type === 'reset') {
     const it = itemById(s, event.item); if (!it) return state;
@@ -241,7 +240,7 @@ export function neighbours(s, state) {
   return { previous: i > 0 ? list[i - 1] : null, next: i >= 0 && i < list.length - 1 ? list[i + 1] : null, index: i, count: list.length };
 }
 
-// Nav context button (the owner, 2026-11-16): "Resume Quiz" (the owner's preview comment, 2026-11-16; was "Return to Quiz") when a paused quiz was left, "Resume Scholar" when Scholar
+// Nav context button: "Resume Quiz" when a paused quiz was left, "Resume Scholar" when Scholar
 // was left. When both apply, the one left last; none on the screen it would return to.
 // quiz/scholar: that place is open. last: 'quiz' | 'scholar' | null, the place the user was in most recently. here: the
 // current section ('quiz' on the question screen, 'scholar' on a Scholar screen, else null).
@@ -251,7 +250,7 @@ export function contextTarget({ quiz, scholar, last, here }) {
   return order.find(k => open[k] && here !== k) || null;
 }
 
-// Unit review deck (2.6.0, G4 of the Scholar review: interleaved practice): up to n questions, at most one per term, terms
+// Unit review deck (interleaved practice): up to n questions, at most one per term, terms
 // and questions drawn at random (rnd: a function returning [0, 1)). Practice only: its picks are not saved.
 export function reviewDeck(items, n = 10, rnd = Math.random) {
   const pool = items.filter(it => it.questions?.length).map(it => ({ it, r: rnd() })).sort((a, b) => a.r - b.r).slice(0, n);

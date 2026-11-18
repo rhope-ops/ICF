@@ -1,25 +1,25 @@
-// Exam Mode (v1.1.0; forms in 2.0.0): pure exam logic. The caller supplies the clock (now, in ms since the epoch)
+// Exam Mode: pure exam logic. The caller supplies the clock (now, in ms since the epoch)
 // and randomness, so tests can drive every transition. No DOM, storage or network access here.
 // Fixed format: 30 questions, 60:00 on a wall-clock deadline, no pause, pass at 70% (21 of 30).
 import { shuffle } from './engine.mjs';
 
 export const EXAM = Object.freeze({ size: 30, limitMs: 60 * 60 * 1000, passRatio: 0.7 });
-// 21 of 30. The small epsilon keeps 0.7 * 30 (20.999…) from rounding to 22.
+// 21 of 30. The small epsilon keeps 0.7 * 30 from rounding to 22.
 export const passMark = size => Math.ceil(size * EXAM.passRatio - 1e-9);
 // A question with two units counts toward its first unit for per-unit exam scores.
 const examUnit = q => q.units[0];
 const DIFFICULTIES = Object.freeze(['Easy', 'Medium', 'Hard']);
 
-// Question mix (v1.1.1–1.2.6): exams before 2.0.0 drew by mix (Standard, Hard or Hybrid). The mix names are kept to
-// label and resume those exams. In 2.0.0 a block without exam forms draws a Standard exam (see standardPool).
+// Question mix: exams made before forms existed drew by mix (Standard, Hard or Hybrid). The mix names are kept to
+// label and resume those exams. A block without exam forms draws a Standard exam (see standardPool).
 export const MIXES = Object.freeze(['standard', 'hard', 'hybrid']);
 export const MIX_LABEL = Object.freeze({ standard: 'Standard', hard: 'Hard', hybrid: 'Hybrid' });
 export const toMix = value => MIXES.includes(value) ? value : value === true ? 'hybrid' : 'standard';
 const legacyPool = (questions, block, mix) => questions.filter(q => q.block === block && q.studyMode !== 'Exam' &&
   (mix === 'hybrid' || (mix === 'hard') === (q.difficulty === 'Hard')));
 
-// ---- Standard draw (2.0.0): used when the bank has no exam forms for the block ----
-// The 1.2.6 Standard draw: 30 Easy and Medium questions of the block, unit-proportional, no Hard and no Exam-tier item.
+// ---- Standard draw: used when the bank has no exam forms for the block ----
+// The Standard draw: 30 Easy and Medium questions of the block, unit-proportional, no Hard and no Exam-tier item.
 export const standardPool = (questions, block) => legacyPool(questions, block, 'standard');
 
 // Largest-remainder apportionment of size across rows ({key, n}), in proportion to n.
@@ -115,11 +115,11 @@ function sampleByCells(pool, random = Math.random, size = EXAM.size) {
   return shuffle(chosen, random);
 }
 
-// ---- Exam forms (2.0.0; data from 2.1.0) ----
+// ---- Exam forms ----
 // bank.examForms[block] = { order: ['A', 'B'], forms: { A: [ids], B: [ids] }, rules }. Forms are taken in order; any
 // submitted exam counts (an automatic submit at 0:00 too). When every form is taken a new cycle starts with the same
 // forms. Every exam has a random question order and random answer order. Exams without a form (the Standard draw, and
-// every exam from before 2.0.0) do not count toward the cycle.
+// every exam made before forms existed) do not count toward the cycle.
 export const formsFor = (bank, block) => bank?.examForms?.[String(block)] || null;
 // Cycle state (icf:examCycle, schema 1): per block { cycle, taken: [form names this cycle], counted: [exam ids] }.
 // counted keeps a submitted exam from counting twice (results are finalized again on every load).
@@ -350,7 +350,7 @@ export function restoreExam(raw, bank, random = Math.random) {
     return { ...structuredClone(raw), ...extra, version: bank.version };
   } catch { return null; }
 }
-// Form changes (exam follow-up, 2026-11-09): a served-bank migration may map, per block and form, each item that left a
+// Form changes: a served-bank migration may map, per block and form, each item that left a
 // form (withdrawn, or moved to the other form) to the item that took its place (examFormChanges). A form exam in progress
 // saved under a pinned earlier version keeps its answers, flags and changes; each item that left its form becomes the
 // item that took its place, in the same position, unanswered, with a new answer order. A submitted exam is never
