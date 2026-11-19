@@ -43,12 +43,12 @@ let stats,poolKind;
   if(r.reset)notice('Question stats could not be read and were reset. Other progress is unchanged.');
   else if(r.dropped)notice(`${r.dropped} damaged question stats record${r.dropped===1?' was':'s were'} removed. The other stats are unchanged.`); }
 poolKind=toPoolKind(read('poolKind',null),read('smart',false));
-// Glossary (glossary.json, loaded at start; the app works without it): screen state and the open term popover.
+// Glossary (glossary.json, loaded after the first screen; the app works without it): screen state and the open term popover.
 // glossReturn: 'flash-card' when the entry was opened from a card, so the Glossary offers the way back to that card.
 let examNavOpen=false;
 let glossary=null,glossQuery='',glossUnit=0,glossEntry=null,termPop=null,glossGroup='unit',glossReturn=null;
 let targetedPoolSize='all';
-// Scholar (the index scholar.json loads at start, a block's file when its Scholar opens; the app works without them). scholarState: the saved place (icf:scholar).
+// Scholar (the index scholar.json loads after the first screen, a block's file when its Scholar opens; the app works without them). scholarState: the saved place (icf:scholar).
 // scholarReturn: {to:'glossary', entry} or {to:'flash-card'} when an item was opened from there (a way back).
 // lastPlace: 'quiz' | 'scholar', the one the user was in last (the nav context button).
 let scholar=null,scholarState=null,scholarReturn=null,lastPlace=null;
@@ -95,7 +95,7 @@ let missedReview=null, quizScope='all';
 // resultsKind: which results the Results tab opens (the latest finished study session or exam).
 let reviewOpen=new Set(), exam=null, examOpen=new Set(), examHistory=[], examCycles={schema:1,blocks:{}}, examFilter='missed', resultsKind='study', examAnnounced=null;
 // Source excerpts: modules and the excerpt asset load only on demand (a resolved question or a review).
-let excerptKit=null, excerptKitLoad=null, linkData=null, linkLoad=null, linkFailed=false;
+let excerptKit=null, excerptKitLoad=null, linkData=null, linkLoad=null, linkFailed=false;const EXCERPT_SCREENS=['study','results','missed-review','exam-results','flash-card'];  // screens that can show a source excerpt or key terms
 let lastStudy = null;
 let bank, session = null, step = profile.visited ? 'blocks' : 'welcome', blockId = null, units = [], poolSize = 30, filter = 'Slides and Text', mode = 'Assisted';
 let last = performance.now(), modalWasRunning = false, hiddenWasRunning = false, lastSaved = 0;
@@ -787,7 +787,7 @@ function renderExamSetup() {
 // Open Scholar for the current block: at an item (from the Glossary or a card) or at the saved place of this block, else
 // at the first unit's term list. ret: the way back ({to:'glossary', entry} | {to:'flash-card'}) or none (from Mode).
 // A block's Scholar file: fetched once, when that block's Scholar opens. true when loaded.
-const scholarLoads={};let scholarPending=null;  // a saved place whose block file could not load at start
+const scholarLoads={};let scholarPending=null;  // a saved place whose block file is not here yet (still loading, or it failed at an offline start)
 function loadScholarBlock(b){
   if(!scholar)return Promise.resolve(false);if(blockLoaded(scholar,b))return Promise.resolve(true);
   const ix=scholar.index[String(b)];if(!ix)return Promise.resolve(false);
@@ -805,7 +805,7 @@ async function openScholar(itemId=null,ret=null,block=blockId,before=null,part=n
   const us=unitsOf(scholar,block);if(!us.length)return;
   const seq=++scholarOpenSeq,from=step;
   if(!await loadScholarBlock(block)){if(seq===scholarOpenSeq)scholarFailed();return;}
-  // A place held at start (its block file could not load then) is checked before another block's place replaces it.
+  // A place held at start (its block file was not here yet, or could not load) is checked before another block's place replaces it.
   // If its block still cannot load, its picks and seen terms (shape checked) carry into the new place and are checked when
   // that block loads (an empty place used to overwrite it).
   if(scholarPending){const held=scholarPending;scholarPending=null;
@@ -1218,8 +1218,18 @@ function loadLinks(){return linkLoad ||= Promise.all([loadExcerptKit(),fetchJson
 function sourceExcerpt(q){
   if(linkData&&excerptKit)return excerptKit.view.excerptHtml(excerptKit.logic.excerptsFor(linkData,q.id));
   if(linkFailed)return '<section class="source-excerpt" aria-label="Source excerpt"><p class="muted">Source excerpt unavailable. Check the connection.</p></section>';
-  loadLinks().then(()=>{if(['study','results','missed-review','exam-results','flash-card'].includes(step))keepScroll(render);}).catch(()=>{linkFailed=true;if(['study','results','missed-review','exam-results','flash-card'].includes(step))keepScroll(render);});
+  loadLinks().then(()=>{if(EXCERPT_SCREENS.includes(step))keepScroll(render);}).catch(()=>{linkFailed=true;if(EXCERPT_SCREENS.includes(step))keepScroll(render);});
   return '<section class="source-excerpt" aria-label="Source excerpt" aria-busy="true"><p class="muted">Loading source…</p></section>';
+}
+// Glossary and Scholar index load after the first screen (optional; a quarter of the first download). Until then, or on a failure: Glossary tile off, no term links, no Scholar in Mode.
+async function loadExtras(){
+  [glossary,scholar]=await Promise.all([fetchJson('./glossary.json').then(restoreGlossary).catch(()=>null),fetchJson('./scholar.json').then(restoreScholar).catch(()=>null)]);migrateBookmarks();  // the bookmark move needs the glossary
+  const raw=read('scholar',null),held=Number.isInteger(raw?.block)&&Boolean(scholar?.index[String(raw.block)]);  // held (as at an offline start) until its block file is here, so an Open Scholar in between carries the saved picks
+  if(held)scholarPending=raw;else{scholarState=restoreScholarState(raw,scholar);if(raw!==null&&!scholarState&&scholar)persist('scholar',null);}
+  const at=document.activeElement||document.body,inMain=main.contains(at),find=at.id?`#${CSS.escape(at.id)}`:at.dataset?.study?`[data-study="${at.dataset.study}"]`:at.matches('h1')?'h1':null;
+  if(['units',...EXCERPT_SCREENS].includes(step)&&(find||!inMain)){keepScroll(render);const to=inMain&&main.querySelector(find);if(find==='h1')focusHeading(to);else if(to)to.focus({preventScroll:true});}else syncScreens();  // draw again where the new content shows, unless that drops keyboard focus (then the next render shows it)
+  if(held&&await loadScholarBlock(raw.block)&&scholarPending===raw){scholarPending=null;scholarState=restoreScholarState(raw,scholar);if(!scholarState)persist('scholar',null);}
+  if(scholarState&&!blockLoaded(scholar,scholarState.block))await loadScholarBlock(scholarState.block);syncScreens();  // a fallback place in another block; Resume Scholar
 }
 setInterval(()=>{
   examTick();
@@ -1249,18 +1259,8 @@ try {
   bank=validateBank(await fetchJson('./questions.json'));
   // Only blocks with questions show anywhere in the app.
   bank.blocks=bank.blocks.filter(b=>bank.questions.some(q=>q.block===b.id));
-  // Glossary: optional; without it the Glossary tile is off and questions show no term links.
-  try{glossary=restoreGlossary(await fetchJson('./glossary.json'));}catch{glossary=null;}
-  // Scholar: optional; without it the Mode screen shows no Scholar entry. A saved place that no longer fits is dropped.
-  try{scholar=restoreScholar(await fetchJson('./scholar.json'));}catch{scholar=null;}
-  // The saved place's block file loads now (one block), so the place can be checked and Resume Scholar offered.
-  { const raw=read('scholar',null);
-    if(Number.isInteger(raw?.block)&&scholar?.index[String(raw.block)]&&!await loadScholarBlock(raw.block))scholarPending=raw;  // offline: keep the place, check it when Scholar opens
-    else{scholarState=restoreScholarState(raw,scholar);if(raw!==null&&!scholarState&&scholar)persist('scholar',null);
-      if(scholarState&&!blockLoaded(scholar,scholarState.block))await loadScholarBlock(scholarState.block);} }  // a fallback place in another block
   lastBlock=servedBlock(read('lastBlock',null))?read('lastBlock',null):null;
   blockId=lastBlock??bank.blocks[0].id; units=allUnits();
-  migrateBookmarks();
   const saved=read('session'), scholarSaved=saved?.mode==='Scholar';
   session=scholarSaved?null:restoreSession(await migrateSession(saved,bank),bank);
   if(lastBlock===null&&session)noteBlock(session.questions[0]?.block); // upgrade: an open session names the last block
@@ -1282,8 +1282,7 @@ try {
     else{step='exam';blockId=exam.block;units=allUnits();}
   }
   $('#app-version').textContent=`ICF Companion v${APP_VERSION} · 18 Nov 2026`;
-  render();
-
+  render();loadExtras().catch(()=>{});  // optional data never stops the app
 } catch (error) {
   // Offline is the likely cause only when the browser reports it; Diagnostics needs a bank.
   const offline=navigator.onLine===false;
