@@ -81,11 +81,24 @@ export function searchEntries(g, { query = '', unit = 0 } = {}) {
 // saved list once into Manual. Unknown or repeated ids are dropped.
 // A card term change renames its entry id; a saved list naming the old id keeps the card (for example
 // B4-U4-Q020's card "Domain Name System (DNS) name hierarchy example" became Subdomain).
+// Not renamed: 'security-technical-implementation-guide-stig' (the new Block 3 bank serves it again)
+// and 'inter-switch-link' (a served Block 3 Unit 1 entry).
+// Block 1 and 2 entries that kept a "-b<n>" id only while old Block 3 cards used the plain id take it back
+// (Routing Information Protocol, Network Switch, Syslog).
 // Three Block 5 cards have their course terms back; Group Policy Object and Proxy Server are
 // also Block 4 terms, so their Block 5 entries are "-b5" (build_glossary.assign_ids).
 export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hierarchy-example': 'third-level-domain',
+  'virtual-local-area-network': 'virtual-local-area-network-vlan', 'default-vlan-1': 'default-vlan', 'trunk-link': 'trunk',
+  // Block 3: an old card id follows to its renamed or parent entry in the new Block 3 bank.
+  'backbone-area-0': 'backbone', 'border-gateway-protocol': 'border-gateway-protocol-bgp', 'open-shortest-path-first': 'open-shortest-path-first-ospf',
+  'variable-length-subnet-masks': 'variable-length-subnet-masks-vlsm', 'variable-length-subnet-mask': 'variable-length-subnet-mask-vlsm', 'eigrp': 'enhanced-interior-gateway-routing-protocol-eigrp',
+  'lldp': 'link-layer-discovery-protocol', 'stp': 'spanning-tree-protocol', 'udld': 'unidirectional-link-detection',
+  'isl': 'inter-switch-link-isl', 'stig': 'security-technical-implementation-guide-stig', 'ppp': 'point-to-point-protocol',
+  'distribution-layer-functions': 'distribution-layer', 'core-layer-speed-rule': 'core-layer', 'switch-console-port': 'console-port',
+  'router-console-port': 'console-port', 'switch-network-interfaces': 'network-interfaces', 'router-network-interfaces': 'network-interfaces',
+  'csma-cd-access-method': 'carrier-sense-multiple-access-with-collision-detection', 'nvram': 'non-volatile-random-access-memory',
+  'increased-security': 'vlan-benefits', 'show-vlan-command': 'virtual-local-area-network-vlan', 'simple-network-management-protocol': 'management-vlan',
   'subdomain': 'third-level-domain', 'security-technical-implementation-guide-stig-b1': 'security-technical-implementation-guide-b1',
-  'security-technical-implementation-guide-stig': 'security-technical-implementation-guide-b1',
   'proxy-outbound-control': 'proxy-server-b5',
   'building-an-access-control-list-acl': 'access-control-list', 'access-control-list-acl': 'access-control-list',
   'availability-b4': 'availability', 'electromagnetic-interference-emi-b1': 'electromagnetic-interference', 'electromagnetic-interference-emi': 'electromagnetic-interference',
@@ -134,7 +147,7 @@ export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hier
   'lightweight-access-point-lwap': 'lightweight-access-point', 'military-standard-mil-std': 'military-standard',
   'most-significant-digit-msd': 'most-significant-digit', 'optical-time-domain-reflectometer-otdr': 'optical-time-domain-reflectometer',
   'rogue-access-point-ap': 'rogue-access-point', 'root-cause-analysis-rca': 'root-cause-analysis',
-  'routing-information-protocol-rip': 'routing-information-protocol-b1', 'service-set-identifier-ssid': 'service-set-identifier',
+  'routing-information-protocol-b1': 'routing-information-protocol', 'network-switch-b2': 'network-switch', 'syslog-b1': 'syslog', 'service-set-identifier-ssid': 'service-set-identifier',
   'shielded-twisted-pair-stp': 'shielded-twisted-pair', 'single-mode-fiber-smf': 'single-mode-fiber',
   'wireless-metropolitan-area-network-wman': 'wireless-metropolitan-area-network', 'wireless-wide-area-network-wwan': 'wireless-wide-area-network' });
 export const restoreBookmarks = (raw, g) => Array.isArray(raw) ? [...new Set(raw.map(id => typeof id === 'string' && Object.hasOwn(RENAMED_ENTRIES, id) ? RENAMED_ENTRIES[id] : id)
