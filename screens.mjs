@@ -53,7 +53,7 @@ export function forReviewHtml({bank, block = null, understanding, stats, examBlo
     ${groups ? `<div class="review-groups">${groups}</div>` : `<p class="muted">No marked questions or results for this block yet.</p>`}</section>`;
 }
 
-export function blocksHtml({bank, nickname, open, understanding, missedReview, stats, examBlock = null, current = null}) {
+export function blocksHtml({bank, nickname, open, understanding, missedReview, stats, examBlock = null, current = null, extra = () => ({facts:'', button:''})}) {  // extra(block): more HTML for a block card (its facts, a button for its actions row)
   const shown = bank.blocks.some(b => b.id === current) ? current : bank.blocks[0]?.id;
   const normal = questionsForMode(bank.questions,'Unassisted'), hardBank = questionsForMode(bank.questions,'Hard');
   const forReview = forReviewHtml({bank, block:shown, understanding, stats, examBlock});
@@ -69,7 +69,7 @@ export function blocksHtml({bank, nickname, open, understanding, missedReview, s
       const head = `<summary><span class="step-head"><span class="num">Block ${block.id}</span><h2>${escape(block.title)}</h2></span></summary>`;
       return `<details class="panel block-card" data-tone="blue" name="block-list"${open}>${head}
         <dl class="block-figures"><div><dt>Units</dt><dd>${block.units.length}</dd></div><div><dt>Standard</dt><dd>${count}</dd></div><div data-tone="gold"><dt>Hard</dt><dd>${hard}</dd></div>${exams?`<div data-tone="violet"><dt>Exams</dt><dd>${exams}</dd></div>`:''}</dl>
-        <div class="block-actions"><button data-block="${block.id}" class="primary" ${count ? '' : 'disabled'}>${nextLabel('Mode')}</button></div></details>
+        ${(more => `${more.facts}<div class="block-actions">${more.button}<button data-block="${block.id}" class="primary" ${count ? '' : 'disabled'}>${nextLabel('Mode')}</button></div>`)(extra(block))}</details>
 `;
     }).join('')}
     ${forReview}`;

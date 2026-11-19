@@ -289,7 +289,10 @@ footer{text-align:center;color:var(--muted);font-size:var(--t1);padding:0 16px m
 .comm-badge{display:block;width:300px;max-width:100%;aspect-ratio:1817/866;background:var(--blue);-webkit-mask:url("./usaf-comm-badge.webp") center/contain no-repeat;mask:url("./usaf-comm-badge.webp") center/contain no-repeat;@media (max-width:640px){width:240px}}
 .lede{font-size:var(--t5);color:var(--muted)}
 .welcome-form{gap:16px}
-.first-blocks{display:grid;gap:12px;& .card strong{font-size:var(--t5);font-weight:700;text-transform:uppercase;letter-spacing:.02em}}
+.first-lede{margin:0}
+.first-blocks{display:contents}
+.first-block{border:1px solid var(--rule);border-left:4px solid var(--tone);display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;text-align:left;font:inherit;letter-spacing:0;text-transform:none;white-space:normal;color:var(--ink);cursor:pointer;& .step-head{flex:1;min-width:0;min-height:48px;align-content:center}&::after{content:"";flex:none;width:9px;height:9px;border-right:2px solid var(--tone);border-top:2px solid var(--tone);transform:rotate(45deg)}}
+.first-title{grid-column:1;font-weight:700;font-size:var(--t6);line-height:1.05;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance}
 .first-links{margin:0;display:flex;flex-wrap:wrap;gap:4px 24px}
 .welcome-actions{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:12px;& button{width:100%}@media (max-width:640px){grid-auto-flow:row}}
 .privacy-note{font-size:var(--t2);color:var(--muted)}
@@ -303,6 +306,12 @@ footer{text-align:center;color:var(--muted);font-size:var(--t1);padding:0 16px m
 /* Single-action rule (both layouts): a button that stands alone in a box takes the right column of a
    two-column grid, the width and place of Next in .navrow (Blocks Mode, Resume, Take exam). */
 .block-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;& >button{grid-column:2;width:100%}}
+.block-actions >[data-weak-block]{grid-column:1;white-space:normal;line-height:1.15}
+/* Phones: the row's halves are too narrow for "Study weak units" on one line, so that button takes the width of its label and Mode the rest; on a screen under 360 px the label can wrap. */
+@media (max-width:640px){.block-actions:has(>[data-weak-block]){grid-template-columns:minmax(0,max-content) minmax(96px,1fr)}}
+.readiness{display:grid;gap:8px;& p{margin:0}}
+.readiness-figures{margin:0;border-top:0}
+.readiness-next .label{margin-right:8px}
 .practice-section{border-style:dashed}
 .resume-panel{grid-template-columns:1fr 1fr;column-gap:10px;align-items:center;& >#resume{grid-column:2;width:100%}@media (max-width:640px){& >div{grid-column:1/-1}}}
 /* For Review: labelled groups, two columns on desktop and two rows on phones; equal buttons,

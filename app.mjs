@@ -9,7 +9,7 @@ import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag,
 import * as screens from './screens.mjs';
 import { restoreGlossary, entryForCard, stemLinks, popover, keyTerms, searchEntries, restoreBookmarks } from './glossary.mjs';
 import { restoreScholar, addScholarBlock, blockLoaded, restoreScholarState, refitScholarState, scholarStateShape, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey, reviewDeck, draftOf, picMs, progressOf, listModel, nextUnit } from './scholar.mjs';
-import { pictureHtml, stepKey, moveFrom } from './pictures.mjs'; import { FIRST_SESSION_SIZE, FIRST_SESSION_MODE, FIRST_SESSION_ORDER, firstRun, renderFirstBlock, installStudyKeys } from './faststart.mjs';
+import { pictureHtml, stepKey, moveFrom } from './pictures.mjs'; import { FIRST_SESSION_SIZE, FIRST_SESSION_MODE, FIRST_SESSION_ORDER, firstRun, renderFirstBlock, installStudyKeys } from './faststart.mjs'; import { readiness, readinessHtml, weakButtonHtml, bindWeakButtons, WEAK_SESSION_SIZE } from './readiness.mjs';
 const $ = s => document.querySelector(s);
 const main = $('#main'), dialog = $('#dialog');
 let local;
@@ -452,8 +452,8 @@ window.addEventListener('scroll', () => {
 // The header height that covers the page: the screen row alone once the first row has slid away.
 const headerHeight = () => $('header').getBoundingClientRect().height - ($('header').classList.contains('nav-only') ? topRow() : 0);
 function renderBlocks() {
-  main.innerHTML = screens.blocksHtml({bank, nickname:profile.nickname, open:sessionOpen(), understanding, missedReview, stats, examBlock:exam?.submitted ? exam.block : null, current:lastBlock});
-  main.querySelectorAll('[data-block]').forEach(button => button.onclick = () => chooseBlock(Number(button.dataset.block)));
+  main.innerHTML = screens.blocksHtml({bank, nickname:profile.nickname, open:sessionOpen(), understanding, missedReview, stats, examBlock:exam?.submitted ? exam.block : null, extra:b=>{const r=readiness({stats,bank,examHistory,block:b.id});return {facts:readinessHtml(r),button:weakButtonHtml(r,sessionOpen())};}, current:lastBlock});
+  main.querySelectorAll('[data-block]').forEach(button => button.onclick = () => chooseBlock(Number(button.dataset.block)));  bindWeakButtons(main, b=>readiness({stats,bank,examHistory,block:b}), (b,targets)=>{ if(sessionOpen())return; const help=mode==='Hard'?'Unassisted':mode; blockId=b; units=targets; const pool=selectQuestions(available(help),WEAK_SESSION_SIZE,'smart'); units=allUnits(); if(pool.length){startSession(pool,{version:bank.version,mode:help},'smart');navigate('study');} });  // Study weak units: the help level used last (Hard has its own questions: Unassisted); the setup's unit choice is not kept narrowed
   // One open block at a time: opening a block closes the others, also where a browser
   // ignores details name=; For Review then shows the open block only, or stays empty when no block is open.
   const cards = [...main.querySelectorAll('details.block-card')];
@@ -525,7 +525,7 @@ function render() {if(['study','flash-card','glossary'].includes(step))lastStudy
     const keepName = () => { profile={nickname:$('#nickname').value.trim(),visited:true}; persist('profile',profile); };
     $('#welcome').onsubmit = e => { e.preventDefault(); const visited=profile.visited; keepName(); navigate(firstRun({visited,answered:Object.keys(stats.questions).length,session,exams:examHistory.length,lastBlock})?'first-block':'blocks'); };  // Fast start: only the first Start on this device asks for the block
     if ($('#welcome-resume')) $('#welcome-resume').onclick = () => { keepName(); resumeStudy(); };
-  } else if (step === 'first-block') renderFirstBlock(main,{blocks:bank.blocks,setup:()=>navigate('blocks'),help:()=>$('#help').click(),start:b=>{blockId=b;units=allUnits();mode=FIRST_SESSION_MODE;const pool=selectQuestions(available(),FIRST_SESSION_SIZE,FIRST_SESSION_ORDER);if(!pool.length)return navigate('blocks');startSession(pool,{version:bank.version,mode},FIRST_SESSION_ORDER);navigate('study');}}); else if (step === 'blocks') {
+  } else if (step === 'first-block') renderFirstBlock(main,{blocks:bank.blocks,nickname:profile.nickname,setup:()=>navigate('blocks'),help:()=>$('#help').click(),start:b=>{blockId=b;units=allUnits();mode=FIRST_SESSION_MODE;const pool=selectQuestions(available(),FIRST_SESSION_SIZE,FIRST_SESSION_ORDER);if(!pool.length)return navigate('blocks');startSession(pool,{version:bank.version,mode},FIRST_SESSION_ORDER);navigate('study');}}); else if (step === 'blocks') {
     renderBlocks();
   } else if (step === 'units') renderHub();
   else if (step === 'cards-setup') renderCardsSetup();
