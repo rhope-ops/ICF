@@ -490,6 +490,9 @@ dialog .dialog-head h2{font-size:1.75rem}
 /* Scholar: teal tone; hub entry after the tiles, term list, term page, guided questions. */
 @layer screens{
 .scholar-entry h2{color:var(--scholar)}
+/* Scholar list: each unit button shows its done/total under the unit number; a done unit offers the next one. */
+.scholar-unit-seg label{gap:2px;padding-block:4px}.scholar-unit-done{font:600 var(--t1)/1 var(--f);letter-spacing:.02em}
+.scholar-find{margin-top:12px}.scholar-unit-complete,.scholar-empty{margin:8px 0}
 .context-link{&[data-tone]{color:var(--tone);border-bottom-color:var(--tone)}& .ctx-arrow{margin-right:4px}@media (max-width:640px){& .ctx-long{display:none}}html[data-exam="live"] &{display:none}}
 .scholar-units{& .seg{flex-wrap:wrap}}
 .scholar-list{list-style:none;margin:0;padding:0;display:grid;gap:6px;& .card{padding:10px 14px;grid-template-columns:minmax(0,1fr) auto;gap:0 10px;& >*{grid-column:1/-1}
@@ -544,14 +547,18 @@ dialog .dialog-head h2{font-size:1.75rem}
 /* Tap board: the targets of the answers take a pointer; after a pick, wrong targets go red and the key green. */
 .scholar-tap{& [data-tap]{cursor:pointer}&.is-done [data-tap]{cursor:default}
   & [data-tap-state="wrong"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--bad-mark);stroke-width:3}& [data-tap-state="right"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--good-mark);stroke-width:3}
-  @media (hover:hover){&:not(.is-done) [data-tap]:not([data-tap-state]):hover :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar);stroke-width:3}}}
+  @media (hover:hover){&:not(.is-done) [data-tap]:not([data-tap-state]):hover :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar);stroke-width:3}
+    &:not(.is-done) .pic-trunk[data-tap]:not([data-tap-state]):hover line:not(.pic-hit):not(.pic-trunk-core){stroke-width:6}&:not(.is-done) .pic-trunk[data-tap]:not([data-tap-state]):hover .pic-trunk-core{stroke:var(--paper);stroke-width:2}
+    &:not(.is-done) .pic-cable[data-tap]:not([data-tap-state]):hover line:not(.pic-hit):not(.pic-plug){stroke-width:5}&:not(.is-done) .pic-cable[data-tap]:not([data-tap-state]):hover .pic-plug{stroke-width:10}}
+  & .pic-trunk[data-tap] line:not(.pic-hit):not(.pic-trunk-core){stroke-width:6}& .pic-trunk[data-tap] .pic-trunk-core{stroke:var(--paper);stroke-width:2}
+  & .pic-cable[data-tap] line:not(.pic-hit):not(.pic-plug){stroke-width:5}& .pic-cable[data-tap] .pic-plug{stroke-width:10}}
 .scholar-tap-help{margin:-8px 0 0;font-size:var(--t2)}
 }
 /* A wide invisible line over each link, so a thin link can be tapped (tap board). Outside the layers on purpose: it
    must win over every layered link stroke, forced colours included. */
 :is(.pic,.scholar-tap) .pic-link .pic-hit{stroke:transparent;stroke-width:18;fill:none;stroke-dasharray:none}
 /* Scholar pictures: drawn from tokens only. Lit parts take the teal; with any part lit, the
-   others fade. Captions share one grid cell, so the box keeps the tallest caption's height. */
+   others fade to 70% (a dimmed line keeps 3:1 contrast; 40% gave 1.8:1). Captions share one grid cell, so the box keeps the tallest caption's height. */
 @layer screens{
 .pic-body{display:grid;gap:8px}
 .pic-frame{border:1px solid var(--rule);border-radius:var(--r2);background:var(--paper);padding:6px}
@@ -572,13 +579,13 @@ dialog .dialog-head h2{font-size:1.75rem}
   & .pic-band .pic-shape{fill:var(--sheet)}& .pic-band.is-on .pic-shape{fill:var(--scholar-soft)}& .pic-mark.is-on .pic-shape{fill:var(--scholar)}
   & .pic-group rect{fill:var(--scholar-soft);stroke:var(--scholar);stroke-width:1.2}
   & .pic-group-1 rect{stroke-dasharray:6 3}& .pic-group-2 rect{stroke-dasharray:2 3}
-  & .pic-group-label{fill:var(--scholar)}
+  & .pic-group-label{fill:var(--scholar);stroke:var(--scholar-soft)}
   & .pic-seg-tag .pic-shape,& .pic-seg-header .pic-shape,& .pic-seg-trailer .pic-shape{fill:var(--scholar-soft)}
   & .pic-packet rect{fill:var(--scholar);stroke:none}& .pic-packet-text{fill:var(--blue-ink)}
   & .is-on :is(.pic-shape,line,rect){stroke:var(--scholar);stroke-width:3}& .is-on .pic-row-bg{fill:var(--scholar-soft);stroke:none}
   & .is-on.pic-trunk .pic-trunk-core{stroke:var(--paper);stroke-width:2}
-  & .is-on.pic-cable line{stroke-width:5}& .is-on.pic-cable .pic-plug{stroke-width:10}
-  &.has-light :is(.pic-node,.pic-link,.pic-group,.pic-row,.pic-seg,.pic-band,.pic-mark):not(.is-on):not(:has(.is-on)){opacity:.4}
+  & .is-on.pic-cable line{stroke-width:5}& .is-on.pic-cable .pic-plug{stroke-width:10}& .is-on.pic-trunk line{stroke-width:6}
+  &.has-light :is(.pic-node,.pic-link,.pic-group,.pic-row,.pic-seg,.pic-band,.pic-mark):not(.is-on):not(:has(.is-on)){opacity:.7}
   & .is-off{display:none}
   /* Animation: parts lit by this step fade in; the global reduced-motion rule stops it. */
   & .is-new{animation:pic-in .25s ease-out}

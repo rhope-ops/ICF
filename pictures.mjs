@@ -62,6 +62,9 @@ export function pictureProblem(p) {
       if (!isObj(s) || !isText(s.caption) || !known(s.light) || !known(s.hide)) return 'step';
       for (const k of s.packets || []) if (!isObj(k) || !(p.scene.links || []).some(l => l.id === k.on) || !(Number.isFinite(k.at) && k.at >= 0 && k.at <= 1)) return 'packet';
     }
+    // A step never lights a part it hides (a hidden node takes its parts, such as "f.h", with it), or a line whose end it
+    // hides, nor moves a packet on such a line.
+    for (const s of p.steps) { const off = hiddenIds(p, s); if ([...(s.light || []), ...(s.packets || []).map(k => k.on)].some(id => isHidden(off, id))) return 'a step lights a part or line it hides'; }
     const look = s => JSON.stringify([[...(s.light || [])].sort(), [...(s.hide || [])].sort(), (s.packets || []).map(k => [k.on, k.at, k.label || '', k.tag || ''])]);
     if (p.steps.some((s, i) => i && look(s) === look(p.steps[i - 1]))) return 'a step changes nothing in the drawing';
   } else {
@@ -157,16 +160,17 @@ function linkSvg(l, nodes, st) {
   // A cable is a thick line with a plug (a short wide bar along the line) at each end.
   const len = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / len * 7, uy = (y2 - y1) / len * 7;
   const plugs = l.kind === 'cable' ? `<line class="pic-plug" x1="${x1}" y1="${y1}" x2="${x1 + ux}" y2="${y1 + uy}"/><line class="pic-plug" x1="${x2}" y1="${y2}" x2="${x2 - ux}" y2="${y2 - uy}"/>` : '';
-  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${plugs}${l.label ? linkLabel(l, x1, y1, x2, y2) : ''}</g>`;
+  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}" data-from="${escape(l.from)}" data-to="${escape(l.to)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${plugs}${l.label ? linkLabel(l, x1, y1, x2, y2, st.carried?.has(l.id)) : ''}</g>`;
 }
 
 // A line's label sits beside the line, never on it: its centre moves along the normal (up, or right
 // on a vertical line) far enough that the label box clears the line; a flat line keeps the old 7 px gap (11 px to the centre).
-export function linkLabel(l, x1, y1, x2, y2) {
+// carries: a packet rides this line in some step, so the label also clears the packet (17 px from the line: the packet's 9 px half height, the label's 6 px half height and a 2 px gap).
+export function linkLabel(l, x1, y1, x2, y2, carries = false) {
   const t = l.labelAt ?? 0.5, px = x1 + (x2 - x1) * t, py = y1 + (y2 - y1) * t, len = Math.hypot(x2 - x1, y2 - y1) || 1;
   let nx = -(y2 - y1) / len, ny = (x2 - x1) / len;
   if (ny > 0.05 || (Math.abs(ny) <= 0.05 && nx < 0)) [nx, ny] = [-nx, -ny];
-  const hw = textW(l.label) * 0.58, hh = 6, base = l.kind === 'trunk' ? 20 : l.kind === 'cable' ? 14 : 11, d = l.kind === 'trunk' && Math.abs(ny) > 0.9 ? base : Math.max(base, hw * Math.abs(nx) + hh * Math.abs(ny) + 4 + base - 11);
+  const hw = textW(l.label) * 0.58, hh = 6, base = l.kind === 'trunk' ? 20 : carries ? 17 : l.kind === 'cable' ? 14 : 11, d = l.kind === 'trunk' && Math.abs(ny) > 0.9 ? base : Math.max(base, hw * Math.abs(nx) + hh * Math.abs(ny) + 4 + base - 11);
   // The other side when it leaves the 400 x 240 frame by less; a near-flat trunk keeps its fixed 20 px gap, a steep one uses the angle too.
   const out = s => { const cx = px + s * nx * d, cy = py + s * ny * d;
     return Math.max(0, 4 - (cx - hw)) + Math.max(0, cx + hw - (VIEW.w - 4)) + Math.max(0, 4 - (cy - hh)) + Math.max(0, cy + hh - (VIEW.h - 4)); };
@@ -192,6 +196,16 @@ function packetSvg(k, links, nodes, from = null) {
   return `<g class="pic-packet${k.tag ? ' is-tagged' : ''}${from === 'new' ? ' is-new' : ''}">${glide}<rect x="${x - w / 2}" y="${y - 9}" width="${w}" height="18" rx="4"/>${label(x, y + 4, text, ' pic-small pic-packet-text')}</g>`;
 }
 
+// True when id is hidden: in the hidden set, or a part ("f.h") of a hidden node ("f").
+const isHidden = (off, id) => off.has(id) || off.has(String(id).split('.')[0]);
+// The ids a state hides: its own hide list, and each line with a hidden end, so a line never points at nothing
+// (picture standard). A hidden node hides its parts too (a frame segment "f.s1" goes with "f").
+function hiddenIds(p, s) {
+  const off = new Set(s.hide || []);
+  for (const l of p.scene.links || []) if (isHidden(off, l.from) || isHidden(off, l.to)) off.add(l.id);
+  return off;
+}
+
 // The SVG for one state. index: the step (steps) or the chosen part (explore; -1 = none).
 // Animation: prev is the state shown before (null on first draw); packets glide from their
 // previous place and newly lit parts fade in. still: reduced motion, so nothing moves or fades.
@@ -200,8 +214,8 @@ const stateOf = (p, index) => p.kind === 'steps' ? p.steps[Math.min(Math.max(ind
 export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = null } = {}) {
   const nodes = new Map(p.scene.nodes.map(n => [n.id, n])), links = new Map((p.scene.links || []).map(l => [l.id, l]));
   const s = fixed || stateOf(p, index), before = fixed || prev === null || still || prev === index ? null : stateOf(p, prev);
-  const on = new Set(s.light || []), off = new Set(s.hide || []);
-  const st = { on, off, fresh: before ? new Set([...on].filter(id => !(before.light || []).includes(id))) : new Set() };
+  const on = new Set(s.light || []), off = hiddenIds(p, s);
+  const st = { on, off, carried: new Set((p.steps || []).flatMap(x => (x.packets || []).map(k => k.on))), fresh: before ? new Set([...on].filter(id => !(before.light || []).includes(id))) : new Set() };
   // The n-th packet on a line glides from the n-th packet that was on that line (two packets can share a line).
   const nth = (list, k) => list.filter(b => b.on === k.on).indexOf(k);
   const from = k => !before ? null : ((before.packets || []).filter(b => b.on === k.on)[nth(s.packets, k)]?.at ?? 'new');
@@ -210,11 +224,11 @@ export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = n
     + (p.scene.groups || []).map((g, i) => groupSvg(g, nodes, st, i)).join('')
     + (p.scene.links || []).map(l => linkSvg(l, nodes, st)).join('')
     + p.scene.nodes.map(n => nodeSvg(n, st)).join('')
-    + (s.packets || []).map(k => packetSvg(k, links, nodes, from(k))).join('') + '</svg>';
+    + (s.packets || []).filter(k => !off.has(k.on)).map(k => packetSvg(k, links, nodes, from(k))).join('') + '</svg>';
 }
 
 // The picture body (the term page wraps it in its collapsible section): drawing, controls and the held caption box.
-// Controls: steps = rewind and forward icon buttons on the left; both kinds have a Flag-sized
+// Controls: steps = rewind and forward icon buttons on the left (on the last step, forward becomes Replay); both kinds have a Flag-sized
 // play/pause button at the right. playing: the loop runs (app.mjs advances it); captions are not announced meanwhile.
 export function pictureHtml(p, index = 0, { motion = {}, playing = false } = {}) {
   const steps = p.kind === 'steps', list = steps ? p.steps : p.parts, i = steps ? Math.min(Math.max(index, 0), list.length - 1) : index;
@@ -224,9 +238,21 @@ export function pictureHtml(p, index = 0, { motion = {}, playing = false } = {})
   // The label names the action (aria-pressed with "Pause" read as contradictory); data-playing is the state.
   const play = `<button type="button" id="pic-play" class="flag-btn pic-play" data-playing="${playing}" aria-label="${playing ? 'Pause the picture' : 'Play the picture'}" title="${playing ? 'Pause' : 'Play'}">${playing ? ICON.pause : ICON.play}</button>`;
   const controls = steps
-    ? `<div class="pic-controls"><button type="button" id="pic-back" class="flag-btn pic-nav" aria-label="Previous step" title="Previous step"${i === 0 ? ' disabled' : ''}>${ICON.rewind}</button><button type="button" id="pic-next" class="flag-btn pic-nav" aria-label="Next step" title="Next step"${i === list.length - 1 ? ' disabled' : ''}>${ICON.forward}</button>${play}</div>`
+    ? `<div class="pic-controls"><button type="button" id="pic-back" class="flag-btn pic-nav" aria-label="Previous step" title="Previous step"${i === 0 ? ' disabled' : ''}>${ICON.rewind}</button>${i === list.length - 1 ? `<button type="button" id="pic-next" class="flag-btn pic-nav" data-replay="true" aria-label="Replay from step 1" title="Replay">${ICON.retry}</button>` : `<button type="button" id="pic-next" class="flag-btn pic-nav" aria-label="Next step" title="Next step">${ICON.forward}</button>`}${play}</div>`
     : `<div class="pic-controls">${play}<div class="pic-parts" role="group" aria-label="Parts of the picture">${list.map((s, k) => `<button type="button" class="small pic-part" data-pic-part="${k}" aria-pressed="${k === i}">${escape(s.label)}</button>`).join('')}</div></div>`;
   return `<div class="pic-body"><div class="pic-frame">${pictureSvg(p, i, motion)}</div>${controls}<div class="pic-captions"${playing ? ' aria-live="off"' : ' role="status"'}>${captions}</div></div>`;
+}
+
+// The previous index a picture move animates from: none on a jump back to the start (the loop's wrap and Replay draw
+// step 1 fresh, so no packet glides backwards).
+export const moveFrom = (from, to) => to === 0 && from > 0 ? null : from;
+// The step or part an arrow key moves to from index (Left = back, Right = on): steps stop at the ends, parts wrap
+// (from no part, Right gives the first); null for another key or no move.
+export function stepKey(p, index, key) {
+  const d = key === 'ArrowRight' ? 1 : key === 'ArrowLeft' ? -1 : 0, n = (p.steps || p.parts).length;
+  if (!d) return null;
+  const from = index < 0 ? (d > 0 ? -1 : n) : index, to = p.kind === 'steps' ? Math.min(n - 1, Math.max(0, index + d)) : (from + d + n) % n;
+  return to === index ? null : to;
 }
 
 // ---- Tap board ----

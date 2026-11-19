@@ -8,8 +8,8 @@ import { restoreUnderstanding, markMissed, assessUnderstanding, understandingRec
 import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview } from './storage.mjs';
 import * as screens from './screens.mjs';
 import { restoreGlossary, entryForCard, stemLinks, popover, keyTerms, searchEntries, restoreBookmarks } from './glossary.mjs';
-import { restoreScholar, addScholarBlock, blockLoaded, restoreScholarState, refitScholarState, scholarStateShape, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey, reviewDeck } from './scholar.mjs';
-import { pictureHtml } from './pictures.mjs';
+import { restoreScholar, addScholarBlock, blockLoaded, restoreScholarState, refitScholarState, scholarStateShape, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey, reviewDeck, draftOf, picMs, progressOf, listModel, nextUnit } from './scholar.mjs';
+import { pictureHtml, stepKey, moveFrom } from './pictures.mjs';
 const $ = s => document.querySelector(s);
 const main = $('#main'), dialog = $('#dialog');
 let local;
@@ -68,12 +68,12 @@ const scholarDraft=new Map();
 // sections start closed so the guided question sits near the top.
 let scholarOpenFor=null;
 let scholarPicOpen=null;  // an umbrella opened for a covered entry: its picture section opens even on a return visit
-// Set by a pick, so that the next render announces the answer line once.
-let scholarSay=false;
+// scholarSay: set by a pick, so that the next render announces the answer line once. scholarQuery: the term list's search text (not saved).
+let scholarSay=false,scholarQuery='';
 // Picture loop: on unless the
 // reader paused it with the button (kept for every term until the page closes) or asked for reduced motion. A manual step
-// or part pauses only the term on screen (scholarPic.manual). PIC_MS per step.
-let scholarPlay=!window.matchMedia('(prefers-reduced-motion: reduce)').matches,picTimer=null;const PIC_MS=4000;
+// or part pauses only the term on screen (scholarPic.manual). picMs per step (caption length).
+let scholarPlay=!window.matchMedia('(prefers-reduced-motion: reduce)').matches,picTimer=null;
 let flashPreview = null, flashSetId = null, flashMessage = '', cardSets;
 // Card source on setup, Saved-sets screen state and Dynamic Flash Cards.
 let pickSetId = null, setsReturn = 'blocks', pendingCard = null, cardCatalog = null;
@@ -748,7 +748,7 @@ function renderMode() {
 }
 // Study hub: Questions, Cards, Glossary, and the separate Take exam.
 function renderHub() {
-  main.innerHTML=screens.studyHubHtml({block:currentBlock(),scholar:unitsOf(scholar,blockId).length>0});
+  main.innerHTML=screens.studyHubHtml({block:currentBlock(),scholar:unitsOf(scholar,blockId).length>0,scholarDone:blockLoaded(scholar,blockId)?progressOf(scholar,scholarState,blockId).all:null});
   const go={questions:'mode',cards:'cards-setup',glossary:'glossary'};
   main.querySelectorAll('[data-study]').forEach(b=>b.onclick=()=>{if(b.dataset.study==='glossary'){glossEntry=null;glossReturn=null;}navigate(go[b.dataset.study]);});
   if(!glossary)main.querySelector('[data-study="glossary"]')?.setAttribute('disabled','');
@@ -825,9 +825,6 @@ async function openScholar(itemId=null,ret=null,block=blockId,before=null,part=n
 function saveScholar(st){scholarState=st;persist('scholar',st);}
 // A message in the guided question's live region, after the render (so it is heard as a change).
 function sayScholar(text){setTimeout(()=>{const say=main.querySelector('.scholar-q [data-say]');if(say&&say.isConnected)say.textContent=text;},150);}
-// The arrangement on screen: the one being built, else the last check, else the shown order (order) or no groups (sort).
-function draftOf(qn,tries=[],drafts=scholarDraft){const t=typeOf(qn);if(t!=='order'&&t!=='sort')return null;
-  return drafts.get(qn.id)||(tries.length?[...tries[tries.length-1]]:t==='order'?qn.steps.map((_,i)=>i):qn.items.map(()=>null));}
 function renderScholar(){
   clearTimeout(picTimer);
   if(!scholar||!scholarState){navigate('units');return;}
@@ -837,13 +834,14 @@ function renderScholar(){
   if(scholarReview&&(scholarReview.block!==st.block||scholarReview.unit!==st.unit||item))scholarReview=null;
   if(scholarReview){renderScholarReview(block);return;}
   if(!item){scholarOpenFor=null;
-    const units=unitsOf(scholar,st.block),items=itemsFor(scholar,st.block,st.unit);
-    const counts=Object.fromEntries(items.map(it=>[it.id,it.questions.filter(q=>right(q,triesOf(st,q))).length]));
-    const todo=items.find(it=>counts[it.id]<it.questions.length)||null;
-    main.innerHTML=screens.scholarListHtml({block,units,unit:st.unit,items,done:counts,todo,review:items.length>=2,glossOf:id=>glossary?.byId.get(id)||null});
+    const m=listModel(scholar,st,scholarQuery,id=>glossary?.byId.get(id)?.short),items=m.items;
+    main.innerHTML=screens.scholarListHtml({...m,block,unit:st.unit,review:items.length>=2,glossOf:id=>glossary?.byId.get(id)||null,query:scholarQuery});
+    const search=$('#scholar-search');
+    search.oninput=()=>{scholarQuery=search.value;const pos=search.selectionStart;render();const again=$('#scholar-search');again.focus();again.setSelectionRange(pos,pos);};
+    if($('#scholar-next-unit'))$('#scholar-next-unit').onclick=()=>{scholarQuery='';saveScholar(moveScholar(scholarState,{type:'unit',unit:Number($('#scholar-next-unit').dataset.unit)},scholar));render();window.scrollTo({top:0,behavior:'instant'});focusHeading(main.querySelector('h1'));};
     if($('#scholar-todo'))$('#scholar-todo').onclick=()=>open($('#scholar-todo').dataset.scholarNext);
     if($('#scholar-review'))$('#scholar-review').onclick=()=>{scholarReview={block:st.block,unit:st.unit,deck:reviewDeck(items),k:0,picks:{}};reviewHints.clear();reviewDraft.clear();render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#scholar-review-title'));};
-    main.querySelectorAll('[name="scholar-unit"]').forEach(r=>r.onchange=()=>{saveScholar(moveScholar(scholarState,{type:'unit',unit:Number(r.value)},scholar));keepScroll(render);main.querySelector(`[name="scholar-unit"][value="${r.value}"]`)?.focus({preventScroll:true});});
+    main.querySelectorAll('[name="scholar-unit"]').forEach(r=>r.onchange=()=>{scholarQuery='';saveScholar(moveScholar(scholarState,{type:'unit',unit:Number(r.value)},scholar));keepScroll(render);main.querySelector(`[name="scholar-unit"][value="${r.value}"]`)?.focus({preventScroll:true});});
     main.querySelectorAll('[data-scholar-item]').forEach(b=>b.onclick=()=>open(b.dataset.scholarItem));
     $('#back').onclick=()=>navigate('units');
     return;
@@ -855,7 +853,7 @@ function renderScholar(){
   const back=scholarReturn?.to==='glossary'?'Glossary':scholarReturn?.to==='flash-card'?`Card ${flashPreview.index+1}`:'';
   const qn=item.questions[st.q],tries=triesOf(scholarState,qn);
   const related=(glossary?.byId.get(item.entry)?.related||[]).map(id=>glossary.byId.get(id)).filter(e=>e&&e.block===item.block).map(e=>{const it=itemForEntry(scholar,e.block,e.id);return {id:e.id,term:e.term,item:it&&it.id!==item.id?it.id:null,part:it?.part};}).filter(r=>r.item||!itemForEntry(scholar,item.block,r.id));
-  main.innerHTML=screens.scholarItemHtml({block,item,q:st.q,tries,started:item.questions.some(x=>triesOf(scholarState,x).length),hint:scholarHints.has(qn.id),nav:neighbours(scholar,st),done:x=>resolved(x,triesOf(scholarState,x)),back,pic:picOptions(),open:scholarOpen,draft:draftOf(qn,tries),related});
+  main.innerHTML=screens.scholarItemHtml({block,item,q:st.q,tries,started:item.questions.some(x=>triesOf(scholarState,x).length),hint:scholarHints.has(qn.id),nav:{...neighbours(scholar,st),nextUnit:itemsFor(scholar,st.block,nextUnit(scholar,st))[0]||null},done:x=>resolved(x,triesOf(scholarState,x)),back,pic:picOptions(),open:scholarOpen,draft:draftOf(qn,tries,scholarDraft),related});
   main.querySelectorAll('.scholar-related [data-scholar-item]').forEach(b=>b.onclick=()=>{const part=b.dataset.part===undefined?null:Number(b.dataset.part);  // the part first, so one render keeps focus on the heading
     if(Number.isInteger(part)){scholarPicOpen=b.dataset.scholarItem;scholarPic={item:b.dataset.scholarItem,index:part,prev:null,manual:true};}open(b.dataset.scholarItem);});
   main.querySelectorAll('.scholar-related .term-link').forEach(b=>b.onclick=()=>openTermPop(b,{phase:'review',block:item.block}));
@@ -869,15 +867,10 @@ function renderScholar(){
     return main.querySelector(`.scholar-answers [data-answer="${id}"]`)||$('#scholar-stem');});};
   main.querySelectorAll('.scholar-answers [data-answer]').forEach(b=>b.onclick=()=>{if(b.getAttribute('aria-disabled')==='true'||b.closest('.scholar-decision.is-done'))return;pick(b.dataset.answer);});
   { const board=main.querySelector('.scholar-tap:not(.is-done) svg');if(board)board.onclick=e=>{const t=e.target.closest('[data-tap]');if(t&&!t.dataset.tapState)pick(t.dataset.tap);}; }
-  // Order: Move up / Move down (buttons, no drag). Sort: one radio group per item. Check saves the arrangement as a try.
-  main.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{const d=[...draftOf(qn,tries)],i=Number(b.dataset.move),j=i+Number(b.dataset.dir);[d[i],d[j]]=[d[j],d[i]];scholarDraft.set(qn.id,d);keepScroll(render);
-    const again=main.querySelector(`[data-move="${j}"][data-dir="${b.dataset.dir}"]`);(again&&!again.disabled?again:main.querySelector(`[data-move="${j}"]:not(:disabled)`))?.focus({preventScroll:true});
-    // Say where the step went (the place number is drawn for sight only).
-    sayScholar(`${qn.steps[d[j]].text} Moved to place ${j+1} of ${d.length}.`);});
-  main.querySelectorAll('.scholar-sort-seg input').forEach(r=>r.onchange=()=>{const d=[...draftOf(qn,tries)],i=Number(r.closest('[data-sort]').dataset.sort);d[i]=Number(r.value);scholarDraft.set(qn.id,d);keepScroll(render);main.querySelector(`[name="sort-${i}"][value="${r.value}"]`)?.focus({preventScroll:true});});
+  bindArrange(qn,tries,scholarDraft);  // Check saves the arrangement as a try.
   if($('#scholar-reset'))$('#scholar-reset').onclick=()=>{for(const x of item.questions){scholarHints.delete(x.id);scholarDraft.delete(x.id);}
     saveScholar(moveScholar(scholarState,{type:'reset',item:item.id},scholar));keepScroll(render);$('#scholar-stem')?.focus({preventScroll:true});sayScholar('This term\'s questions start over.');};
-  if($('#scholar-check'))$('#scholar-check').onclick=()=>{scholarSay=true;move({type:'answer',value:draftOf(qn,tries)},()=>main.querySelector('.scholar-row.is-wrong :is(button:not(:disabled),input)')||$('#scholar-stem'));};
+  if($('#scholar-check'))$('#scholar-check').onclick=()=>{scholarSay=true;move({type:'answer',value:draftOf(qn,tries,scholarDraft)},()=>main.querySelector('.scholar-row.is-wrong :is(button:not(:disabled),input)')||$('#scholar-stem'));};
   bindPicture(item);picLoop(item);holdScholarHeights(item,qn);
   main.querySelectorAll('[data-scholar-q]').forEach(b=>b.onclick=()=>move({type:'question',index:Number(b.dataset.scholarQ)}));
   if($('#scholar-next-q'))$('#scholar-next-q').onclick=()=>move({type:'question',index:st.q+1});
@@ -907,10 +900,7 @@ function renderScholarReview(block){
     return main.querySelector(`.scholar-answers [data-answer="${id}"]`);});};
   main.querySelectorAll('.scholar-answers [data-answer]').forEach(b=>b.onclick=()=>{if(b.getAttribute('aria-disabled')==='true'||b.closest('.scholar-decision.is-done'))return;pick(b.dataset.answer);});
   { const board=main.querySelector('.scholar-tap:not(.is-done) svg');if(board)board.onclick=e=>{const t=e.target.closest('[data-tap]');if(t&&!t.dataset.tapState)pick(t.dataset.tap);}; }
-  main.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{const dd=[...draftOf(qn,tries,reviewDraft)],i=Number(b.dataset.move),j=i+Number(b.dataset.dir);[dd[i],dd[j]]=[dd[j],dd[i]];reviewDraft.set(qn.id,dd);keepScroll(render);
-    const again=main.querySelector(`[data-move="${j}"][data-dir="${b.dataset.dir}"]`);(again&&!again.disabled?again:main.querySelector(`[data-move="${j}"]:not(:disabled)`))?.focus({preventScroll:true});
-    sayScholar(`${qn.steps[dd[j]].text} Moved to place ${j+1} of ${dd.length}.`);});
-  main.querySelectorAll('.scholar-sort-seg input').forEach(r=>r.onchange=()=>{const dd=[...draftOf(qn,tries,reviewDraft)],i=Number(r.closest('[data-sort]').dataset.sort);dd[i]=Number(r.value);reviewDraft.set(qn.id,dd);keepScroll(render);main.querySelector(`[name="sort-${i}"][value="${r.value}"]`)?.focus({preventScroll:true});});
+  bindArrange(qn,tries,reviewDraft);
   if($('#scholar-check'))$('#scholar-check').onclick=()=>apply({type:'answer',value:draftOf(qn,tries,reviewDraft)},()=>main.querySelector('.scholar-row.is-wrong :is(button:not(:disabled),input)'));
   if($('#scholar-hint'))$('#scholar-hint').onclick=()=>{reviewHints.add(qn.id);keepScroll(render);$('#scholar-hint-text')?.focus({preventScroll:true});};
   holdScholarHeights(item,qn);
@@ -923,6 +913,12 @@ function renderScholarReview(block){
   $('#scholar-review-exit').onclick=()=>exit('');
   $('#scholar-review-term').onclick=()=>{scholarReview=null;saveScholar(moveScholar(scholarState,{type:'item',id:item.id},scholar));render();window.scrollTo({top:0,behavior:'instant'});focusHeading($('#scholar-term'));};
 }
+// Order: Move up / Move down (buttons, no drag); sort: one radio group per item. drafts: the arrangements being built.
+function bindArrange(qn,tries,drafts){
+  main.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>{const d=[...draftOf(qn,tries,drafts)],i=Number(b.dataset.move),j=i+Number(b.dataset.dir);[d[i],d[j]]=[d[j],d[i]];drafts.set(qn.id,d);keepScroll(render);
+    const again=main.querySelector(`[data-move="${j}"][data-dir="${b.dataset.dir}"]`);(again&&!again.disabled?again:main.querySelector(`[data-move="${j}"]:not(:disabled)`))?.focus({preventScroll:true});
+    sayScholar(`${qn.steps[d[j]].text} Moved to place ${j+1} of ${d.length}.`);});  // the place number is drawn for sight only
+  main.querySelectorAll('.scholar-sort-seg input').forEach(r=>r.onchange=()=>{const d=[...draftOf(qn,tries,drafts)],i=Number(r.closest('[data-sort]').dataset.sort);d[i]=Number(r.value);drafts.set(qn.id,d);keepScroll(render);main.querySelector(`[name="sort-${i}"][value="${r.value}"]`)?.focus({preventScroll:true});});}
 // A short line in the term list's status (a finished review's score).
 function sayList(text){setTimeout(()=>{const s=main.querySelector('p.status.count');if(s&&step==='scholar')s.textContent=`${s.textContent} · ${text}`;},150);}
 const picOptions=()=>({index:scholarPic.index,motion:{prev:scholarPic.prev,still:window.matchMedia('(prefers-reduced-motion: reduce)').matches},playing:scholarPlay&&!scholarPic.manual&&scholarOpen.picture!==false});
@@ -938,32 +934,35 @@ function mountPicture(item){
   { const old=panel.querySelector('.pic-captions'),fresh=next.querySelector('.pic-captions');if(old&&fresh){
     for(const k of ['role','aria-live'])fresh.hasAttribute(k)?old.setAttribute(k,fresh.getAttribute(k)):old.removeAttribute(k);old.innerHTML=fresh.innerHTML;} }
   next.querySelectorAll('.pic-controls button').forEach(b=>{const old=b.id?panel.querySelector('#'+b.id):panel.querySelector(`[data-pic-part="${b.dataset.picPart}"]`);if(!old)return;
-    for(const k of ['disabled','aria-pressed','aria-label','title','data-playing'])b.hasAttribute(k)?old.setAttribute(k,b.getAttribute(k)):old.removeAttribute(k);
-    if(old.id==='pic-play')old.innerHTML=b.innerHTML;});
+    for(const k of ['disabled','aria-pressed','aria-label','title','data-playing','data-replay'])b.hasAttribute(k)?old.setAttribute(k,b.getAttribute(k)):old.removeAttribute(k);
+    if(old.id==='pic-play'||old.id==='pic-next')old.innerHTML=b.innerHTML;});
   if(panel.contains(document.activeElement)&&document.activeElement.disabled)panel.querySelector('.pic-controls button:not(:disabled)')?.focus({preventScroll:true});
   bindPicture(item);
 }
 function bindPicture(item){
   if(!item.picture)return;
-  const go=(index,manual=scholarPic.manual)=>{scholarPic={item:item.id,index,prev:scholarPic.index,manual};mountPicture(item);};
+  const go=(index,manual=scholarPic.manual)=>{scholarPic={item:item.id,index,prev:moveFrom(scholarPic.index,index),manual};mountPicture(item);};
   const manual=index=>{clearTimeout(picTimer);go(index,true);};
   if($('#pic-back'))$('#pic-back').onclick=()=>manual(scholarPic.index-1);
-  if($('#pic-next'))$('#pic-next').onclick=()=>manual(scholarPic.index+1);
+  if($('#pic-next'))$('#pic-next').onclick=()=>manual($('#pic-next').dataset.replay?0:scholarPic.index+1);
+  // Left / Right step through the picture while focus is on one of its controls (steps stop at the ends; parts wrap).
+  { const body=main.querySelector('[data-section="picture"] .pic-body');if(body)body.onkeydown=e=>{const to=e.target.closest('.pic-controls')?stepKey(item.picture,scholarPic.index,e.key):null;if(to===null)return;e.preventDefault();manual(to);main.querySelector(`[data-pic-part="${to}"]`)?.focus({preventScroll:true});}; }
   main.querySelectorAll('[data-pic-part]').forEach(b=>b.onclick=()=>manual(Number(b.dataset.picPart)));
   // Explore: a tap on a drawn part chooses the first part that lights it (the chips are the keyboard way).
   if(item.picture.kind==='explore')main.querySelector('.pic')?.addEventListener('click',e=>{const id=e.target.closest('[data-pic-id]')?.dataset.picId;const k=item.picture.parts.findIndex(p=>p.light.includes(id));if(k>=0)manual(k);});
   // Play / pause: the reader's choice for every term; Play also lifts this term's manual pause.
   if($('#pic-play'))$('#pic-play').onclick=()=>{const on=$('#pic-play').dataset.playing!=='true';scholarPlay=on;scholarPic.manual=false;mountPicture(item);picLoop(item);};
 }
-// One loop tick per PIC_MS while Scholar shows this term with its picture open; it wraps to the first step or part.
+// One loop tick per step (picMs of its caption) while the term's picture is open, in view and its tab shown; it wraps to the first step or part.
 function picLoop(item){
   clearTimeout(picTimer);
   if(!scholarPlay||scholarPic.manual||!item.picture||scholarOpen.picture===false)return;
   picTimer=setTimeout(()=>{
-    if(step!=='scholar'||scholarPic.item!==item.id||!scholarPlay||scholarPic.manual)return;
-    if(!document.hidden){const n=(item.picture.steps||item.picture.parts).length;scholarPic={item:item.id,index:(scholarPic.index+1)%n,prev:scholarPic.index,manual:false};mountPicture(item);}
+    if(step!=='scholar'||scholarPic.item!==item.id||!scholarPlay||scholarPic.manual)return;if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){scholarPlay=false;mountPicture(item);return;}
+    const frame=main.querySelector('[data-section="picture"] .pic-frame')?.getBoundingClientRect(),inView=frame&&frame.bottom>0&&frame.top<window.innerHeight;
+    if(!document.hidden&&inView){const next=(scholarPic.index+1)%(item.picture.steps||item.picture.parts).length;scholarPic={item:item.id,index:next,prev:moveFrom(scholarPic.index,next),manual:false};mountPicture(item);}
     picLoop(item);
-  },PIC_MS);
+  },picMs((item.picture.steps||item.picture.parts)[scholarPic.index]?.caption));
 }
 // ---- Glossary ----
 const glossQuestions=e=>e.questionIds.map(id=>bank.questions.find(q=>q.id===id)).filter(q=>q&&q.block===blockId);
@@ -1221,15 +1220,16 @@ function sourceExcerpt(q){
   loadLinks().then(()=>{if(EXCERPT_SCREENS.includes(step))keepScroll(render);}).catch(()=>{linkFailed=true;if(EXCERPT_SCREENS.includes(step))keepScroll(render);});
   return '<section class="source-excerpt" aria-label="Source excerpt" aria-busy="true"><p class="muted">Loading source…</p></section>';
 }
+// Draws the screen again for content that arrived late, where that content shows, and puts focus back on the same control; when focus could not be kept, the next render shows the content instead.
+function redrawLate(){const at=document.activeElement||document.body,inMain=main.contains(at),find=at.id?`#${CSS.escape(at.id)}`:at.dataset?.study?`[data-study="${at.dataset.study}"]`:at.matches('h1')?'h1':null;if(['units',...EXCERPT_SCREENS].includes(step)&&(find||!inMain)){keepScroll(render);const to=inMain&&main.querySelector(find);if(find==='h1')focusHeading(to);else if(to)to.focus({preventScroll:true});}else syncScreens();}
 // Glossary and Scholar index load after the first screen (optional; a quarter of the first download). Until then, or on a failure: Glossary tile off, no term links, no Scholar in Mode.
 async function loadExtras(){
   [glossary,scholar]=await Promise.all([fetchJson('./glossary.json').then(restoreGlossary).catch(()=>null),fetchJson('./scholar.json').then(restoreScholar).catch(()=>null)]);migrateBookmarks();  // the bookmark move needs the glossary
   const raw=read('scholar',null),held=Number.isInteger(raw?.block)&&Boolean(scholar?.index[String(raw.block)]);  // held (as at an offline start) until its block file is here, so an Open Scholar in between carries the saved picks
   if(held)scholarPending=raw;else{scholarState=restoreScholarState(raw,scholar);if(raw!==null&&!scholarState&&scholar)persist('scholar',null);}
-  const at=document.activeElement||document.body,inMain=main.contains(at),find=at.id?`#${CSS.escape(at.id)}`:at.dataset?.study?`[data-study="${at.dataset.study}"]`:at.matches('h1')?'h1':null;
-  if(['units',...EXCERPT_SCREENS].includes(step)&&(find||!inMain)){keepScroll(render);const to=inMain&&main.querySelector(find);if(find==='h1')focusHeading(to);else if(to)to.focus({preventScroll:true});}else syncScreens();  // draw again where the new content shows, unless that drops keyboard focus (then the next render shows it)
+  redrawLate();
   if(held&&await loadScholarBlock(raw.block)&&scholarPending===raw){scholarPending=null;scholarState=restoreScholarState(raw,scholar);if(!scholarState)persist('scholar',null);}
-  if(scholarState&&!blockLoaded(scholar,scholarState.block))await loadScholarBlock(scholarState.block);syncScreens();  // a fallback place in another block; Resume Scholar
+  if(scholarState&&!blockLoaded(scholar,scholarState.block))await loadScholarBlock(scholarState.block);if(step==='units'&&blockLoaded(scholar,blockId))redrawLate();else syncScreens();  // Resume Scholar; the Mode card's Scholar progress
 }
 setInterval(()=>{
   examTick();

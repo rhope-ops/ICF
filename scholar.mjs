@@ -3,6 +3,7 @@
 // Sample answers are practice only: they never enter stats, Results, missed cards or exam cycles.
 
 import { pictureProblem } from './pictures.mjs';
+import { shuffle } from './engine.mjs';
 
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const isText = v => typeof v === 'string' && v.trim() !== '';
@@ -84,6 +85,102 @@ export function addScholarBlock(s, raw) {
   if (new Set(fileCovers).size !== fileCovers.length || fileCovers.length !== Object.keys(ix.covers || {}).length || fileCovers.some(e => !ix.covers[e])) return null;
   return { ...s, blocks: { ...s.blocks, [b]: shown }, byId, byEntry };
 }
+// ---- Row order of sort and order tasks (readers saw sort rows always alternate left-right-left) ----
+// The app shows the rows of a sort task and the cards of an order task in an order shuffled once per question: the
+// same question id always gives the same order, so a return visit looks the same. Rows keep their item index, so
+// saved picks, the key and the blind ledger do not change. ROW_TRIES: seeds tried before the authored order is kept.
+const ROW_TRIES = 64;
+// A seeded random source (mulberry32) from a text: the same text always gives the same numbers.
+function seededRandom(text) {
+  let h = 2166136261;
+  for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  return () => { h = (h + 0x6D2B79F5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+// True when a sequence of groups (0/1) gives the answer away by its pattern: all of one group first, strict
+// alternation over 4 or more rows, or more than 3 of one group in a row.
+function patterned(groups) {
+  const asc = groups.join() === [...groups].sort().join(), desc = groups.join() === [...groups].sort().reverse().join();
+  let run = 1, longest = 1, flips = 0;
+  for (let i = 1; i < groups.length; i++) { if (groups[i] === groups[i - 1]) run++; else { run = 1; flips++; } longest = Math.max(longest, run); }
+  return asc || desc || (groups.length >= 4 && flips === groups.length - 1) || longest > 3;
+}
+/**
+ * The display order of a sort task's rows or an order task's cards: item indexes, top to bottom.
+ * @param {object} qn a sort or order question (with its id)
+ * @returns {number[]|null} the order, or null for other question types
+ */
+export function rowOrder(qn) {
+  const t = typeOf(qn);
+  if (t !== 'sort' && t !== 'order') return null;
+  const n = t === 'sort' ? qn.items.length : qn.steps.length, authored = [...Array(n).keys()], random = seededRandom(qn.id);
+  // An order task never starts solved, nor with more than half its cards already in place.
+  const bad = p => t === 'sort' ? patterned(p.map(i => qn.key[i])) : p.filter((v, i) => v === qn.key[i]).length > n / 2;
+  for (let k = 0; k < ROW_TRIES; k++) { const p = shuffle(authored, random); if (!bad(p)) return p; }
+  return authored;
+}
+
+// Scholar question in the shape of a bank question, so its answers are the same tiles as in the other modes (answersHtml).
+export const scholarQuestion = qn => ({ id: qn.id, correctAnswerId: String(qn.key), answers: qn.answers.map((a, i) => ({ id: String(i), text: a.text, rationale: a.why })) });
+// tries: this question's picks in order. As in the other modes, a wrong pick flips with its own why (the Assisted flip);
+// the right pick or a second wrong one resolves the question and shows every why.
+export const scholarAnswerState = (qn, tries = [], max = 2) => {
+  const wrong = tries.filter(i => i !== qn.key).map(String);
+  return { order: qn.answers.map((_, i) => String(i)), resolved: tries.includes(qn.key) ? 'correct' : tries.length >= max ? 'revealed' : null, stage: 0, eliminated: [], flippedWrong: wrong, wrongIds: wrong };
+};
+// One branch decision in the answer-tile shape (2-3 choices; it ends after min(2, choices - 1) wrong picks).
+export const decisionQuestion = (qn, k) => ({ id: `${qn.id}-D${k}`, key: qn.steps[k].key, answers: qn.steps[k].choices });
+// The arrangement on screen of an order or sort task: the one being built (drafts, by question id), else the last
+// check, else the shuffled display order (order) or no groups (sort); null for other types.
+export function draftOf(qn, tries = [], drafts = new Map()) {
+  const t = typeOf(qn);
+  if (t !== 'order' && t !== 'sort') return null;
+  return drafts.get(qn.id) || (tries.length ? [...tries[tries.length - 1]] : t === 'order' ? rowOrder(qn) : qn.items.map(() => null));
+}
+
+// ---- Picture timing, progress, next unit and term search (pure helpers of the Scholar screens) ----
+// Limits of a picture step's time in ms: reading at about 200 words a minute (0.3 s a word after 1.2 s to look at the drawing).
+const PIC_MS = { min: 4000, max: 10000, base: 1200, perWord: 300 };
+// Time per picture step or part: long enough to read its caption, never under 4 s or over 10 s.
+export const picMs = caption => Math.min(PIC_MS.max, Math.max(PIC_MS.min, PIC_MS.base + PIC_MS.perWord * String(caption || '').split(/\s+/).filter(Boolean).length));
+/**
+ * Terms of a block with every guided question right, per unit and in all.
+ * @param {object} s the Scholar lookup; @param {object} state the saved place (its picks); @param {number} block the block
+ * @returns {{units: Object<number, {done: number, total: number}>, all: {done: number, total: number}}}
+ */
+export function progressOf(s, state, block) {
+  const units = {}, all = { done: 0, total: 0 };
+  for (const u of unitsOf(s, block)) {
+    const its = itemsFor(s, block, u), done = its.filter(it => it.questions.every(q => right(q, triesOf(state, q)))).length;
+    units[u] = { done, total: its.length }; all.done += done; all.total += its.length;
+  }
+  return { units, all };
+}
+/**
+ * What the Scholar term list shows for the saved place: its units and items, right answers per item, the next term to
+ * study, progress per unit, the first term of the next unit, and the term search matches.
+ * @param {object} s the Scholar lookup; @param {object} state the saved place; @param {string} query the search text
+ * @param {Function} shortOf entry id to its glossary short definition
+ * @returns {{units: number[], items: object[], done: Object<string, number>, todo: object|null, unitDone: object, nextUnit: number|null, matches: object[]}}
+ */
+export function listModel(s, state, query = '', shortOf = () => '') {
+  const units = unitsOf(s, state.block), items = itemsFor(s, state.block, state.unit);
+  const done = Object.fromEntries(units.flatMap(u => itemsFor(s, state.block, u)).map(it => [it.id, it.questions.filter(q => right(q, triesOf(state, q))).length]));
+  return { units, items, done, todo: items.find(it => done[it.id] < it.questions.length) || null, unitDone: progressOf(s, state, state.block).units,
+    nextUnit: nextUnit(s, state), matches: matchItems(s, state.block, query, shortOf) };
+}
+// The unit after the place's unit in its block, or null on the last unit.
+export const nextUnit = (s, state) => { const us = unitsOf(s, state.block); return us[us.indexOf(state.unit) + 1] ?? null; };
+// Term search: the items of a block whose term, covered terms, short definition (shortOf(entry)) or summary hold every
+// word of the query, case aside; [] for an empty query.
+function matchItems(s, block, query, shortOf = () => '') {
+  const words = String(query).toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  return unitsOf(s, block).flatMap(u => itemsFor(s, block, u)).filter(it => {
+    const text = [it.term, ...(it.covers || []).map(c => c.term), shortOf(it.entry) || '', it.summary].join(' ').toLowerCase();
+    return words.every(w => text.includes(w));
+  });
+}
+
 // Display order of a term's questions: hands-on (tap, order, sort, branch) before A-D, file order kept inside each kind.
 // Picks are keyed by question id and version, so the order change keeps every saved pick.
 const handsOnFirst = qs => [...qs.filter(q => typeOf(q) !== 'choose'), ...qs.filter(q => typeOf(q) === 'choose')];

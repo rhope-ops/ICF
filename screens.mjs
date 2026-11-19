@@ -8,7 +8,7 @@ import { unitScores, missedUnits, scoreTone, POOL_LABEL } from './analytics.mjs'
 import { EXAM, passMark, examCounts, reviewItems, REVIEW_FILTERS, examLabel, formsFor } from './exam.mjs';
 import { cardHtml, cardsInSet, savedSetsHtml, setsBlockHtml, cardKey, MISSED_ID } from './flashcards.mjs';
 import { pictureHtml, tapBoardHtml } from './pictures.mjs';
-import { typeOf, resolved as scholarResolved, right as scholarRight, currentDecision, decisionDone, checkMarks } from './scholar.mjs';
+import { typeOf, resolved as scholarResolved, right as scholarRight, currentDecision, decisionDone, checkMarks, rowOrder, draftOf, scholarAnswerState, decisionQuestion, scholarQuestion } from './scholar.mjs';
 
 // m:ss, or h:mm:ss from one hour.
 export const duration = ms => { const n = Math.floor(ms/1000); return n >= 3600 ? `${Math.floor(n/3600)}:${String(Math.floor(n/60)%60).padStart(2,'0')}:${String(n%60).padStart(2,'0')}` : `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
@@ -80,12 +80,13 @@ export function blocksHtml({bank, nickname, open, understanding, missedReview, s
 // Scholar entry and the Exam entry, each after an "Or" divider. Scholar is term study. scholar: the
 // block has Scholar content (a block without it shows no Scholar entry).
 const TILES=[['questions','Questions','Answer, score and retry.'],['cards','Flash cards','Terms and definitions.'],['glossary','Glossary','Course terms with their sources.']];
-export function studyHubHtml({block, scholar = false}) {
+// The Mode screen. scholar: the block has Scholar; scholarDone: {done, total} terms once its Scholar file is loaded.
+export function studyHubHtml({block, scholar = false, scholarDone = null}) {
   const tile = ([v,t,d]) => `<button type="button" class="card" data-study="${v}"><strong>${t}</strong><span>${d}</span></button>`;
   const divider = '<div class="exam-divider" aria-hidden="true"><span>Or</span></div>';
   return `<div class="page-head"><p class="label">Block ${block.id} · ${escape(block.title)}</p><h1>Mode</h1></div>
     <div class="type-grid study-tiles" role="group" aria-label="Study type">${TILES.map(tile).join('')}</div>
-    ${scholar ? `${divider}<section class="card exam-entry scholar-entry" data-tone="scholar" aria-labelledby="scholar-entry-title"><div class="exam-entry-text"><h2 id="scholar-entry-title">Scholar</h2><p class="exam-entry-sub">Go deeper with interactive lessons.</p></div><button id="scholar-open" class="primary" data-tone="scholar">${nextLabel('Open Scholar')}</button></section>` : ''}
+    ${scholar ? `${divider}<section class="card exam-entry scholar-entry" data-tone="scholar" aria-labelledby="scholar-entry-title"><div class="exam-entry-text"><h2 id="scholar-entry-title">Scholar</h2><p class="exam-entry-sub">Go deeper with interactive lessons.</p>${scholarDone ? `<p class="exam-entry-sub scholar-entry-done">${scholarDone.done} of ${plural(scholarDone.total, 'term')} done</p>` : ''}</div><button id="scholar-open" class="primary" data-tone="scholar">${nextLabel('Open Scholar')}</button></section>` : ''}
     ${divider}
     <section class="card exam-entry" data-tone="violet" aria-labelledby="exam-entry-title"><div class="exam-entry-text"><h2 id="exam-entry-title">Exam</h2><p class="exam-entry-sub">Prove your mastery of the material.</p></div><button id="exam-open" class="primary" data-tone="violet">${nextLabel('Take exam')}</button></section>`;
 }
@@ -302,33 +303,30 @@ export function answerAnnouncement(event, attemptsBefore, session) {
 const SHORT_NAME = 24;
 const listName = (term, g) => { const alias = term.length > SHORT_NAME && g?.aliases.find(a => /^[A-Z][A-Z0-9&]{1,9}$/.test(a));
   return alias ? `${escape(alias)}<span class="sr-only"> (${escape(term)})</span>` : escape(term); };
-export function scholarListHtml({block, units, unit, items, done = {}, todo = null, review = false, glossOf = () => null}) {
-  const seg = units.map(u => `<label><input type="radio" name="scholar-unit" value="${u}" ${u === unit ? 'checked' : ''}>U${u}</label>`).join('');
-  const title = escape(block.units.find(u => u.id === unit)?.title || '');
+/** The Scholar term list of one unit, or the term search matches of every unit while a search is set.
+ * @param {object} o block, units, unit, items, done (right answers by item), todo, review, glossOf; unitDone {unit: {done, total}}; nextUnit (or null); query; matches
+ * @returns {string} the screen markup */
+export function scholarListHtml({block, units, unit, items, done = {}, todo = null, review = false, glossOf = () => null, unitDone = {}, nextUnit = null, query = '', matches = []}) {
+  const seg = units.map(u => { const c = unitDone[u];
+    return `<label><input type="radio" name="scholar-unit" value="${u}" ${u === unit ? 'checked' : ''}><span aria-hidden="true">U${u}</span><span class="sr-only">Unit ${u}${c ? `, ${c.done} of ${c.total} done` : ''}</span>${c ? `<small class="scholar-unit-done" aria-hidden="true">${c.done}/${c.total}</small>` : ''}</label>`; }).join('');
+  const title = escape(block.units.find(u => u.id === unit)?.title || ''), searching = query.trim() !== '';
   const row = it => { const n = done[it.id] || 0, all = it.questions.length, g = glossOf(it.entry);
-    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${listName(it.term, g)}</strong>${it.covers ? `<span class="scholar-also">Also: ${it.covers.map(c => escape(c.term)).join(' · ')}</span>` : ''}<span>${escape(g?.short || it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
+    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${listName(it.term, g)}</strong>${searching && it.unit !== unit ? `<span class="scholar-also">Unit ${it.unit}</span>` : ''}${it.covers ? `<span class="scholar-also">Also: ${it.covers.map(c => escape(c.term)).join(' · ')}</span>` : ''}<span>${escape(g?.short || it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
+  const lead = searching ? (matches.length ? '' : '<p class="muted scholar-empty">No term matches. Try fewer words, or clear the search.</p>') : `${items.length && !todo ? `
+    <p class="muted scholar-unit-complete">Unit ${unit} done.</p>${nextUnit ? `<div class="actions scholar-todo"><button type="button" id="scholar-next-unit" class="primary" data-tone="scholar" data-unit="${nextUnit}">${nextLabel(`Next unit: Unit ${nextUnit}`)}</button></div>` : ''}` : ''}${todo ? `
+    <div class="actions scholar-todo"><button type="button" id="scholar-todo" class="primary" data-tone="scholar" data-scholar-next="${escape(todo.id)}">${nextLabel(`Study next: ${todo.term}`)}</button></div>` : ''}${review ? `
+    <div class="actions scholar-review-start"><button type="button" id="scholar-review" data-tone="scholar">Review this unit</button></div>` : ''}`;
   return `<div class="page-head"><p class="label">Block ${block.id} · Scholar</p><h1>Scholar</h1></div>
     <section class="panel scholar-units" data-tone="scholar"><fieldset><legend class="label">Unit</legend><div class="seg scholar-unit-seg">${seg}</div></fieldset>
       <div class="step-head"><span class="num">Unit ${unit}</span><h2>${title}</h2></div></section>
-    <p class="status count" role="status">${plural(items.length,'term')} · ${items.filter(it => (done[it.id] || 0) === it.questions.length).length} done</p>${todo ? `
-    <div class="actions scholar-todo"><button type="button" id="scholar-todo" class="primary" data-tone="scholar" data-scholar-next="${escape(todo.id)}">${nextLabel(`Study next: ${todo.term}`)}</button></div>` : ''}${review ? `
-    <div class="actions scholar-review-start"><button type="button" id="scholar-review" data-tone="scholar">Review this unit</button></div>` : ''}
-    <ul class="scholar-list">${items.map(row).join('')}</ul>
+    <div class="panel gloss-tools scholar-find"><label class="field" for="scholar-search">Find a term<input id="scholar-search" type="search" value="${escape(query)}" placeholder="Term or words, all units" autocomplete="off"></label></div>
+    <p class="status count" role="status">${searching ? `${plural(matches.length, 'match', 'matches')} in Block ${block.id}` : `${plural(items.length,'term')} · ${items.filter(it => (done[it.id] || 0) === it.questions.length).length} done`}</p>${lead}
+    <ul class="scholar-list">${(searching ? matches : items).map(row).join('')}</ul>
     <div class="navrow actions"><button id="back">${backLabel('Mode')}</button></div>`;
 }
-// Scholar question in the shape of a bank question, so its answers are the same tiles as in the other modes (answersHtml).
-export const scholarQuestion = qn => ({ id: qn.id, correctAnswerId: String(qn.key), answers: qn.answers.map((a, i) => ({ id: String(i), text: a.text, rationale: a.why })) });
 // The tiles of a Scholar question: the other modes' tiles, except that after the reveal a choice nobody picked stays neutral
 // and keeps its why.
 const scholarTiles = (qn, st) => answersHtml(scholarQuestion(qn), st, { assisted: true, neutralUnpicked: true });
-// tries: this question's picks in order. As in the other modes, a wrong pick flips with its own why (the Assisted flip);
-// the right pick or a second wrong one resolves the question and shows every why.
-export const scholarAnswerState = (qn, tries = [], max = 2) => {
-  const wrong = tries.filter(i => i !== qn.key).map(String);
-  return { order: qn.answers.map((_, i) => String(i)), resolved: tries.includes(qn.key) ? 'correct' : tries.length >= max ? 'revealed' : null, stage: 0, eliminated: [], flippedWrong: wrong, wrongIds: wrong };
-};
-// One branch decision in the answer-tile shape (2-3 choices; it ends after min(2, choices - 1) wrong picks).
-export const decisionQuestion = (qn, k) => ({ id: `${qn.id}-D${k}`, key: qn.steps[k].key, answers: qn.steps[k].choices });
 // One term. The sections form one connected accordion (linked together rather than as separate
 // pills), each open unless the reader closed it (open: {section: false}). The guided question mirrors the question
 // screen (q-sheet, #N heading, stem, answers, navrow with Next at the right, tool-row with Hint) and teaches: a Hint before
@@ -349,7 +347,7 @@ const TASK_LABEL = { tap: 'Tap the picture', order: 'Put in order', sort: 'Sort'
 // sort: a group 0/1 or null per item). Returns {body, over, feedback, wrongNow, check}.
 function guidedBody(item, qn, tries, draft) {
   const t = typeOf(qn);
-  draft ??= tries.length ? tries[tries.length - 1] : t === 'order' ? (qn.steps || []).map((_, i) => i) : t === 'sort' ? qn.items.map(() => null) : null;
+  draft ??= draftOf(qn, tries);
   const over = scholarResolved(qn, tries), ok = scholarRight(qn, tries);
   const end = over ? (ok ? 'Correct.' : 'Answer revealed. Read why each part is right or wrong.') : '';
   if (t === 'choose' || t === 'tap') {
@@ -371,7 +369,8 @@ function guidedBody(item, qn, tries, draft) {
         return `<li class="scholar-row${m ? ` is-${m}` : ''}" data-step="${si}"><span class="scholar-pos" aria-hidden="true">${pos + 1}</span><span class="scholar-row-text"><span>${escape(s0.text)}</span>${marks && !over ? `<span class="feedback-label">${markText(pos)}</span>` : ''}${over ? `<span class="back"><em>${escape(s0.why)}</em></span>` : ''}</span>${over ? '' : `<span class="scholar-move"><button type="button" class="small" data-move="${pos}" data-dir="-1" aria-label="Move up: ${escape(s0.text)}"${pos === 0 ? ' disabled' : ''}>${ICON.up}</button><button type="button" class="small" data-move="${pos}" data-dir="1" aria-label="Move down: ${escape(s0.text)}"${pos === shown.length - 1 ? ' disabled' : ''}>${ICON.down}</button></span>`}</li>`; }).join('');
       rows = `<ol class="scholar-rows scholar-order" aria-label="Steps, first to last">${rows}</ol>`;
     } else {
-      rows = qn.items.map((x, i) => { const g = shown[i], m = mark(i);
+      // Rows in the shuffled display order; each keeps its item index i (the radio name and the pick).
+      rows = rowOrder(qn).map(i => { const x = qn.items[i], g = shown[i], m = mark(i);
         const seg = qn.groups.map((name, k) => `<label><input type="radio" name="sort-${i}" value="${k}"${g === k ? ' checked' : ''}${over ? ' disabled' : ''}>${escape(name)}</label>`).join('');
         return `<li class="scholar-row${m ? ` is-${m}` : ''}"><fieldset><legend class="scholar-row-text"><span>${escape(x.text)}</span>${marks && !over ? `<span class="feedback-label">${m === 'right' ? 'Right group' : 'Wrong group'}</span>` : ''}${over ? `<span class="feedback-label">${escape(qn.groups[qn.key[i]])}</span><span class="back"><em>${escape(x.why)}</em></span>` : ''}</legend><div class="seg scholar-sort-seg" data-sort="${i}">${seg}</div></fieldset></li>`; }).join('');
       rows = `<ul class="scholar-rows scholar-sort">${rows}</ul>`;
@@ -439,8 +438,8 @@ export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, 
   const quiz = `<div class="scholar-q" data-type="${t}">${guidedSection(item, qn, g, hint)}
       <div class="navrow actions scholar-q-nav">${q > 0 ? `<button id="scholar-prev-q">${backLabel('Previous question')}</button>` : ''}${q < n - 1 ? `<button id="scholar-next-q"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Next question')}</button>` : ''}</div>
       ${started ? '<p class="scholar-reset"><button type="button" class="link-button" id="scholar-reset">Reset this term\'s questions</button></p>' : ''}</div>`;
-  // Term nav: Next term always at the right; All terms takes Previous term's place on the first
-  // term; the way back (Glossary / Card N) under them.
+  // Term nav: Next term always at the right (on a unit's last term: Next unit, its first term); All terms takes
+  // Previous term's place on the first term; the way back (Glossary / Card N) under them.
   const first = nav.previous ? `<button id="scholar-prev" data-scholar-item="${escape(nav.previous.id)}">${backLabel('Previous term')}</button>` : `<button id="scholar-list">${backLabel('All terms')}</button>`;
   const second = [nav.previous ? `<button id="scholar-list">${backLabel('All terms')}</button>` : '', back ? `<button id="scholar-return">${backLabel(back)}</button>` : ''].join('');
   return `<div class="page-head"><p class="label">Block ${block.id} · Scholar · Unit ${item.unit}</p><h1 id="scholar-term">${escape(item.term)}</h1></div>
@@ -449,7 +448,7 @@ export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, 
       <p class="scholar-also"><span class="label">Also covers</span> ${item.covers.map(c => `<button type="button" class="link-button" data-see="picture:${c.part}">${escape(c.term)}</button>`).join(' · ')}</p>` : ''}${related.length ? `
       <p class="scholar-related"><span class="label">Related</span> ${related.map(r => r.item ? `<button type="button" class="link-button" data-scholar-item="${escape(r.item)}"${Number.isInteger(r.part) ? ` data-part="${r.part}"` : ''}>${escape(r.term)}</button>` : `<button type="button" class="link-button term-link" data-term="${escape(r.id)}" aria-haspopup="dialog">${escape(r.term)}</button>`).join(' · ')}</p>` : ''}
       <div class="scholar-accordion">${item.picture ? section('picture', `Picture · ${item.picture.kind === 'steps' ? 'step through' : 'tap a part'}`, pictureHtml(item.picture, pic.index ?? 0, pic)) : ''}${section('deeper', 'Deeper explanation', text(item.deeper))}${section('analogy', 'Analogy', text(item.analogy))}${section('scenario', 'Sample scenario', text(item.scenario))}${section('example', 'Everyday example', exampleHtml(item.example))}${section('questions', `Guided question ${q + 1} of ${n}`, quiz)}</div></article>
-    <div class="navrow actions scholar-nav">${first}${nav.next ? `<button id="scholar-next" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.next.id)}">${nextLabel('Next term')}</button>` : ''}${second}</div>`;
+    <div class="navrow actions scholar-nav">${first}${nav.next ? `<button id="scholar-next" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.next.id)}">${nextLabel('Next term')}</button>` : nav.nextUnit ? `<button id="scholar-next-unit" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.nextUnit.id)}" aria-label="Next unit: Unit ${nav.nextUnit.unit}, ${escape(nav.nextUnit.term)}">${nextLabel('Next unit')}</button>` : ''}${second}</div>`;
 }
 
 // ---- Flash cards ----
