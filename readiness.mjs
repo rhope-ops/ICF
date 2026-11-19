@@ -27,7 +27,7 @@ const share = (correct, asked) => asked ? correct / asked : null;
  * The facts of one block for one player. Every number is about the block's Standard questions: Hard and Exam
  * questions have their own screens, and a question that left the bank is not counted.
  * @param {object} input The saved stats ({questions}), the bank ({questions, blocks}), examHistory (oldest first) and block (the block's id).
- * @returns {object} block, seen and total (Standard questions answered at least once, and all of them), correct and asked (first answers in study, exam answers left out), units (each with seen, total, correct, asked and state 'new' | 'weak' | 'ok'), targets (the units to study: weakest first, then new ones), fallback (true when no unit is weak or new and the lowest stand in), exam (the newest one: correct, size, pass; or null) and history (false when the player did nothing in this block).
+ * @returns {object} block, seen and total (Standard questions answered at least once, and all of them), correct and asked (first answers in study, exam answers left out), units (each with seen, total, correct, asked and state 'new' | 'weak' | 'ok'), targets (the units to study: weakest first, then new ones), fallback (true when no unit is weak or new and the lowest stand in), exam (the newest one: correct, size, pass; or null), history (false when the player has no Standard answer and no exam in this block) and started (true when the player answered any question of the block, Hard included).
  */
 export function readiness({stats, bank, examHistory, block}) {
   const info = bank.blocks.find(b => b.id === block), standard = questionsForMode(bank.questions, 'Unassisted').filter(q => q.block === block);
@@ -48,8 +48,10 @@ export function readiness({stats, bank, examHistory, block}) {
   const fallback = !weak.length && !fresh.length;
   const targets = fallback ? units.filter(u => u.asked).sort(byAccuracy).slice(0, FALLBACK_UNITS) : [...weak, ...fresh];
   const exams = examHistory.filter(h => h.block === block), last = exams.at(-1), all = tally(standard);
+  // started: any question of the block answered, Hard included (a Hard-only player has taken a quiz, but has no Standard facts).
+  const started = bank.questions.some(q => q.block === block && stats.questions[q.id]?.asked);
   return {block, ...all, total: standard.length, units, targets, fallback,
-    exam: last ? {correct: last.correct, size: last.size, pass: last.pass} : null, history: all.seen > 0 || exams.length > 0};
+    exam: last ? {correct: last.correct, size: last.size, pass: last.pass} : null, history: all.seen > 0 || exams.length > 0, started};
 }
 
 // The tone of a figure for each score class of scoreTone (the tones the app's cards and tags use).
@@ -61,23 +63,31 @@ const percentDown = ratio => `${Math.floor(ratio * 100 + FLOAT_GUARD)}%`;
 // Last exam: rounded to the nearest percent, as the Exam results screen shows the same exam.
 const percentNear = ratio => `${Math.round(ratio * 100)}%`;
 
+// The card's text for a block the player has not started: what the figures cannot say yet, and what to do first.
+const UNKNOWN = 'Unknown', START_FIRST = 'Take at least one quiz first';
+// figure: one item in the style of the card's counts row (a small label above a large value).
+const figure = (label, value, tint = '') => `<div${tint ? ` data-tone="${tint}"` : ''}><dt>${label}</dt><dd>${value}</dd></div>`;
+// wrap: the card part around its figures and its next line.
+const wrap = (block, figures, next) => `<div class="readiness" data-readiness="${block}"><dl class="block-figures readiness-figures">${figures}</dl>${next}</div>`;
+
 /**
- * The block card's part: the figures (the facts), and a line with the units the button takes. Empty for a block without history.
+ * The block card's part: the figures (the facts), and a line with the units the button takes. A block without
+ * history that the player has not started shows 0 seen, an unknown first try and what to do first; a block with Hard answers
+ * only, or without Standard questions, shows nothing.
  * Every weak unit is named; new units fill the line up to NAMED_UNITS names, the rest is "and N more".
  * @param {object} result A result of readiness().
  * @returns {string} HTML.
  */
 export function readinessHtml(result) {
-  if (!result.history) return '';
+  if (!result.history) return result.total && !result.started ? wrap(result.block, figure('Seen', `0<small> of ${result.total}</small>`) + figure('First try', UNKNOWN),
+    `<p class="readiness-next"><span class="label">Weak or new</span> ${START_FIRST}</p>`) : '';
   const first = share(result.correct, result.asked), tone = result.asked >= MIN_ASKED ? TONES[scoreTone(first)] : '';
-  // figure: one item in the style of the card's counts row (a small label above a large value).
-  const figure = (label, value, tint = '') => `<div${tint ? ` data-tone="${tint}"` : ''}><dt>${label}</dt><dd>${value}</dd></div>`;
   const figures = [figure('Seen', `${result.seen}<small> of ${result.total}</small>`),
     first === null ? '' : figure('First try', percentDown(first), tone),
     result.exam ? figure('Last exam', `${percentNear(result.exam.correct / result.exam.size)}<span class="sr-only"> ${result.exam.pass ? 'passed' : 'not passed'}</span>`, result.exam.pass ? 'good' : 'bad') : ''].join('');
   const weak = result.targets.filter(u => u.state === 'weak').length, shown = result.targets.slice(0, Math.max(NAMED_UNITS, weak)), more = result.targets.length - shown.length;
   const next = shown.length ? `<p class="readiness-next"><span class="label">${result.fallback ? 'Lowest' : 'Weak or new'}</span> ${shown.map(u => escape(u.title)).join(', ')}${more > 0 ? ` and ${more} more` : ''}</p>` : '';
-  return `<div class="readiness" data-readiness="${result.block}"><dl class="block-figures readiness-figures">${figures}</dl>${next}</div>`;
+  return wrap(result.block, figures, next);
 }
 
 // The button for the block card's actions row. Empty when there is nothing to target, and while a session is open:
