@@ -9,7 +9,7 @@ import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag,
 import * as screens from './screens.mjs';
 import { restoreGlossary, entryForCard, stemLinks, popover, keyTerms, searchEntries, restoreBookmarks } from './glossary.mjs';
 import { restoreScholar, addScholarBlock, blockLoaded, restoreScholarState, refitScholarState, scholarStateShape, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey, reviewDeck, draftOf, picMs, progressOf, listModel, nextUnit } from './scholar.mjs';
-import { pictureHtml, stepKey, moveFrom } from './pictures.mjs';
+import { pictureHtml, stepKey, moveFrom } from './pictures.mjs'; import { FIRST_SESSION_SIZE, FIRST_SESSION_MODE, FIRST_SESSION_ORDER, firstRun, renderFirstBlock, installStudyKeys } from './faststart.mjs';
 const $ = s => document.querySelector(s);
 const main = $('#main'), dialog = $('#dialog');
 let local;
@@ -130,7 +130,7 @@ document.addEventListener('keydown',event=>{
   const index=exam.index;sendExam(ev);
   if(step==='exam'&&exam.index!==index){$('#exam-stem')?.focus({preventScroll:true});showExamQuestion();}
 });
-document.addEventListener('pointerdown',event=>{if(tools.isOpen()&&!event.target.closest('header'))tools.close();});
+document.addEventListener('pointerdown',event=>{if(tools.isOpen()&&!event.target.closest('header'))tools.close();}); installStudyKeys(()=>step==='study'&&sessionOpen()&&!session.paused&&session.viewIndex==null&&!dialog.open&&!tools.isOpen(),()=>main.querySelectorAll('[data-answer]'));  // study keys 1-4
 $('#tools-panel').addEventListener('click',event=>{if(event.target.closest('button'))tools.close();});
 // A new quiz session gets its own stats identity, an empty save box and an immediate save.
 function startSession(pool,options,kind='random'){session={...start(pool,options),id:crypto.randomUUID(),poolKind:kind};noteBlock(session.questions[0]?.block??blockId);pendingCard=null;resultsKind='study';updateStats();save();last=performance.now();}
@@ -376,7 +376,7 @@ function chooseBlock(id, next = 'units') {
 // Nav bar: Blocks · Mode · Study · Results. Unavailable items stay visible and disabled. Study is one link for Questions,
 // Cards and Glossary: it opens the one used last. A lit item on a sub-screen (a setup, Saved card sets, Previous
 // Attempts) opens its section's main screen; only on the main screen itself does a tap do nothing.
-const SCREEN_OF={blocks:'blocks','saved-card-sets':'blocks',units:'units','not-understood-setup':'units',mode:'units','cards-setup':'units','exam-setup':'units',exam:'units',scholar:'units',glossary:'study',study:'study','flash-card':'study','missed-review':'results',results:'results','exam-results':'results','previous-attempts':'results'};
+const SCREEN_OF={blocks:'blocks','first-block':'blocks','saved-card-sets':'blocks',units:'units','not-understood-setup':'units',mode:'units','cards-setup':'units','exam-setup':'units',exam:'units',scholar:'units',glossary:'study',study:'study','flash-card':'study','missed-review':'results',results:'results','exam-results':'results','previous-attempts':'results'};
 // Saved card sets belongs to the section it was opened from (Blocks, or Mode through the Cards setup).
 const sectionOf = at => at === 'saved-card-sets' ? (setsReturn === 'units' ? 'units' : 'blocks') : SCREEN_OF[at];
 const MAIN_SCREEN = {blocks:['blocks'], units:['units'], results:['results','exam-results']};
@@ -523,9 +523,9 @@ function render() {if(['study','flash-card','glossary'].includes(step))lastStudy
   if (step === 'welcome') {
     main.innerHTML = screens.welcomeHtml({nickname:profile.nickname, open:sessionOpen()});
     const keepName = () => { profile={nickname:$('#nickname').value.trim(),visited:true}; persist('profile',profile); };
-    $('#welcome').onsubmit = e => { e.preventDefault(); keepName(); navigate('blocks'); };
+    $('#welcome').onsubmit = e => { e.preventDefault(); const visited=profile.visited; keepName(); navigate(firstRun({visited,answered:Object.keys(stats.questions).length,session,exams:examHistory.length,lastBlock})?'first-block':'blocks'); };  // Fast start: only the first Start on this device asks for the block
     if ($('#welcome-resume')) $('#welcome-resume').onclick = () => { keepName(); resumeStudy(); };
-  } else if (step === 'blocks') {
+  } else if (step === 'first-block') renderFirstBlock(main,{blocks:bank.blocks,setup:()=>navigate('blocks'),help:()=>$('#help').click(),start:b=>{blockId=b;units=allUnits();mode=FIRST_SESSION_MODE;const pool=selectQuestions(available(),FIRST_SESSION_SIZE,FIRST_SESSION_ORDER);if(!pool.length)return navigate('blocks');startSession(pool,{version:bank.version,mode},FIRST_SESSION_ORDER);navigate('study');}}); else if (step === 'blocks') {
     renderBlocks();
   } else if (step === 'units') renderHub();
   else if (step === 'cards-setup') renderCardsSetup();

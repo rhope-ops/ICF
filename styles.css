@@ -289,6 +289,8 @@ footer{text-align:center;color:var(--muted);font-size:var(--t1);padding:0 16px m
 .comm-badge{display:block;width:300px;max-width:100%;aspect-ratio:1817/866;background:var(--blue);-webkit-mask:url("./usaf-comm-badge.webp") center/contain no-repeat;mask:url("./usaf-comm-badge.webp") center/contain no-repeat;@media (max-width:640px){width:240px}}
 .lede{font-size:var(--t5);color:var(--muted)}
 .welcome-form{gap:16px}
+.first-blocks{display:grid;gap:12px;& .card strong{font-size:var(--t5);font-weight:700;text-transform:uppercase;letter-spacing:.02em}}
+.first-links{margin:0;display:flex;flex-wrap:wrap;gap:4px 24px}
 .welcome-actions{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:12px;& button{width:100%}@media (max-width:640px){grid-auto-flow:row}}
 .privacy-note{font-size:var(--t2);color:var(--muted)}
 .hub-head{grid-template-columns:minmax(0,1fr) auto;column-gap:16px;& .comm-badge{grid-column:2;grid-row:1/span 2;align-self:center;width:140px}@media (max-width:640px){& .comm-badge{width:96px}}}

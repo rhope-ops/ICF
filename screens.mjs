@@ -642,7 +642,7 @@ export function cardFlagContext(card) {
 const HELP=[
   ['Start','Pick a block, then the units, how many questions and a mode.'],
   ['Modes','Assisted shows the key terms after a short wait, then removes wrong choices. Unassisted gives no timed help; Hint highlights the key terms. Hard asks harder scenario questions with no help.'],
-  ['Random or Smart','Random mixes the selected units. Smart shows unseen questions first, then missed ones.'],
+  ['Random or Smart','Random mixes the selected units. Smart shows unseen questions first, then missed ones.'], ['Keys','In a question, press 1 to 4 to answer and Enter to continue.'],
   ['After you answer','Read the explanation. Source shows the course text it comes from. Outside Hard, tap a key term for its glossary definition.'],
   ['Flash cards','SAVE puts the question\u2019s card in your Manual set. With Dynamic Flash Cards on, missed questions go to the Missed Questions set.'],
   ['Marked for review','Questions you miss in practice wait on the Blocks screen until you say you mastered them.'],
