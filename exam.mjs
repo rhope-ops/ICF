@@ -2,6 +2,7 @@
 // and randomness, so tests can drive every transition. No DOM, storage or network access here.
 // Fixed format: 30 questions, 60:00 on a wall-clock deadline, no pause, pass at 70% (21 of 30).
 import { shuffle } from './engine.mjs';
+import { servedIn } from './storage.mjs';
 
 export const EXAM = Object.freeze({ size: 30, limitMs: 60 * 60 * 1000, passRatio: 0.7 });
 // 21 of 30. The small epsilon keeps 0.7 * 30 from rounding to 22.
@@ -315,7 +316,7 @@ export function restoreExam(raw, bank, random = Math.random) {
     if (!raw || raw.schema !== 1 || raw.kind !== 'exam' || typeof raw.id !== 'string' || !raw.id) return null;
     if (raw.version !== bank.version) {
       const pinned = bank.migrations?.find(m => m.version === raw.version);
-      if (!pinned || !Array.isArray(raw.pool) || raw.pool.some(id => !Object.hasOwn(pinned.questionHashes, id))) return null;
+      if (!pinned || !Array.isArray(raw.pool) || raw.pool.some(id => !servedIn(pinned, bank, id))) return null;
       raw = followForm(raw, bank, random);
     }
     const byId = new Map(bank.questions.map(q => [q.id, q]));

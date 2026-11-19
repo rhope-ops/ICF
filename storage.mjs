@@ -176,6 +176,36 @@ export function updateFlags(store, flags, key, entry) {
 }
 // A saved on/off setting: anything but a boolean falls back.
 export const savedBoolean = (value, fallback) => typeof value === 'boolean' ? value : fallback;
+/**
+ * Whether a question ID was served in a migration's version. A full migration pins every question's hash
+ * (questionHashes); a short one pins only the questions whose served record differs from this bank (changed) and lists
+ * this bank's questions that the old version did not serve (absent); every other question of this bank is unchanged.
+ * @param {object} migration One entry of bank.migrations.
+ * @param {object} bank The validated current bank.
+ * @param {string} id A question ID.
+ * @returns {boolean} True when that version served the ID.
+ */
+export function servedIn(migration, bank, id) {
+  if (migration.questionHashes) return Object.hasOwn(migration.questionHashes, id);
+  return Object.hasOwn(migration.changed, id) || (!migration.absent.includes(id) && bank.questions.some(q => q.id === id));
+}
+/**
+ * Whether a saved full question record is exactly the record that the migration's version served.
+ * @param {object} migration One entry of bank.migrations.
+ * @param {object} bank The validated current bank.
+ * @param {object} q A saved question record.
+ * @returns {Promise<boolean>} True on an exact match (sha256 of JSON.stringify, or the unchanged current record).
+ */
+async function servedRecord(migration, bank, q) {
+  const pinned = migration.questionHashes ? migration.questionHashes[q.id] : migration.changed[q.id];
+  if (pinned === undefined && !migration.questionHashes) {
+    const now = servedIn(migration, bank, q.id) && bank.questions.find(x => x.id === q.id);
+    return Boolean(now) && JSON.stringify(now) === JSON.stringify(q);
+  }
+  const bytes = new TextEncoder().encode(JSON.stringify(q));
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join('');
+  return pinned === hash;
+}
 // Migrate only exact, hash-pinned old served records from this authorized wording revision.
 // Corrupt/mismatched snapshots still flow to the usual restore rejection.
 export async function migrateSession(saved, bank) {
@@ -183,14 +213,10 @@ export async function migrateSession(saved, bank) {
   if(!migration)return saved;
   const compact=saved.contentRef===saved.version&&saved.questions===undefined;
   if(compact){
-    if(!Array.isArray(saved.pool)||saved.pool.some(id=>!Object.hasOwn(migration.questionHashes,id)))return saved;
+    if(!Array.isArray(saved.pool)||saved.pool.some(id=>!servedIn(migration,bank,id)))return saved;
   }else{
     if(!Array.isArray(saved.questions))return saved;
-    for(const q of saved.questions){
-      const bytes=new TextEncoder().encode(JSON.stringify(q));
-      const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(b=>b.toString(16).padStart(2,'0')).join('');
-      if(migration.questionHashes[q.id]!==hash)return saved;
-    }
+    for(const q of saved.questions)if(!await servedRecord(migration,bank,q))return saved;
   }
   const allowed=new Set(bank.questions.map(q=>q.id));
   const next=structuredClone(saved);delete next.contentRef;
