@@ -21,7 +21,7 @@ export function poolKindControl({kind}) {
 }
 const dynamicControl = on => `<label class="card row" id="dynamic-choice"><input id="dynamic-cards" type="checkbox" aria-describedby="dynamic-help" ${on?'checked':''}><span><strong>Dynamic Flash Cards</strong><em id="dynamic-help">Automatically save missed questions as flash cards.</em></span></label>`;
 // Mode cards: the Mode screen and Marked practice use the same cards.
-const MODE_HELP={Assisted:'Timed key terms, then removes wrong choices.',Unassisted:'No timed help. Hint is available.',Hard:'Professional questions. No help. Gamers only.'};
+const MODE_HELP={Assisted:'Timed key terms, then removes wrong choices.',Unassisted:'No timed help. Hint is available.',Hard:'Harder scenario questions. No help.'};
 // Mode is the help level only: Exam has its own entry under the study setup.
 export const modeCards=(name,current)=>STUDY_MODES.map(m=>`<label class="card" data-tone="${m==='Hard'?'gold':'blue'}"><input type="radio" name="${name}" value="${m}" ${current===m?'checked':''}><strong>${m}</strong><span>${MODE_HELP[m]}</span></label>`).join('');
 // Pool chips. A selection smaller than the first size shows its own count in that
@@ -638,6 +638,21 @@ export function cardFlagContext(card) {
   const side = card.flipped ? (card.initialSide === 'definition' ? 'term' : 'definition') : card.initialSide;
   return {side, text: side === 'term' ? card.term : card.definition, ...(card.hintUsed ? {cue: card.reviewCue} : {})};
 }
+
+// How to use (Settings menu): one short line per feature, for a first-time player.
+const HELP=[
+  ['Start','Pick a block, then the units, how many questions and a mode.'],
+  ['Modes','Assisted shows the key terms after a short wait, then removes wrong choices. Unassisted gives no timed help; Hint highlights the key terms. Hard asks harder scenario questions with no help.'],
+  ['Random or Smart','Random mixes the selected units. Smart shows unseen questions first, then missed ones.'],
+  ['After you answer','Read the explanation. Source shows the course text it comes from. Outside Hard, tap a key term for its glossary definition.'],
+  ['Flash cards','SAVE puts the question\u2019s card in your Manual set. With Dynamic Flash Cards on, missed questions go to the Missed Questions set.'],
+  ['Marked for review','Questions you miss in practice wait on the Blocks screen until you say you mastered them.'],
+  ['Exam','30 questions in 60 minutes, no pause. 21 correct (70%) passes.'],
+  ['Scholar','Short lessons with a picture and two practice questions. They do not count in your results.'],
+  ['Flag','Report a problem with a question or card. Settings \u203a Diagnostics downloads or copies your notes to send.'],
+  ['Your data','Progress stays in this browser only. Settings \u203a Delete Local Data clears it.'],
+];
+export const helpHtml = () => `<ul class="help-list">${HELP.map(([t,d])=>`<li><strong>${t}</strong><span>${d}</span></li>`).join('')}</ul>`;
 
 // Diagnostics: one row per saved note (ID, Question or Card tag, question text, note, Edit), then Download and Copy.
 export function diagnosticsHtml(flags, bank) {

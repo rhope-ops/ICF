@@ -324,6 +324,7 @@ function diagnostics() {
   const browser=/Edg\//.test(ua)?'Edge':/Firefox\//.test(ua)?'Firefox':/Chrome\//.test(ua)?'Chrome':/Safari\//.test(ua)?'Safari':'Other';
   return diagnosticReport({deviceId,platform,browser,version:bank.version,flags,session});
 }
+$('#help').onclick = () => showDialog('How to use', screens.helpHtml());
 $('#reviews').onclick = () => {
   if (!bank) { notice('Diagnostics needs the study content. Reload the page.'); return; }
   const n = Object.keys(flags).length;
@@ -1263,7 +1264,7 @@ try {
   const saved=read('session'), scholarSaved=saved?.mode==='Scholar';
   session=scholarSaved?null:restoreSession(await migrateSession(saved,bank),bank);
   if(lastBlock===null&&session)noteBlock(session.questions[0]?.block); // upgrade: an open session names the last block
-  if(scholarSaved){persist('session',null);notice('Your session from the old Scholar mode (removed in 1.2.3) was closed; its answers stay in your stats.');}
+  if(scholarSaved){persist('session',null);notice('Your session from an older Scholar mode was closed; its answers stay in your stats.');}
   if(session&&!POOL_KINDS.includes(session.poolKind))delete session.poolKind;
   understanding=migrateLearning(understanding,bank);saveUnderstanding();
   missedReview=restoreReview(migrateReview(read('missedReview'),bank),bank);
