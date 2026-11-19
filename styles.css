@@ -436,7 +436,7 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 /* Text on a system-color fill: no backplate (the OS paints Canvas behind text otherwise). */
 :is(.seg label:has(input:checked),.item.picked .letter,.exam-cell.answered,.exam-clock.low){forced-color-adjust:none}
 [data-screen-link]{border-color:Canvas;&[aria-current="page"]{color:Highlight;border-color:Highlight}}
-.knob{background:GrayText}
+.knob{background:GrayText;& svg{stroke:Canvas}}
 .sw-input:checked+.track-sw{border-color:Highlight;& .knob{background:Highlight}}
 .card:has(input:checked){border-color:Highlight;& >strong{color:Highlight;&::after{content:" \2713"/""}}}
 .seg label:has(input:checked){background:Highlight;color:HighlightText;&.pool-fit{background:Mark;color:MarkText}}
@@ -448,7 +448,7 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 .cell.now{outline:2px solid Highlight;outline-offset:1px}
 :is(.cell.now:not(.ok):not(.miss):not(.retry),.ledger .legend .now){background:Highlight;border-color:Highlight}
 .exam-cell.answered,.exam-ledger .legend .answered{background:CanvasText;border-color:CanvasText;color:Canvas}
-.exam-cell.now{outline:3px solid Highlight;outline-offset:2px}
+.exam-cell.now{outline:3px solid Highlight;outline-offset:2px;&:focus-visible{outline-style:double;outline-width:7px}}
 .exam-ledger .legend .now{border:2px solid Highlight}
 :is(.exam-cell.flagged::after,.exam-ledger .legend .flagged){forced-color-adjust:none;border-color:transparent CanvasText transparent transparent;background:none}
 .exam-cell.answered.flagged::after{border-color:transparent Canvas transparent transparent}
@@ -460,10 +460,19 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 .exam-col.current{outline:2px solid Highlight;outline-offset:2px}
 .stats{background:CanvasText;border-color:CanvasText}
 .context-link{border-color:Highlight}
-.pic{& :is(.pic-shape,.pic-line,.pic-link line){stroke:CanvasText}& .pic-trunk .pic-trunk-core{stroke:Canvas}& :is(.pic-label,.pic-mono,.pic-group-label){fill:CanvasText}
-  & .pic-group rect{fill:Canvas;stroke:CanvasText}& .pic-packet rect{fill:Highlight}& .pic-packet-text{fill:HighlightText}
+/* Chromium does not force SVG fill and stroke: every picture paint is a system color here. Shape bodies take Canvas, so
+   their inner lines show; label halos take the color behind them. */
+.pic{& :is(.pic-shape,.pic-line,.pic-link line){stroke:CanvasText}& .pic-shape{fill:Canvas}& .pic-port{fill:CanvasText}& .pic-trunk .pic-trunk-core{stroke:Canvas}
+  & :is(.pic-label,.pic-mono,.pic-group-label){fill:CanvasText;stroke:Canvas}& .is-on .pic-port{fill:Highlight}& .is-on .pic-mono{stroke:Highlight}
+  & .pic-group rect{fill:Canvas;stroke:CanvasText}& .pic-packet rect{fill:Highlight}& .pic-packet-text{fill:HighlightText;stroke:none}
   & .is-on :is(.pic-shape,line,rect){stroke:Highlight}& .is-on .pic-row-bg{fill:Highlight}& .is-on .pic-mono{fill:HighlightText}}
 .pic-parts [aria-pressed="true"]{border-color:Highlight;color:Highlight}
+/* Tap board: the key solid in Highlight, a wrong pick short dashes with gaps three times as long (butt caps, so the gaps
+   stay open at any width), so the result is a shape as well as a hue. Rest dashes have shorter gaps: 4 3 and 6 3, and
+   2 3 on the third VLAN group, where the wrong mark also differs by its wider stroke. */
+.scholar-tap{& [data-tap-state="right"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:Highlight;stroke-dasharray:none}
+  & [data-tap-state="wrong"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:CanvasText;stroke-dasharray:2 6;stroke-linecap:butt}
+  @media (hover:hover){&:not(.is-done) [data-tap]:not([data-tap-state]):hover :is(.pic-shape,line:not(.pic-hit),rect){stroke:Highlight}}}
 }
 }
 /* Block list: each block is a details row; open shows figures and actions. Margins, not gap, inside
