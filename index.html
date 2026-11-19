@@ -18,8 +18,8 @@ const apply=()=>{const resolved=choice==='system'?(media.matches?'dark':'light')
 window.icfTheme={defaultChoice,get choice(){return choice;},set(value){choice=choices.includes(value)?value:defaultChoice;apply();}};
 apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})();
 </script>
-<script type="application/json" id="release-files">{"analytics.mjs":"0af44d95aa6a","app.mjs":"f4b7ba19dbce","diagnostics.mjs":"18d3356a6e91","engine.mjs":"a6c9f176629d","exam.mjs":"abdc3d956bdb","faststart.mjs":"06bcf4dad50d","flashcards.mjs":"c5aeea229f78","font-display-500.woff2":"460f141ec8f6","font-display-600.woff2":"215a93c696f4","font-display-700.woff2":"3787a5a41917","font-display-italic-500.woff2":"ff26c7788041","glossary.json":"cd0012b57057","glossary.mjs":"ac8a3cf6593f","learning.mjs":"f53485b76ccc","pagecount.mjs":"5ca6c0c64cb0","pictures.mjs":"d2097d185427","presentation.mjs":"329563e0f754","questions.json":"6362295dea73","reader.mjs":"9af1d6c46c2b","readiness.mjs":"4afa9e886d3c","scholar-B3.json":"685ace4a42d0","scholar-B5.json":"c933b03eb41b","scholar.json":"255f875a26d8","scholar.mjs":"34fe13a70cf8","screens.mjs":"b215a39a23d1","source-links.json":"9caae61fb015","sources.mjs":"89fddc3b8698","storage.mjs":"63fee627618d","styles.css":"330710823f9c","usaf-comm-badge.webp":"98f0f038021a"}</script>
-<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=0af44d95aa6a","./app.mjs":"./app.mjs?v=f4b7ba19dbce","./diagnostics.mjs":"./diagnostics.mjs?v=18d3356a6e91","./engine.mjs":"./engine.mjs?v=a6c9f176629d","./exam.mjs":"./exam.mjs?v=abdc3d956bdb","./faststart.mjs":"./faststart.mjs?v=06bcf4dad50d","./flashcards.mjs":"./flashcards.mjs?v=c5aeea229f78","./glossary.mjs":"./glossary.mjs?v=ac8a3cf6593f","./learning.mjs":"./learning.mjs?v=f53485b76ccc","./pagecount.mjs":"./pagecount.mjs?v=5ca6c0c64cb0","./pictures.mjs":"./pictures.mjs?v=d2097d185427","./presentation.mjs":"./presentation.mjs?v=329563e0f754","./reader.mjs":"./reader.mjs?v=9af1d6c46c2b","./readiness.mjs":"./readiness.mjs?v=4afa9e886d3c","./scholar.mjs":"./scholar.mjs?v=34fe13a70cf8","./screens.mjs":"./screens.mjs?v=b215a39a23d1","./sources.mjs":"./sources.mjs?v=89fddc3b8698","./storage.mjs":"./storage.mjs?v=63fee627618d"}}</script>
+<script type="application/json" id="release-files">{"analytics.mjs":"0af44d95aa6a","app.mjs":"f4b7ba19dbce","diagnostics.mjs":"3b2d37fd73d4","engine.mjs":"a6c9f176629d","exam.mjs":"abdc3d956bdb","faststart.mjs":"06bcf4dad50d","flashcards.mjs":"c5aeea229f78","font-display-500.woff2":"460f141ec8f6","font-display-600.woff2":"215a93c696f4","font-display-700.woff2":"3787a5a41917","font-display-italic-500.woff2":"ff26c7788041","glossary.json":"eb7234659a4f","glossary.mjs":"ac8a3cf6593f","learning.mjs":"f53485b76ccc","pagecount.mjs":"5ca6c0c64cb0","pictures.mjs":"d2097d185427","presentation.mjs":"329563e0f754","questions.json":"ffa2a69eb681","reader.mjs":"9af1d6c46c2b","readiness.mjs":"4afa9e886d3c","scholar-B3.json":"2c0360bf2b63","scholar-B5.json":"c933b03eb41b","scholar.json":"eae3fdad6e5a","scholar.mjs":"34fe13a70cf8","screens.mjs":"b215a39a23d1","source-links.json":"5605b4e2fcd4","sources.mjs":"89fddc3b8698","storage.mjs":"63fee627618d","styles.css":"330710823f9c","usaf-comm-badge.webp":"98f0f038021a"}</script>
+<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=0af44d95aa6a","./app.mjs":"./app.mjs?v=f4b7ba19dbce","./diagnostics.mjs":"./diagnostics.mjs?v=3b2d37fd73d4","./engine.mjs":"./engine.mjs?v=a6c9f176629d","./exam.mjs":"./exam.mjs?v=abdc3d956bdb","./faststart.mjs":"./faststart.mjs?v=06bcf4dad50d","./flashcards.mjs":"./flashcards.mjs?v=c5aeea229f78","./glossary.mjs":"./glossary.mjs?v=ac8a3cf6593f","./learning.mjs":"./learning.mjs?v=f53485b76ccc","./pagecount.mjs":"./pagecount.mjs?v=5ca6c0c64cb0","./pictures.mjs":"./pictures.mjs?v=d2097d185427","./presentation.mjs":"./presentation.mjs?v=329563e0f754","./reader.mjs":"./reader.mjs?v=9af1d6c46c2b","./readiness.mjs":"./readiness.mjs?v=4afa9e886d3c","./scholar.mjs":"./scholar.mjs?v=34fe13a70cf8","./screens.mjs":"./screens.mjs?v=b215a39a23d1","./sources.mjs":"./sources.mjs?v=89fddc3b8698","./storage.mjs":"./storage.mjs?v=63fee627618d"}}</script>
 <link rel="preload" href="./font-display-500.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-700.woff2" as="font" type="font/woff2" crossorigin>
@@ -36,7 +36,7 @@ apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})(
 <link rel="modulepreload" href="./pictures.mjs?v=d2097d185427">
 <link rel="modulepreload" href="./learning.mjs?v=f53485b76ccc">
 <link rel="modulepreload" href="./exam.mjs?v=abdc3d956bdb">
-<link rel="modulepreload" href="./diagnostics.mjs?v=18d3356a6e91">
+<link rel="modulepreload" href="./diagnostics.mjs?v=3b2d37fd73d4">
 </head>
 <body>
 <a class="skip" href="#main">Skip to study content</a>
@@ -63,7 +63,7 @@ apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})(
 <p id="answer-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 <p id="storage-notice" role="status"></p>
 <footer>
-<span id="app-version">ICF Companion v2.7.6 · 19 Nov 2026</span>
+<span id="app-version">ICF Companion v2.7.7 · 19 Nov 2026</span>
 </footer>
 <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
 <script type="module" src="./app.mjs?v=f4b7ba19dbce"></script>
