@@ -1,4 +1,4 @@
-export const APP_VERSION = '2.9.5';
+export const APP_VERSION = '2.9.6';
 export function diagnosticReport({deviceId, platform, browser, version, flags, session, now = new Date().toISOString()}) {
   if (!/^[a-f0-9-]{36}$/.test(deviceId)) throw Error('Invalid device identifier');
   return {schema:1,purpose:'ICF Companion diagnostic submission',appVersion:APP_VERSION,createdAt:now,
