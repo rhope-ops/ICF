@@ -116,7 +116,7 @@ button{font:700 var(--t4)/1 var(--f);letter-spacing:.06em;text-transform:upperca
 /* glossary entry pools, Standard then Hard (gold), side by side when they fit, else stacked full width. */
 .gloss-pools{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));margin-top:12px}
 .navrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;& >button{width:100%}}
-.tool-row{display:flex;justify-content:space-between;gap:10px;& >button{min-width:calc((100% - 10px)/6);min-height:44px;padding:0 14px;font-size:var(--t3);&:only-child{margin-left:auto}}}
+.tool-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;& >button{min-width:calc((100% - 10px)/6);min-height:44px;padding:0 14px;font-size:var(--t3);&:only-child{margin-left:auto}}}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 /* Inputs. Selects sit in a .selwrap, which draws the disclosure chevron. */
 :is(input,select,textarea){font:inherit;font-weight:500;color:var(--ink)}
