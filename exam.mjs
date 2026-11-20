@@ -307,7 +307,8 @@ export function restoreHistory(raw) {
 
 // Saved exam (in progress or the last submitted one). Anything that does not match the current bank is dropped.
 // An exam saved under an earlier content version is kept (and moved to this version) when that version is a pinned
-// migration of the bank and every question in it is still served: the same rule as compact study sessions.
+// migration of the bank and every question in it is still served: the same rule as compact study sessions. The migrations
+// are those attached from migrations.json (storage.attachMigrations); without them an older exam is not restored.
 // A form exam must hold exactly its form; an older exam (no form) must hold questions its mix allowed, so an
 // exam in progress from before forms stays resumable and still counts in stats, but not toward the form cycle.
 // A form exam in progress whose form changed since it was saved keeps going (followForm, below).

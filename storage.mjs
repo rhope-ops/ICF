@@ -81,7 +81,74 @@ export function validateBank(bank) {
         f.rules !== undefined && (!Array.isArray(f.rules) || f.rules.some(r => typeof r !== 'string'))) throw Error('Invalid exam forms');
     }
   }
+  // Save migration versions, optional: in order, unique, never this bank's own version. The migrations themselves are in
+  // migrations.json (attachMigrations), fetched only for an old saved session or exam.
+  const versions = bank.migrationVersions;
+  if (versions !== undefined && (!Array.isArray(versions) || new Set(versions).size !== versions.length ||
+    versions.some(v => typeof v !== 'string' || !v || v === bank.version))) throw Error('Invalid save migration list');
   return bank;
+}
+// A pinned question hash: sha256 hex of the question record (servedRecord).
+const HASH = /^[0-9a-f]{64}$/;
+// isMap: a plain object whose every entry passes ok(key, value).
+const isMap = (v, ok) => Boolean(v) && typeof v === 'object' && !Array.isArray(v) && Object.entries(v).every(([k, x]) => ok(k, x));
+// pinsHash: one pin entry, a question ID to its hash.
+const pinsHash = (id, h) => Boolean(id) && typeof h === 'string' && HASH.test(h);
+/**
+ * Whether one migrations.json entry has the shape that migrateSession, servedIn and the exam form follow read.
+ * @param {object} m The entry.
+ * @param {string} version The version that migrationVersions names at the same place.
+ * @returns {boolean} True for a full entry (questionHashes) or a short one (changed and absent), with optional
+ *   preserveTiming (boolean) and examFormChanges (block, form, old ID to new ID).
+ */
+function validMigration(m, version) {
+  if (!m || typeof m !== 'object' || Array.isArray(m) || m.version !== version) return false;
+  const full = m.questionHashes !== undefined;
+  const keys = ['version', 'preserveTiming', 'examFormChanges', ...(full ? ['questionHashes'] : ['changed', 'absent'])];
+  if (Object.keys(m).some(k => !keys.includes(k))) return false;
+  if (full ? !isMap(m.questionHashes, pinsHash) || !Object.keys(m.questionHashes).length
+    : !isMap(m.changed, pinsHash) || !Array.isArray(m.absent) || new Set(m.absent).size !== m.absent.length ||
+      m.absent.some(id => typeof id !== 'string' || !id || Object.hasOwn(m.changed, id))) return false;
+  if (m.preserveTiming !== undefined && typeof m.preserveTiming !== 'boolean') return false;
+  return m.examFormChanges === undefined || isMap(m.examFormChanges, (block, forms) => /^[1-9]\d*$/.test(block) &&
+    isMap(forms, (form, moves) => /^[A-Z]$/.test(form) && isMap(moves, (from, to) => Boolean(from) && typeof to === 'string' && Boolean(to))));
+}
+/**
+ * The bank with its save migrations from migrations.json.
+ * @param {object} bank The validated bank (validateBank).
+ * @param {object} raw The parsed migrations.json.
+ * @returns {object} A copy of the bank with migrations, in migrationVersions order.
+ * @throws {Error} When the file belongs to another bank version, names other versions or another order, or holds an
+ *   entry of the wrong shape or a bad text reference.
+ */
+export function attachMigrations(bank, raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw Error('Invalid save migrations');
+  const file = expandBank(raw), versions = bank.migrationVersions ?? [];
+  if (Object.keys(file).some(k => !['bankVersion', 'migrations'].includes(k)) || file.bankVersion !== bank.version ||
+    !Array.isArray(file.migrations) || file.migrations.length !== versions.length ||
+    file.migrations.some((m, i) => !validMigration(m, versions[i]))) throw Error('Invalid save migrations');
+  return { ...bank, migrations: file.migrations };
+}
+/**
+ * Whether any of the saves (a saved session or exam) was made on a version that needs the migrations file.
+ * @param {object} bank The validated bank.
+ * @param {...any} saves The raw saved values; null, a current save or an unknown version needs nothing.
+ * @returns {boolean} True when a save's version is in migrationVersions.
+ */
+export const needsMigrations = (bank, ...saves) =>
+  saves.some(s => Boolean(s) && typeof s === 'object' && (bank.migrationVersions ?? []).includes(s.version));
+/**
+ * The bank for restoring the saves: with the migrations attached when a save needs them.
+ * @param {object} bank The validated bank.
+ * @param {Array} saves The raw saved session and exam.
+ * @param {Function} load Returns (a promise of) the parsed migrations.json.
+ * @returns {Promise<{bank: object, held: boolean}>} held is true when the file was needed but could not be loaded or
+ *   was invalid: the caller then restores nothing and keeps the saves for the next start.
+ */
+export async function withMigrations(bank, saves, load) {
+  if (!needsMigrations(bank, ...saves)) return { bank, held: false };
+  try { return { bank: attachMigrations(bank, await load()), held: false }; }
+  catch { return { bank, held: true }; }
 }
 export function restoreSession(saved, bank) {
   try {
@@ -180,7 +247,7 @@ export const savedBoolean = (value, fallback) => typeof value === 'boolean' ? va
  * Whether a question ID was served in a migration's version. A full migration pins every question's hash
  * (questionHashes); a short one pins only the questions whose served record differs from this bank (changed) and lists
  * this bank's questions that the old version did not serve (absent); every other question of this bank is unchanged.
- * @param {object} migration One entry of bank.migrations.
+ * @param {object} migration One entry of bank.migrations (attachMigrations).
  * @param {object} bank The validated current bank.
  * @param {string} id A question ID.
  * @returns {boolean} True when that version served the ID.
@@ -191,7 +258,7 @@ export function servedIn(migration, bank, id) {
 }
 /**
  * Whether a saved full question record is exactly the record that the migration's version served.
- * @param {object} migration One entry of bank.migrations.
+ * @param {object} migration One entry of bank.migrations (attachMigrations).
  * @param {object} bank The validated current bank.
  * @param {object} q A saved question record.
  * @returns {Promise<boolean>} True on an exact match (sha256 of JSON.stringify, or the unchanged current record).
@@ -207,7 +274,7 @@ async function servedRecord(migration, bank, q) {
   return pinned === hash;
 }
 // Migrate only exact, hash-pinned old served records from this authorized wording revision.
-// Corrupt/mismatched snapshots still flow to the usual restore rejection.
+// Corrupt/mismatched snapshots still flow to the usual restore rejection. Needs the attached migrations (attachMigrations).
 export async function migrateSession(saved, bank) {
   const migration=bank.migrations?.find(m=>m.version===saved?.version);
   if(!migration)return saved;
@@ -250,10 +317,11 @@ export async function migrateSession(saved, bank) {
   next.version=bank.version;
   return next;
 }
+// Learning and review records migrate from the version list alone (migrationVersions): no migrations file needed.
 export function migrateLearning(records, bank) {
   const out = structuredClone(records);
   for (const r of Object.values(records)) {
-    if (bank.migrations?.some(m=>m.version===r.version) && bank.questions.some(q=>q.id===r.questionId)) {
+    if (bank.migrationVersions?.includes(r.version) && bank.questions.some(q=>q.id===r.questionId)) {
       const key=`${bank.version}/${r.questionId}`;
       out[key] ??= {...r,version:bank.version};
     }
@@ -261,7 +329,7 @@ export function migrateLearning(records, bank) {
   return out;
 }
 export function migrateReview(raw, bank) {
-  if(!raw||!bank.migrations?.some(m=>m.version===raw.version))return raw;
+  if(!raw||!bank.migrationVersions?.includes(raw.version))return raw;
   if(!Array.isArray(raw.ids)||!Number.isInteger(raw.index))return null;
   const allowed=new Set(bank.questions.map(q=>q.id)),ids=raw.ids.filter(id=>allowed.has(id));
   if(!ids.length)return null;

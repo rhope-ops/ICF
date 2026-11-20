@@ -5,7 +5,7 @@ import { ICON, escape, toolsMenu, assistanceTimer, poolShortfall, answersHtml, s
 import { APP_VERSION, diagnosticReport } from './diagnostics.mjs';
 import { eligible, sample, shuffle, start, transition, questionsForMode } from './engine.mjs';
 import { restoreUnderstanding, markMissed, assessUnderstanding, understandingRecord, notUnderstoodQuestions, sessionMissedIds, newMissedIds, reviewIds, restoreReview } from './learning.mjs';
-import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview } from './storage.mjs';
+import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview, withMigrations } from './storage.mjs';
 import * as screens from './screens.mjs';
 import { restoreGlossary, entryForCard, stemLinks, popover, keyTerms, searchEntries, restoreBookmarks } from './glossary.mjs';
 import { restoreScholar, addScholarBlock, blockLoaded, restoreScholarState, refitScholarState, scholarStateShape, newScholarState, moveScholar, unitsOf, itemsFor, itemById, itemForEntry, neighbours, contextTarget, resolved, right, typeOf, triesOf, pickKey, reviewDeck, draftOf, picMs, progressOf, listModel, nextUnit } from './scholar.mjs';
@@ -1261,21 +1261,21 @@ try {
   bank.blocks=bank.blocks.filter(b=>bank.questions.some(q=>q.block===b.id));
   lastBlock=servedBlock(read('lastBlock',null))?read('lastBlock',null):null;
   blockId=lastBlock??bank.blocks[0].id; units=allUnits();
-  const saved=read('session'), scholarSaved=saved?.mode==='Scholar';
-  session=scholarSaved?null:restoreSession(await migrateSession(saved,bank),bank);
+  const saved=read('session'), scholarSaved=saved?.mode==='Scholar', savedExam=read('exam');
+  // Save migrations load only for a session or exam saved on an older version. Held (offline, a failed or damaged file): both saves stay stored, nothing is restored, the next start tries again.
+  const opened=await withMigrations(bank,[scholarSaved?null:saved,savedExam],()=>fetchJson('./migrations.json')),held=opened.held;bank=opened.bank;session=scholarSaved||held?null:restoreSession(await migrateSession(saved,bank),bank);
   if(lastBlock===null&&session)noteBlock(session.questions[0]?.block); // upgrade: an open session names the last block
   if(scholarSaved){persist('session',null);notice('Your session from an older Scholar mode was closed; its answers stay in your stats.');}
   if(session&&!POOL_KINDS.includes(session.poolKind))delete session.poolKind;
   understanding=migrateLearning(understanding,bank);saveUnderstanding();
   missedReview=restoreReview(migrateReview(read('missedReview'),bank),bank);
   if(session){updateStats();save();const missing=sessionMissedIds(session).filter(id=>!understandingRecord(understanding,session.version,id));if(missing.length){understanding=markMissed(understanding,session.version,missing,new Date().toISOString());saveUnderstanding();}}
-  if(saved&&!session&&!scholarSaved)notice('The saved session is incompatible or damaged. Start a new session; review notes are kept.');
+  if(saved&&!session&&!scholarSaved&&!held)notice('The saved session is incompatible or damaged. Start a new session; review notes are kept.');
   // Exam: restore it; a deadline that passed while the app was closed submits it at 0:00 and opens its results.
   examHistory=restoreHistory(read('examHistory',[]));
   // Form cycle: schema 1 as saved, or rebuilt from history when missing or unreadable (then saved).
   { const raw=read('examCycle',null);examCycles=restoreCycles(raw,examHistory,bank);if(JSON.stringify(raw)!==JSON.stringify(examCycles))persist('examCycle',examCycles); }
-  const savedExam=read('exam');exam=restoreExam(savedExam,bank);
-  if(savedExam&&!exam){persist('exam',null);notice('The saved exam does not match this question set and was closed.');}
+  exam=held?null:restoreExam(savedExam,bank);if(savedExam&&!exam&&!held){persist('exam',null);notice('The saved exam does not match this question set and was closed.');}else if(held)notice('Your saved session or exam could not be opened yet. It stays on this device; reload when you are online.');
   if(exam){
     const wasLive=examLive(exam);exam=settleExam(exam,Date.now());
     if(exam.submitted){finalizeExam();resultsKind=sessionDone()&&!wasLive?'study':'exam';if(wasLive){step='exam-results';examFilter='missed';blockId=exam.block;units=allUnits();}}
