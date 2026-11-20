@@ -288,9 +288,9 @@ export function examSession(exam, questions) {
 }
 
 // History: one compact row per submitted exam, newest last, at most 100. A form exam records its form and cycle;
-// an older exam keeps its mix. The label is "Form A", or the mix name for an older exam.
+// an older exam keeps its mix. The label is "Version A", or the mix name for an older exam.
 export const examMix = exam => toMix(exam?.mix ?? exam?.includeHard);
-export const examLabel = exam => exam?.form ? `Form ${exam.form}` : MIX_LABEL[examMix(exam)];
+export const examLabel = exam => exam?.form ? `Version ${exam.form}` : MIX_LABEL[examMix(exam)];
 export const historyEntry = (exam, r) => ({ id: exam.id, at: exam.submittedAt, block: exam.block,
   ...(exam.form ? { form: exam.form, cycle: exam.cycle } : { includeHard: exam.includeHard, mix: examMix(exam) }),
   correct: r.correct, size: r.size, pass: r.pass, timedOut: exam.timedOut, timeUsedMs: r.timeUsedMs });

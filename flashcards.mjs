@@ -1116,7 +1116,7 @@ export function cardForQuestion(catalogCards, id) {
   return catalogCards.find(c => c.questionId === target) || null;
 }
 
-// missed: the card is in Missed Questions (an In Missed tag beside the unit). tools: extra buttons for the row under
+// missed: the card is in Missed Questions (a Missed set tag beside the unit). tools: extra buttons for the row under
 // Back, at its left (Open in Glossary); Hint stays at the right, under Next.
 export function cardHtml(state, { saveBox = '', unit = '', missed = false, tools = '' } = {}) {
   const c = state.cards[state.index], highlight = c.kind === 'highlight';
@@ -1124,7 +1124,7 @@ export function cardHtml(state, { saveBox = '', unit = '', missed = false, tools
   const cue = highlight ? `<span class="label">Source</span><p>${escape(pageLabel(c.source.label, c.source.page))}</p>` : `<span class="label">Review cue</span><p>${escape(c.reviewCue)}</p>`;
   const last = state.index === state.cards.length - 1;
   return `<button id="flash-card" class="flash-card" data-side="${side}" aria-describedby="flash-instruction">
-      <span class="flash-head"><span class="flash-side label">${side === 'definition' ? 'Definition' : 'Term'}</span>${missed || unit ? `<span class="flash-meta">${missed ? '<span class="tag in-missed" data-tone="bad">In Missed</span>' : ''}${unit ? `<span class="flash-unit label">${escape(unit)}</span>` : ''}</span>` : ''}</span>
+      <span class="flash-head"><span class="flash-side label">${side === 'definition' ? 'Definition' : 'Term'}</span>${missed || unit ? `<span class="flash-meta">${missed ? '<span class="tag in-missed" data-tone="bad">Missed set</span>' : ''}${unit ? `<span class="flash-unit label">${escape(unit)}</span>` : ''}</span>` : ''}</span>
       <span class="flash-content">${escape(side === 'definition' ? c.definition : c.term)}</span>
       <span class="flash-affordance mono" aria-hidden="true"><span class="on-touch">Tap to flip</span><span class="on-pointer">Click to flip</span></span>
     </button>

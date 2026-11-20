@@ -3,7 +3,7 @@ import { restoreStats, inspectStats, recordSession, prioritize, studyScores, toP
 import { EXAM, blueprint, standardPool, formsFor, formStatus, countExam, restoreCycles, startExam, examEvent, examLive, examCounts, examResults, examSession, withStudySnapshot, historyEntry, addHistory, restoreHistory, restoreExam, settleExam, remainingMs, REVIEW_FILTERS } from './exam.mjs';
 import { ICON, escape, toolsMenu, assistanceTimer, poolShortfall, answersHtml, saveButton, sourceRow, flagButton, sourceVisible } from './presentation.mjs';
 import { APP_VERSION, diagnosticReport } from './diagnostics.mjs';
-import { eligible, sample, shuffle, start, transition, questionsForMode } from './engine.mjs';
+import { eligible, sample, shuffle, start, transition, questionsForMode, progress } from './engine.mjs';
 import { restoreUnderstanding, markMissed, assessUnderstanding, understandingRecord, notUnderstoodQuestions, sessionMissedIds, newMissedIds, reviewIds, restoreReview } from './learning.mjs';
 import { persistence, validateBank, restoreSession, sessionSnapshot, reviewFlag, cardFlag, updateFlags, savedBoolean, migrateSession, migrateLearning, migrateReview, withMigrations } from './storage.mjs';
 import * as screens from './screens.mjs';
@@ -164,7 +164,7 @@ function persistCardSets(next) {
 }
 // The question screen's SAVE state once the answer is known; null before it. An earlier question (after Back) shows
 // SAVE too; only the live question runs the Dynamic Flash Cards write to Missed Questions, once per appearance.
-// missed: the card is in Missed Questions (the In Missed tag; SAVE itself shows Manual only).
+// missed: the card is in Missed Questions (the Missed set tag; SAVE itself shows Manual only).
 function questionCard(c,q,reviewing){
   if(!c.resolved)return null;
   const card=cardForQuestion(catalogCards(),q.id);if(!card)return null;
@@ -397,8 +397,8 @@ function syncScreens() {
   // Context button: Resume Quiz / Resume Scholar, whichever was left last.
   const ctx=$('#context-link');if(!ctx)return;
   const to=contextTarget({quiz:sessionOpen(),scholar:Boolean(scholar&&scholarState),last:lastPlace,here:step==='study'?'quiz':step==='scholar'?'scholar':null});
-  ctx.hidden=!to;ctx.dataset.context=to||'';if(to==='scholar')ctx.dataset.tone='scholar';else delete ctx.dataset.tone;
-  ctx.innerHTML=to==='quiz'?`<span class="ctx-arrow">${ICON.swap}</span>`+'<span class="ctx-long">Resume </span>Quiz':to==='scholar'?`<span class="ctx-arrow">${ICON.swap}</span>`+'<span class="ctx-long">Resume </span>Scholar':'';
+  ctx.hidden=!to;ctx.dataset.context=to||'';if(to)ctx.dataset.tone=to==='scholar'?'scholar':'blue';else delete ctx.dataset.tone;
+  ctx.innerHTML=to?`<span class="ctx-arrow">${ICON.swap}</span>Resume`:'';  // one label on every width; the tone says what resumes
   ctx.setAttribute('aria-label',to==='quiz'?'Resume Quiz':to==='scholar'?'Resume Scholar':'');
 }
 $('#context-link')?.addEventListener('click',()=>{
@@ -649,8 +649,8 @@ function renderStudy() {
   if($('#save-question')&&box)bindSave(box.card);
   $('#previous').onclick=()=>{send({type:'previous'});$('#stem')?.focus({preventScroll:true});resetNavigationView();centreSheet('.q-sheet','.question-actions');};
   $('#next').onclick=()=>{send({type:'next'});$('#stem')?.focus({preventScroll:true});resetNavigationView();centreSheet('.q-sheet','.question-actions');};
-  // End Session goes straight to results (Retry there restarts the same questions).
-  $('#end').onclick=()=>{send({type:'end'},false);navigate('results');};
+  // End Session asks first while pool questions are not cleared; the answers so far still count.
+  $('#end').onclick=()=>{const end=()=>{send({type:'end'},false);navigate('results');};const p=progress(session),left=p.pool-p.completed;if(left>0)confirmDialog('End session',`${left} ${left===1?'question is':'questions are'} not cleared yet. Your answers so far count in Results.`,'End session',end);else end();};
 }
 // The appearance on screen: a history entry while reviewing, otherwise the live one.
 const viewed=()=>screens.viewedAppearance(session);
@@ -997,7 +997,7 @@ function renderGlossary() {
   }
   const search=$('#gloss-search');
   search.oninput=()=>{glossQuery=search.value;const pos=search.selectionStart;render();const again=$('#gloss-search');again.focus();again.setSelectionRange(pos,pos);};
-  $('#gloss-unit').onchange=e=>{glossUnit=Number(e.target.value);render();$('#gloss-unit').focus();};
+  main.querySelectorAll('[name="gloss-unit"]').forEach(r=>r.onchange=()=>{glossUnit=Number(r.value);keepScroll(render);main.querySelector(`[name="gloss-unit"][value="${glossUnit}"]`)?.focus({preventScroll:true});});
   main.querySelectorAll('[name="gloss-group"]').forEach(r=>r.onchange=()=>{glossGroup=r.value;keepScroll(render);main.querySelector(`[name="gloss-group"][value="${glossGroup}"]`)?.focus({preventScroll:true});});
   if($('#back'))$('#back').onclick=()=>navigate('units');
 }

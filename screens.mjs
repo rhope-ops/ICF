@@ -6,7 +6,7 @@ import { progress, results, questionsForMode, keywordHighlightEnabled, STUDY_MOD
 import { understandingRecord, notUnderstoodQuestions, sessionMissedIds, reviewIds } from './learning.mjs';
 import { unitScores, missedUnits, scoreTone, POOL_LABEL } from './analytics.mjs';
 import { EXAM, passMark, examCounts, reviewItems, REVIEW_FILTERS, examLabel, formsFor } from './exam.mjs';
-import { cardHtml, cardsInSet, savedSetsHtml, setsBlockHtml, cardKey, MISSED_ID } from './flashcards.mjs';
+import { cardHtml, cardsInSet, savedSetsHtml, setsBlockHtml, cardKey, MISSED_ID, ALL_BLOCKS } from './flashcards.mjs';
 import { pictureHtml, tapBoardHtml } from './pictures.mjs';
 import { typeOf, resolved as scholarResolved, right as scholarRight, currentDecision, decisionDone, checkMarks, rowOrder, draftOf, scholarAnswerState, decisionQuestion, scholarQuestion } from './scholar.mjs';
 
@@ -104,12 +104,12 @@ export function questionsSetupHtml({block, mode, units, counts, pool, dynamic, r
     <div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary"${mode==='Hard'?' data-tone="gold"':''} id="mode-next">${nextLabel('Study')}</button></div>`;
 }
 
-// Flash card setup: saved sets and units.
+// Flash card setup: saved sets and units; with no saved card in any block the sets panel is one line.
 // setsBlock: the saved sets' block filter (this block by default, or ALL_BLOCKS); blocks: every block, for the filter.
 export function cardsSetupHtml({block, blocks = [block], library, pickSetId, catalog, units, counts, setsBlock = block.id}) {
   const setRows = library.sets.map(set => { const n = cardsInSet(set,catalog,setsBlock).length; return `<label class="card row"><input type="radio" name="card-set" value="${escape(set.id)}" ${set.id===pickSetId?'checked':''} ${n?'':'disabled'}><span><strong>${escape(set.name)}</strong>${set.id===MISSED_ID?' <span class="tag">Auto</span>':''}</span><span class="set-pick-count mono">${plural(n,'card')}</span></label>`; }).join('');
   return `<div class="page-head"><p class="label">Block ${block.id} · Flash cards</p><h1>Flash cards</h1></div>
-      <section class="panel card-set-pick"><div class="step-head"><span class="num">Saved</span><h2>Card sets</h2><button class="small" id="manage-sets">Manage sets</button></div>${setsBlockHtml(blocks, setsBlock, 'setup-sets-block')}<div class="setlist" role="radiogroup" aria-label="Saved card sets">${setRows}</div></section>
+      ${library.sets.every(set => !cardsInSet(set, catalog, ALL_BLOCKS).length) ? `<section class="panel card-set-pick card-set-none"><p class="muted">No saved cards yet. Missed questions and cards you SAVE show up here.</p><button class="small" id="manage-sets">Manage sets</button></section>` : `<section class="panel card-set-pick"><div class="step-head"><span class="num">Saved</span><h2>Card sets</h2><button class="small" id="manage-sets">Manage sets</button></div>${setsBlockHtml(blocks, setsBlock, 'setup-sets-block')}<div class="setlist" role="radiogroup" aria-label="Saved card sets">${setRows}</div></section>`}
       <section class="panel unit-panel${pickSetId?' is-dimmed':''}"><div class="step-head"><span class="num">Block ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">Units</legend>${unitChoices(block,pickSetId?[]:units,'unit',counts)}</fieldset><p id="eligible-count" class="status count" role="status"></p></section>
       <div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary" id="units-next">${nextLabel('Study')}</button></div>`;
 }
@@ -211,7 +211,7 @@ export function studyHtml({session, bank, box, source, isFlagged, gloss = null})
   // is known (correct or revealed) or the dashed held row after a miss. Before the answer neither shows. Back to an earlier
   // appearance keeps the same row as the live view: a missed one shows the held row and Flag.
   const sourceCell=sourceVisible(c)?source(q):c.resolved?'<p class="excerpt-held"><span class="label">Source · held<span class="held-more"> until review</span></span></p>':'';
-  const answers=answersHtml(q,c,{assisted,reviewing});
+  const answers=answersHtml(q,c,{assisted,reviewing,neutralUnpicked:true});  // red marks only the wrong answers you picked
   return `<h1 class="sr-only">Question ${number} of ${p.pool}</h1>${studyToolbar({mode:session.nextMode||c.mode||session.mode,modes:locked?[session.mode]:['Assisted','Unassisted'],locked:reviewing||locked,status,statusTone:tone})}${ledgerHtml(session)}<article class="panel q-sheet"><section class="question-focus" aria-label="Current question"><div class="question-heading qhead"><p class="qnum">#${number} <small>of ${p.pool}${repeat?' · Repeat':''}</small><span class="sr-only">Question ${number} of ${p.pool}</span></p><span class="unit-label${box?.missed?' with-tag':''}">${box?.missed?`${IN_MISSED}<span class="unit-text">${escape(questionUnitLabel(q,bank.blocks))}</span>`:escape(questionUnitLabel(q,bank.blocks))}</span></div><h2 id="stem" class="stem" tabindex="-1">${stem}</h2>${assisted&&!reviewing&&!hard?trackHtml(c,session.mode):''}</section><div class="answers">${answers}</div>${sourceRow(sourceCell,sourceCell?flagButton({id:'flag-question',question:q.id,flagged:isFlagged(q.id)}):'',revealed&&gloss?.keyTerms?keyTermsHtml(gloss.keyTerms):'',box?saveButton({id:'save-question',key:box.key,saved:box.saved}):'')}</article><div class="navrow actions question-actions"><button id="previous" ${!session.history?.length||session.viewIndex===0?'disabled':''}>${backLabel('Back')}</button><button id="next" class="primary" ${!reviewing&&!revealed?'disabled':''}>${nextLabel('Next')}</button></div><div class="tool-row">${!reviewing&&!assisted&&!locked?`<button id="hint" aria-controls="stem" ${c.hintUsed||c.resolved?'disabled':''}>${c.hintUsed?'Hint shown':'Hint'}</button>`:''}${!reviewing&&!locked?`<button id="show-answer" ${c.resolved?'disabled':''}>Show Answer</button>`:''}</div>`.replace('<div class="tool-row"></div>','');
 }
 
@@ -227,8 +227,8 @@ export function entryTerms(entry, g) {
 // Source drop-down of a glossary entry: its course excerpts, verbatim, each with document and page (as the question Source).
 const entrySource = (entry, docs) => entry.excerpts.length ? dropHtml('source', 'Source', entry.excerpts.length, entry.excerpts.length === 1 ? 'excerpt' : 'excerpts',
   `<div class="excerpt">${entry.excerpts.map(x => `<figure><blockquote>${excerptBody(x)}</blockquote><figcaption>${escape(docs[x.doc] || x.doc)} · p. ${x.page}</figcaption></figure>`).join('')}</div>`) : '';
-// The In Missed tag: the card is in Missed Questions (SAVE shows Manual only). Bad tone = missed, as on Results.
-export const IN_MISSED = '<span class="tag in-missed" data-tone="bad">In Missed</span>';
+// The Missed set tag: the card is in Missed Questions (SAVE shows Manual only). Bad tone = missed, as on Results.
+export const IN_MISSED = '<span class="tag in-missed" data-tone="bad">Missed set</span>';
 // save: the Save button for the entry's card or ''. toCard: 'Card N' when the entry was opened from a flash card
 // (the back button to that card), else ''.
 // group: 'unit' (Unit 1 ... Unit 8 headings, A-Z inside each) or 'az' (one A-Z list with the letter bar).
@@ -256,14 +256,14 @@ export function glossaryHtml({block, g, list, query, unit, entry, questionCount,
   const sections = group === 'az'
     ? letters.map(l => `<section id="gloss-${l}" class="gloss-letter"><h2>${l}</h2><ul>${list.filter(e => letter(e) === l).map(item).join('')}</ul></section>`).join('')
     : units.map(u => `<section id="gloss-u${u.id}" class="gloss-letter gloss-unit"><h2><span class="unit-number">U${u.id}</span>${escape(u.title)}</h2><ul>${list.filter(e => e.unit === u.id).sort(byTerm).map(item).join('')}</ul></section>`).join('');
-  const jump = group === 'az' ? `<nav class="az" aria-label="Jump to letter">${letters.map(l => `<a href="#gloss-${l}">${l}</a>`).join('')}</nav>`
-    : `<nav class="az az-units" aria-label="Jump to unit">${units.map(u => `<a href="#gloss-u${u.id}">U${u.id}</a>`).join('')}</nav>`;
+  // The Unit chips filter the list, so By unit has no jump row; A–Z keeps the letter row.
+  const jump = group === 'az' ? `<nav class="az" aria-label="Jump to letter">${letters.map(l => `<a href="#gloss-${l}">${l}</a>`).join('')}</nav>` : '';
   return `${head}<div class="panel gloss-tools"><label class="field" for="gloss-search">Search<input id="gloss-search" type="search" value="${escape(query)}" placeholder="Term, acronym or words" autocomplete="off"></label>
-    <label class="field" for="gloss-unit">Unit<span class="selwrap"><select id="gloss-unit"><option value="0">All units</option>${block.units.map(u => `<option value="${u.id}" ${u.id===unit?'selected':''}>U${u.id} · ${escape(u.title)}</option>`).join('')}</select></span></label>
+    <fieldset class="unit-chips"><legend class="field">Unit</legend><div class="chips">${[{id: 0, title: 'All units'}, ...block.units].map(u => `<label title="${escape(u.title)}"><input type="radio" name="gloss-unit" value="${u.id}" ${u.id===unit?'checked':''}>${u.id ? `U${u.id}<span class="sr-only"> · ${escape(u.title)}</span>` : 'All'}</label>`).join('')}</div></fieldset>
     <fieldset class="gloss-group"><legend class="sr-only">Group terms</legend><div class="seg">${[['unit','By unit'],['az','A–Z']].map(([v,t]) => `<label><input type="radio" name="gloss-group" value="${v}" ${group===v?'checked':''}>${t}</label>`).join('')}</div></fieldset>
     ${jump}</div>
     <p class="status count" role="status">${plural(list.length,'term')}</p>
-    <div class="gloss-list">${sections || `<p class="muted gloss-empty">No terms match. Try a shorter word${unit ? ', or set Unit to All units' : ''}.</p>`}</div>
+    <div class="gloss-list">${sections || `<p class="muted gloss-empty">No terms match. Try a shorter word${unit ? ', or choose All units' : ''}.</p>`}</div>
     <div class="navrow actions">${toCard ? `<button id="gloss-card">${backLabel(toCard)}</button>` : `<button id="back">${backLabel('Mode')}</button>`}</div>`;
 }
 
@@ -457,7 +457,7 @@ export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, 
 // Before the flip there is no Source row, Flag or glossary link, so nothing gives the hidden side away.
 // back: cardBackHtml markup made with save:'<!--save-->', so SAVE takes the left cell of the card's tools row.
 // Before the flip SAVE stands alone in that row.
-// missed: the card is in Missed Questions (the In Missed tag). glossEntry: the card's glossary entry after the first flip,
+// missed: the card is in Missed Questions (the Missed set tag). glossEntry: the card's glossary entry after the first flip,
 // or null; it adds Open in Glossary to the row under Back (Hint stays under Next).
 // scholar: the card's term has a Scholar item: Open in Scholar joins Open in Glossary after the first flip.
 export function flashScreenHtml({preview, set, bank, saved, missed = false, message, source, back = '', glossEntry = null, scholar = false}) {
@@ -485,16 +485,16 @@ function unitBarsHtml(rows,tag){return `<div class="bars">${rows.map(row=>{const
 
 // Retake Quiz: the circular-arrow icon (aria-hidden) and the text label.
 const retakeLabel = `<span class="lbl">${ICON.retry}Retake Quiz</span>`;
-// gloss (optional): the glossary linker for the Quiz review (see answerReviewHtml).
+// gloss (optional): the glossary linker for the Quiz review (see answerReviewHtml). Unit bars: only units with a first answer, the rest as one line.
 export function resultsHtml({session, bank, blockId, stats, understanding, source, isFlagged, gloss = null, save = () => '', isOpen = () => false}) {
   const missed=sessionMissedIds(session),toReview=reviewIds(session,understanding);
   const r=results(session),pct=n=>n===null?'—':`${Math.round(n*100)}%`;
   const missedBy=Object.fromEntries(missedUnits(session,bank.blocks).map(row=>[row.id,row.count]));
   const extras=[['Independent',r.independent],['Hints',r.hints],['Reveals',r.reveals],[r.retries===1?'Retry':'Retries',r.retries]].filter(([,n])=>n>0);
-  const block=bank.blocks.find(b=>b.id===(session.questions[0]?.block??blockId))||bank.blocks[0],scores=unitScores(stats,block.id,block.units);
+  const block=bank.blocks.find(b=>b.id===(session.questions[0]?.block??blockId))||bank.blocks[0],scores=unitScores(stats,block.id,block.units),tried=scores.rows.filter(row=>row.asked),untried=scores.rows.length-tried.length;
   // A session ended before any answer (or with only reveals) has nothing to review.
   const review=answerReviewHtml(session,missed,source,isFlagged,gloss,{save,isOpen})||'<p class="muted review-empty">There\'s nothing here yet. Answer a question in a session and it shows up here.</p>';
-  return `<div class="page-head"><p class="label">Latest session results<span class="tag" data-tone="${session.mode==='Hard'?'gold':'blue'}">${escape(session.mode)}</span></p><h1>Stats</h1></div><div class="stats"><div class="stat"><span class="label">Active time</span><strong>${duration(r.activeMs)}</strong><small>Pauses excluded</small></div><div class="stat"><span class="label">Avg / question</span><strong>${r.averageSeconds===null?'—':`${r.averageSeconds.toFixed(1)}s`}</strong><small>${plural(r.seen,'question')} answered</small></div><div class="stat"><span class="label">Accuracy</span><strong>${pct(r.accuracy)}</strong><small>${r.correct}/${r.correct+r.incorrect} answers</small></div><div class="stat"><div class="stat-split"><span class="label correct-label" aria-hidden="true">✓</span><span class="label stat-sep" aria-hidden="true">·</span><span class="label incorrect-label" aria-hidden="true">✕</span><strong class="correct-label">${r.correct}<span class="sr-only"> correct</span></strong><strong class="stat-sep" aria-hidden="true">·</strong><strong class="incorrect-label">${r.incorrect}<span class="sr-only"> incorrect</span></strong></div><small>First try ${pct(r.firstAccuracy)}</small></div></div>${extras.length?`<dl class="ledger-figures metrics" aria-label="Help used">${extras.map(([k,n])=>`<div><dt>${k}</dt><dd>${n}</dd></div>`).join('')}</dl>`:''}${toReview.length?`<div class="actions"><button class="primary" id="review-missed">Review ${session.kind==='not_understood'?'marked':'missed'} questions (${toReview.length})</button></div>`:''}<section class="panel unit-bars"><h2>First-answer accuracy by unit</h2><p class="label">All sessions on this device · ${escape(block.title)}</p>${unitBarsHtml(scores.rows,row=>missedBy[row.id]?`<em class="tag" data-tone="bad">${missedBy[row.id]} missed</em>`:'')}</section><section class="answer-review"><h2>Quiz review</h2>${review}</section><div class="navrow actions results-nav"><button id="again">${backLabel('Blocks')}</button><button id="retry-session">${retakeLabel}</button></div>`;
+  return `<div class="page-head"><p class="label">Latest session results<span class="tag" data-tone="${session.mode==='Hard'?'gold':'blue'}">${escape(session.mode)}</span></p><h1>Results</h1></div><div class="stats"><div class="stat"><span class="label">Active time</span><strong>${duration(r.activeMs)}</strong><small>Pauses excluded</small></div><div class="stat"><span class="label">Avg / question</span><strong>${r.averageSeconds===null?'—':`${r.averageSeconds.toFixed(1)}s`}</strong><small>${plural(r.seen,'question')} answered</small></div><div class="stat"><span class="label">Accuracy</span><strong>${pct(r.accuracy)}</strong><small>${r.correct}/${r.correct+r.incorrect} answers</small></div><div class="stat"><div class="stat-split"><span class="label correct-label" aria-hidden="true">✓</span><span class="label stat-sep" aria-hidden="true">·</span><span class="label incorrect-label" aria-hidden="true">✕</span><strong class="correct-label">${r.correct}<span class="sr-only"> correct</span></strong><strong class="stat-sep" aria-hidden="true">·</strong><strong class="incorrect-label">${r.incorrect}<span class="sr-only"> incorrect</span></strong></div><small>First try ${pct(r.firstAccuracy)}</small></div></div>${extras.length?`<dl class="ledger-figures metrics" aria-label="Help used">${extras.map(([k,n])=>`<div><dt>${k}</dt><dd>${n}</dd></div>`).join('')}</dl>`:''}${toReview.length?`<div class="actions"><button class="primary" id="review-missed">Review ${session.kind==='not_understood'?'marked':'missed'} questions (${toReview.length})</button></div>`:''}<section class="panel unit-bars"><h2>First-answer accuracy by unit</h2><p class="label">All sessions on this device · ${escape(block.title)}</p>${unitBarsHtml(tried.length?tried:scores.rows,row=>missedBy[row.id]?`<em class="tag" data-tone="bad">${missedBy[row.id]} missed</em>`:'')}${tried.length&&untried?`<p class="muted bars-rest">${plural(untried,'unit')} not practised yet</p>`:''}</section><section class="answer-review"><h2>Quiz review</h2>${review}</section><div class="navrow actions results-nav"><button id="again">${backLabel('Blocks')}</button><button id="retry-session">${retakeLabel}</button></div>`;
 }
 
 // block: the block chosen in For Review; only its units and exam history show. null shows every block.
@@ -523,7 +523,7 @@ export function examSetupHtml({block, forms, status, plan = null, last, studyOpe
   return `<section class="panel exam-setup" data-tone="violet" aria-labelledby="exam-setup-title"><div class="step-head"><span class="num">Block ${block.id} · All ${block.units.length} units</span><h2 id="exam-setup-title">Exam</h2></div>
     <dl class="block-figures exam-figures"><div><dt>Questions</dt><dd>${size}</dd></div><div><dt>Time limit</dt><dd>${examTime(EXAM.limitMs)}</dd></div><div><dt>Pass</dt><dd>${Math.round(EXAM.passRatio*100)}%<small> · ${mark} of ${EXAM.size}</small></dd></div></dl>
     ${next ? `<div class="exam-form">${status.cycle > 1 ? `<p class="label">Cycle ${status.cycle}</p>` : ''}
-      <ul class="form-status" aria-label="Exam forms">${order.map(n => `<li><span class="tag"${n === next ? ' data-tone="violet"' : ''}>Form ${n}</span><span class="muted">${state(n)}</span></li>`).join('')}</ul></div>` : plan ? `<div class="exam-blueprint"><p class="label">Blueprint · ${plan.size} questions from ${plan.pool}</p>
+      <ul class="form-status" aria-label="Exam versions">${order.map(n => `<li><span class="tag"${n === next ? ' data-tone="violet"' : ''}>Version ${n}</span><span class="muted">${state(n)}</span></li>`).join('')}</ul></div>` : plan ? `<div class="exam-blueprint"><p class="label">Blueprint · ${plan.size} questions from ${plan.pool}</p>
       <div class="score-list blueprint-list">${plan.units.map(u => `<div><span><span class="unit-number">U${u.id}</span>${escape(block.units.find(x => x.id === u.id)?.title || `Unit ${u.id}`)}</span><strong>${u.count}</strong></div>`).join('')}</div>
       <dl class="ledger-figures metrics blueprint-difficulty" aria-label="Difficulty">${['Easy','Medium'].map(k => `<div><dt>${k}</dt><dd>${plan.difficulty[k].count}</dd></div>`).join('')}</dl></div>` : ''}
     <ul class="exam-rules"><li>No feedback, hints, reveal or retry until you submit.</li><li>No pause. The clock runs on real time, also when the app is closed.</li><li>Change any answer before you submit. Flag a question to come back to it later.</li><li>At 0:00 the app submits. A blank answer scores 0.</li><li>Submitted answers count in your unit stats.</li></ul>
