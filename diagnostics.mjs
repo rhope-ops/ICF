@@ -1,5 +1,5 @@
 import { APP } from './settings.mjs';
-export const APP_VERSION = '2.10.0';
+export const APP_VERSION = '2.10.1';
 export function diagnosticReport({deviceId, platform, browser, version, flags, session, now = new Date().toISOString()}) {
   if (!/^[a-f0-9-]{36}$/.test(deviceId)) throw Error('Invalid device identifier');
   return {schema:1,purpose:`${APP.name} diagnostic submission`,appVersion:APP_VERSION,createdAt:now,

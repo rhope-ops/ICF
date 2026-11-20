@@ -1,15 +1,24 @@
 // Screen markup: pure functions of the state they receive (the app modules own state, storage, events and timers), so tests
 // import these screens directly. Every value comes in as an argument; only the layout helpers at the end touch the DOM.
+// Inputs: the arguments of each function. Outputs: HTML strings; positionQuestion scrolls the window it receives.
+// Run: imported by the app modules and the tests (screens.*); the Scholar and Exam groups are re-exported from
+// screens-scholar.mjs and screens-exam.mjs.
+// Network: none.
+// Writes: none (positionQuestion changes only the scroll position of the window and answers it receives).
+// Credentials: none.
 import { studyModes } from './features.mjs';
 import { FEATURES, LABEL, POOL_SIZES } from './settings.mjs';
-import { escape, reviewNumber, answersHtml, highlightedStem, unitChoices, poolShortfall, plural, commBadge, questionUnitLabel, answerReviewHtml, reviewItem, tryLabel, studyToolbar, sourceVisible, backLabel, nextLabel, ICON, flagButton, sourceRow, dropHtml, assistanceTimer, saveButton, excerptBody } from './presentation.mjs';
+import { escape, answersHtml, highlightedStem, unitChoices, poolShortfall, plural, commBadge, questionUnitLabel, answerReviewHtml, reviewItem, tryLabel, studyToolbar, sourceVisible, backLabel, nextLabel, ICON, flagButton, sourceRow, dropHtml, assistanceTimer, saveButton, excerptBody } from './presentation.mjs';
 import { progress, results, questionsForMode, keywordHighlightEnabled } from './engine.mjs';
 import { understandingRecord, notUnderstoodQuestions, sessionMissedIds, reviewIds } from './learning.mjs';
 import { unitScores, missedUnits, scoreTone, POOL_LABEL } from './analytics.mjs';
-import { EXAM, passMark, examCounts, reviewItems, REVIEW_FILTERS, examLabel, formsFor } from './exam.mjs';
+import { formsFor } from './exam.mjs';
 import { cardHtml, cardsInSet, savedSetsHtml, setsBlockHtml, cardKey, MISSED_ID, ALL_BLOCKS } from './flashcards.mjs';
-import { pictureHtml, tapBoardHtml } from './pictures.mjs';
-import { typeOf, resolved as scholarResolved, right as scholarRight, currentDecision, decisionDone, checkMarks, rowOrder, draftOf, scholarAnswerState, decisionQuestion, scholarQuestion } from './scholar.mjs';
+// The Scholar and Exam screens live in their own modules; screens.mjs re-exports their public functions, so callers and
+// tests keep one import (screens.*).
+export { scholarListHtml, seeLabel, exampleHtml, scholarRowProbes, scholarReviewHtml, scholarItemHtml } from './screens-scholar.mjs';
+export { examSetupHtml, examClock, examHtml, submitCheckHtml, examResultsHtml } from './screens-exam.mjs';
+import { examHistoryHtml } from './screens-exam.mjs';
 
 // m:ss, or h:mm:ss from one hour.
 export const duration = ms => { const n = Math.floor(ms/1000); return n >= 3600 ? `${Math.floor(n/3600)}:${String(Math.floor(n/60)%60).padStart(2,'0')}:${String(n%60).padStart(2,'0')}` : `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
@@ -293,164 +302,6 @@ export function answerAnnouncement(event, attemptsBefore, session) {
   return event.type === 'next' ? '' : null;
 }
 
-// ---- Scholar ----
-// Term list of one unit: unit choice (a segmented row), then each term with its summary. done: {itemId: right answers}.
-// todo: the first term of the unit whose guided questions are not all right, or null; review: show "Review this
-// unit" (G4: the unit's guided questions in a shuffled order, practice only).
-// each entry reuses its glossary entry (glossOf: entry id -> glossary entry or null): the
-// one-line glossary definition instead of the Scholar summary, and a term longer than SHORT_NAME characters shows its glossary
-// short form (an all-capital alias such as CMOS) with the full name for screen readers. The term page keeps the full texts.
-const SHORT_NAME = 24;
-const listName = (term, g) => { const alias = term.length > SHORT_NAME && g?.aliases.find(a => /^[A-Z][A-Z0-9&]{1,9}$/.test(a));
-  return alias ? `${escape(alias)}<span class="sr-only"> (${escape(term)})</span>` : escape(term); };
-/** The Scholar term list of one unit, or the term search matches of every unit while a search is set.
- * @param {object} o block, units, unit, items, done (right answers by item), todo, review, glossOf; unitDone {unit: {done, total}}; nextUnit (or null); query; matches
- * @returns {string} the screen markup */
-export function scholarListHtml({block, units, unit, items, done = {}, todo = null, review = false, glossOf = () => null, unitDone = {}, nextUnit = null, query = '', matches = []}) {
-  const seg = units.map(u => { const c = unitDone[u];
-    return `<label><input type="radio" name="scholar-unit" value="${u}" ${u === unit ? 'checked' : ''}><span aria-hidden="true">U${u}</span><span class="sr-only">${LABEL.Section} ${u}${c ? `, ${c.done} of ${c.total} done` : ''}</span>${c ? `<small class="scholar-unit-done" aria-hidden="true">${c.done}/${c.total}</small>` : ''}</label>`; }).join('');
-  const title = escape(block.units.find(u => u.id === unit)?.title || ''), searching = query.trim() !== '';
-  const row = it => { const n = done[it.id] || 0, all = it.questions.length, g = glossOf(it.entry);
-    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${listName(it.term, g)}</strong>${searching && it.unit !== unit ? `<span class="scholar-also">${LABEL.Section} ${it.unit}</span>` : ''}${it.covers ? `<span class="scholar-also">Also: ${it.covers.map(c => escape(c.term)).join(' · ')}</span>` : ''}<span>${escape(g?.short || it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
-  const lead = searching ? (matches.length ? '' : '<p class="muted scholar-empty">No term matches. Try fewer words, or clear the search.</p>') : `${items.length && !todo ? `
-    <p class="muted scholar-unit-complete">${LABEL.Section} ${unit} done.</p>${nextUnit ? `<div class="actions scholar-todo"><button type="button" id="scholar-next-unit" class="primary" data-tone="scholar" data-unit="${nextUnit}">${nextLabel(`Next ${LABEL.section}: ${LABEL.Section} ${nextUnit}`)}</button></div>` : ''}` : ''}${todo ? `
-    <div class="actions scholar-todo"><button type="button" id="scholar-todo" class="primary" data-tone="scholar" data-scholar-next="${escape(todo.id)}">${nextLabel(`Study next: ${todo.term}`)}</button></div>` : ''}${review ? `
-    <div class="actions scholar-review-start"><button type="button" id="scholar-review" data-tone="scholar">Review this ${LABEL.section}</button></div>` : ''}`;
-  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Scholar</p><h1>Scholar</h1></div>
-    <section class="panel scholar-units" data-tone="scholar"><fieldset><legend class="label">${LABEL.Section}</legend><div class="seg scholar-unit-seg">${seg}</div></fieldset>
-      <div class="step-head"><span class="num">${LABEL.Section} ${unit}</span><h2>${title}</h2></div></section>
-    <div class="panel gloss-tools scholar-find"><label class="field" for="scholar-search">Find a term<input id="scholar-search" type="search" value="${escape(query)}" placeholder="Term or words, all ${LABEL.sections}" autocomplete="off"></label></div>
-    <p class="status count" role="status">${searching ? `${plural(matches.length, 'match', 'matches')} in ${LABEL.Group} ${block.id}` : `${plural(items.length,'term')} · ${items.filter(it => (done[it.id] || 0) === it.questions.length).length} done`}</p>${lead}
-    <ul class="scholar-list">${(searching ? matches : items).map(row).join('')}</ul>
-    <div class="navrow actions"><button id="back">${backLabel('Mode')}</button></div>`;
-}
-// The tiles of a Scholar question: the other modes' tiles, except that after the reveal a choice nobody picked stays neutral
-// and keeps its why.
-const scholarTiles = (qn, st) => answersHtml(scholarQuestion(qn), st, { assisted: true, neutralUnpicked: true });
-// One term. The sections form one connected accordion (linked together rather than as separate
-// pills), each open unless the reader closed it (open: {section: false}). The guided question mirrors the question
-// screen (q-sheet, #N heading, stem, answers, navrow with Next at the right, tool-row with Hint) and teaches: a Hint before
-// the pick, a "Look again" pointer to the section or picture step that explains it after a wrong pick, and a Takeaway when
-// the question is over (hint, nudge, takeaway). No course-page lines.
-// tries: this question's picks; hint: the hint is shown; done(question): it is over; pic: {index, motion, playing}.
-// back: 'Glossary' | 'Card N' | '' when the term was opened from the Glossary or a card.
-const SEE_LABEL = { deeper: 'Deeper explanation', analogy: 'Analogy', scenario: 'Sample scenario', example: 'Everyday example' };
-export const seeLabel = (see, picture) => { const [part, n] = see.split(':'); return part !== 'picture' ? SEE_LABEL[part] : picture?.kind === 'steps' ? `Picture, step ${Number(n) + 1}` : `Picture: ${picture?.parts?.[Number(n)]?.label ?? `part ${Number(n) + 1}`}`; };
-// Everyday example: the "In the course: <definition>" line stays in the text; its source goes under it in the app's
-// attribution style (.excerpt figcaption, "Block Text · p. 15").
-// Only the "In the course" line goes into the attribution figure; the illustration before it stays plain text.
-export const exampleHtml = text => { const m = /^(.*?)\s*(In the course: .*), ([^,]+) p\.(\d+)\.$/s.exec(text);
-  return m ? `${m[1] ? `<p>${escape(m[1])}</p>` : ''}<div class="excerpt scholar-example"><figure><p>${escape(m[2])}.</p><figcaption>${escape(m[3])} · p. ${m[4]}</figcaption></figure></div>` : `<p>${escape(text)}</p>`; };
-// Hands-on task labels: the type tag above the stem of the hands-on question (shown first).
-const TASK_LABEL = { tap: 'Tap the picture', order: 'Put in order', sort: 'Sort', branch: 'Scenario' };
-// The body of the guided question by type. draft: the arrangement being built (order: shown indexes in the current order;
-// sort: a group 0/1 or null per item). Returns {body, over, feedback, wrongNow, check}.
-function guidedBody(item, qn, tries, draft) {
-  const t = typeOf(qn);
-  draft ??= draftOf(qn, tries);
-  const over = scholarResolved(qn, tries), ok = scholarRight(qn, tries);
-  const end = over ? (ok ? 'Correct.' : 'Answer revealed. Read why each part is right or wrong.') : '';
-  if (t === 'choose' || t === 'tap') {
-    const st = scholarAnswerState(qn, tries);
-    const board = t === 'tap' && item.picture ? tapBoardHtml(item.picture, qn.answers, { wrong: tries.filter(i => i !== qn.key), right: over ? qn.key : null, done: over }) + '<p class="muted scholar-tap-help">Tap the picture, or choose below.</p>' : '';
-    return { body: `${board}<div class="answers scholar-answers" role="group" aria-label="Answers">${scholarTiles(qn, st)}</div>`, over, wrongNow: tries.length > 0 && !over,
-      feedback: !tries.length ? '' : over ? end : 'Incorrect. Read why, then pick again.' };
-  }
-  if (t === 'order' || t === 'sort') {
-    const last = tries[tries.length - 1], shown = over ? (t === 'order' ? qn.key : qn.key) : draft;
-    // Over: solved = every row green; revealed (two wrong checks) = the right arrangement in neutral rows under a visible
-    // "Answer revealed" line, never green.
-    const marks = over ? null : last && same(last, draft) ? checkMarks(qn, last) : null, done = over ? (ok ? 'right' : 'revealed') : '';
-    const mark = i => marks ? (marks[i] ? 'right' : 'wrong') : done;
-    const markText = i => mark(i) === 'right' ? (over ? '' : 'In the right place') : mark(i) === 'wrong' ? 'Not here' : '';
-    let rows;
-    if (t === 'order') {
-      rows = shown.map((si, pos) => { const s0 = qn.steps[si], m = mark(pos);
-        return `<li class="scholar-row${m ? ` is-${m}` : ''}" data-step="${si}"><span class="scholar-pos" aria-hidden="true">${pos + 1}</span><span class="scholar-row-text"><span>${escape(s0.text)}</span>${marks && !over ? `<span class="feedback-label">${markText(pos)}</span>` : ''}${over ? `<span class="back"><em>${escape(s0.why)}</em></span>` : ''}</span>${over ? '' : `<span class="scholar-move"><button type="button" class="small" data-move="${pos}" data-dir="-1" aria-label="Move up: ${escape(s0.text)}"${pos === 0 ? ' disabled' : ''}>${ICON.up}</button><button type="button" class="small" data-move="${pos}" data-dir="1" aria-label="Move down: ${escape(s0.text)}"${pos === shown.length - 1 ? ' disabled' : ''}>${ICON.down}</button></span>`}</li>`; }).join('');
-      rows = `<ol class="scholar-rows scholar-order" aria-label="Steps, first to last">${rows}</ol>`;
-    } else {
-      // Rows in the shuffled display order; each keeps its item index i (the radio name and the pick).
-      rows = rowOrder(qn).map(i => { const x = qn.items[i], g = shown[i], m = mark(i);
-        const seg = qn.groups.map((name, k) => `<label><input type="radio" name="sort-${i}" value="${k}"${g === k ? ' checked' : ''}${over ? ' disabled' : ''}>${escape(name)}</label>`).join('');
-        return `<li class="scholar-row${m ? ` is-${m}` : ''}"><fieldset><legend class="scholar-row-text"><span>${escape(x.text)}</span>${marks && !over ? `<span class="feedback-label">${m === 'right' ? 'Right group' : 'Wrong group'}</span>` : ''}${over ? `<span class="feedback-label">${escape(qn.groups[qn.key[i]])}</span><span class="back"><em>${escape(x.why)}</em></span>` : ''}</legend><div class="seg scholar-sort-seg" data-sort="${i}">${seg}</div></fieldset></li>`; }).join('');
-      rows = `<ul class="scholar-rows scholar-sort">${rows}</ul>`;
-    }
-    const ready = !over && (t === 'order' || draft.every(g => g === 0 || g === 1)) && !tries.some(x => same(x, draft));
-    if (done === 'revealed') rows = `<p class="feedback-label scholar-revealed">Answer revealed: ${t === 'order' ? 'the right order' : 'the right groups'}</p>` + rows;
-    return { body: rows, over, wrongNow: tries.length > 0 && !over, check: over ? '' : `<button id="scholar-check" class="primary" data-tone="scholar"${ready ? '' : ' disabled'}>${t === 'order' ? 'Check order' : 'Check'}</button>`,
-      feedback: !tries.length ? '' : over ? end : `${checkMarks(qn, last).filter(Boolean).length} of ${qn.key.length} right. Change the ones marked, then check again.` };
-  }
-  // Branch: decisions so far, each with the picks made; the current one takes answers.
-  const k = currentDecision(qn, tries);
-  const parts = qn.steps.slice(0, Math.min(k + 1, qn.steps.length)).map((d, j) => {
-    const dq = decisionQuestion(qn, j), picks = tries[j] || [], st = scholarAnswerState(dq, picks, Math.min(2, d.choices.length - 1));
-    return `<div class="scholar-decision${j < k || over ? ' is-done' : ''}" data-decision="${j}"><p class="scholar-prompt"><span class="label">Decision ${j + 1} of ${qn.steps.length}</span> ${escape(d.prompt)}</p><div class="answers scholar-answers" role="group" aria-label="Choices for decision ${j + 1}">${scholarTiles(dq, st)}</div></div>`; }).join('');
-  const now = tries[k] || [], d = qn.steps[k];
-  return { body: parts, over, wrongNow: now.length > 0 && !decisionDone(d, now),
-    feedback: !tries.length ? '' : over ? end : now.length ? 'Incorrect. Read why, then pick again.' : `${(tries[k - 1] || []).includes(qn.steps[k - 1]?.key) ? 'Correct.' : 'Answer revealed.'} Decision ${k + 1} of ${qn.steps.length}.` };
-}
-const same = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i]);
-// Row height probes of an order or sort question (answer heights as in quizzes): its rows in their two
-// tallest states, after a wrong check (a mark line on each row) and at the end (the why on each row).
-export function scholarRowProbes(item, qn) {
-  const wrong = typeOf(qn) === 'order' ? [...qn.key].reverse() : qn.key.map(g => 1 - g);
-  return [guidedBody(item, qn, [wrong], wrong).body, guidedBody(item, qn, [qn.key]).body];
-}
-
-// The guided question without its navigation (shared by the term page and the unit review). see: false leaves out
-// "Look again" (the unit review has no reading sections on screen; the takeaway and every why still show).
-function guidedSection(item, qn, g, hint, {see = true} = {}) {
-  const t = typeOf(qn), over = g.over;
-  return `<section class="question-focus" aria-label="Guided question">${TASK_LABEL[t] ? `<p class="label scholar-task">${TASK_LABEL[t]}</p>` : ''}
-      <h2 id="scholar-stem" class="stem" tabindex="-1">${escape(qn.stem)}</h2>
-      ${hint ? `<p class="scholar-hint" id="scholar-hint-text" tabindex="-1"><span class="label">Hint</span> ${escape(qn.hint)}</p>` : ''}</section>
-      ${g.body}
-      <p class="sr-only" role="status" data-say="${escape(g.feedback)}"></p>
-      ${see && g.wrongNow ? `<p class="scholar-see"><span class="label">Look again</span> <button type="button" class="link-button" id="scholar-see" data-see="${escape(qn.see)}">${escape(seeLabel(qn.see, item.picture))}</button></p>` : ''}
-      ${over ? `<p class="scholar-takeaway"><span class="label">Takeaway</span> ${escape(qn.takeaway)}</p>` : ''}
-      <div class="tool-row scholar-tools"><button id="scholar-hint" aria-controls="scholar-stem"${hint || over ? ' disabled' : ''}>${hint ? 'Hint shown' : 'Hint'}</button>${g.check || ''}</div>`;
-}
-
-// Unit review: one guided question of a deck mixed across the unit's terms; practice only.
-// deck: [{item, q}]; k: the place in it; tries, hint, draft as on the term page.
-export function scholarReviewHtml({block, unit, item, qn, k, total, tries = [], hint = false, draft = null}) {
-  const g = guidedBody(item, qn, tries, draft), over = g.over;
-  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Scholar · ${LABEL.Section} ${unit} review</p><h1 id="scholar-review-title">Review: question ${k + 1} of ${total}</h1></div>
-    <article class="panel scholar-item scholar-review" data-tone="scholar" aria-labelledby="scholar-review-title">
-      <p class="label scholar-review-term">Term · <button type="button" class="link-button" id="scholar-review-term" data-scholar-item="${escape(item.id)}">${escape(item.term)}</button></p>
-      <div class="scholar-q" data-type="${typeOf(qn)}">${guidedSection(item, qn, g, hint, {see: false})}
-      <div class="navrow actions scholar-q-nav">${k > 0 ? `<button id="scholar-review-prev">${backLabel('Previous question')}</button>` : ''}${k < total - 1 ? `<button id="scholar-review-next"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Next question')}</button>` : `<button id="scholar-review-end"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Finish review')}</button>`}</div></div>
-    </article>
-    <div class="navrow actions scholar-nav"><button id="scholar-review-exit">${backLabel('All terms')}</button></div>`;
-}
-
-// started: some guided question of this term has a pick (the Reset questions link shows).
-// related: the glossary's related terms [{id, term, item, part}]; item (a Scholar item id) opens that term in
-// Scholar, else the term opens its glossary pop-up.
-export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, done, back = '', pic = {}, open = {}, draft = null, started = false, related = []}) {
-  const qn = item.questions[q], n = item.questions.length, t = typeOf(qn);
-  const section = (kind, label, body) => `<details class="scholar-drop" data-section="${kind}"${open[kind] === false ? '' : ' open'}><summary><span class="label">${label}</span></summary><div class="scholar-drop-body">${body}</div></details>`;
-  // A blank line starts a new paragraph (an umbrella's Deeper has one paragraph per covered term).
-  const text = t0 => t0.split(/\n\s*\n/).map(x => `<p>${escape(x.trim())}</p>`).join('');
-  const g = guidedBody(item, qn, tries, draft), over = g.over;
-  // One counter: the section title says "Guided question N of M"; the sheet shows only the task type of a
-  // hands-on question. The tiles show Correct / Incorrect; the status line is for screen readers only.
-  const quiz = `<div class="scholar-q" data-type="${t}">${guidedSection(item, qn, g, hint)}
-      <div class="navrow actions scholar-q-nav">${q > 0 ? `<button id="scholar-prev-q">${backLabel('Previous question')}</button>` : ''}${q < n - 1 ? `<button id="scholar-next-q"${over ? ' class="primary" data-tone="scholar"' : ''}>${nextLabel('Next question')}</button>` : ''}</div>
-      ${started ? '<p class="scholar-reset"><button type="button" class="link-button" id="scholar-reset">Reset this term\'s questions</button></p>' : ''}</div>`;
-  // Term nav: Next term always at the right (on a unit's last term: Next unit, its first term); All terms takes
-  // Previous term's place on the first term; the way back (Glossary / Card N) under them.
-  const first = nav.previous ? `<button id="scholar-prev" data-scholar-item="${escape(nav.previous.id)}">${backLabel('Previous term')}</button>` : `<button id="scholar-list">${backLabel('All terms')}</button>`;
-  const second = [nav.previous ? `<button id="scholar-list">${backLabel('All terms')}</button>` : '', back ? `<button id="scholar-return">${backLabel(back)}</button>` : ''].join('');
-  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Scholar · ${LABEL.Section} ${item.unit}</p><h1 id="scholar-term">${escape(item.term)}</h1></div>
-    <article class="panel scholar-item" data-tone="scholar" aria-labelledby="scholar-term">
-      <p class="scholar-summary">${escape(item.summary)}</p>${item.covers ? `
-      <p class="scholar-also"><span class="label">Also covers</span> ${item.covers.map(c => `<button type="button" class="link-button" data-see="picture:${c.part}">${escape(c.term)}</button>`).join(' · ')}</p>` : ''}${related.length ? `
-      <p class="scholar-related"><span class="label">Related</span> ${related.map(r => r.item ? `<button type="button" class="link-button" data-scholar-item="${escape(r.item)}"${Number.isInteger(r.part) ? ` data-part="${r.part}"` : ''}>${escape(r.term)}</button>` : `<button type="button" class="link-button term-link" data-term="${escape(r.id)}" aria-haspopup="dialog">${escape(r.term)}</button>`).join(' · ')}</p>` : ''}
-      <div class="scholar-accordion">${item.picture ? section('picture', `Picture · ${item.picture.kind === 'steps' ? 'step through' : 'tap a part'}`, pictureHtml(item.picture, pic.index ?? 0, pic)) : ''}${section('deeper', 'Deeper explanation', text(item.deeper))}${section('analogy', 'Analogy', text(item.analogy))}${section('scenario', 'Sample scenario', text(item.scenario))}${section('example', 'Everyday example', exampleHtml(item.example))}${section('questions', `Guided question ${q + 1} of ${n}`, quiz)}</div></article>
-    <div class="navrow actions scholar-nav">${first}${nav.next ? `<button id="scholar-next" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.next.id)}">${nextLabel('Next term')}</button>` : nav.nextUnit ? `<button id="scholar-next-unit" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.nextUnit.id)}" aria-label="Next ${LABEL.section}: ${LABEL.Section} ${nav.nextUnit.unit}, ${escape(nav.nextUnit.term)}">${nextLabel(`Next ${LABEL.section}`)}</button>` : ''}${second}</div>`;
-}
-
 // ---- Flash cards ----
 // saved: the card is in Manual (the SAVE button state). source: the card's question, or null for a highlight card.
 // back (optional): the card back panel, shown only after the card has been flipped (cardBackHtml).
@@ -508,121 +359,6 @@ export function missedReviewHtml({bank, review, understanding, source, isFlagged
   const record=understandingRecord(understanding,bank.version,q.id),answer=q.answers.find(a=>a.id===q.correctAnswerId);
   const n=review.ids.length,last=review.index+1===n;
   return `<div class="page-head"><p class="label">Marked for review</p><h1 class="sr-only">Marked review</h1></div><article class="panel q-sheet review-sheet"><section class="question-focus"><div class="question-heading qhead"><span class="qnum">#${review.index+1} <small>of ${n}</small></span><span class="unit-label">${escape(questionUnitLabel(q,bank.blocks))}</span></div><h2 class="stem review-question" tabindex="-1" id="review-stem">${q.studyMode==='Hard'?escape(q.stem):highlightedStem(q)}</h2></section>${reviewItem('correct','Correct answer',escape(answer.text),`<em class="review-explanation">${escape(q.reviewCue || answer.rationale)}</em>`)}${sourceRow(source(q),flagButton({id:'review-flag',question:q.id,flagged:isFlagged(q.id)}),terms,save)}</article><fieldset class="mastery"><legend class="label">Mastered this material?</legend><div class="types">${[['yes','Yes','Unmark this question.'],['no','No','Keep it marked.']].map(([v,t,d])=>`<label class="card"><input type="radio" name="understood" value="${v}" ${record?.decision===v?'checked':''}><strong>${t}</strong><span>${d}</span></label>`).join('')}</div></fieldset><div class="navrow actions review-actions"><button id="review-previous" ${review.index?'':'disabled'}>${backLabel('Back')}</button><button id="review-next" class="primary" ${record?.decision?'':'disabled'}>${nextLabel(last?'Finish':'Next')}</button></div><div class="tool-row review-exit"><button id="leave-review">${backLabel('Blocks')}</button></div>`;
-}
-
-// ---- Exam: setup panel, exam screen, submit check, results and review ----
-const pct0 = ratio => `${Math.round(ratio * 100)}%`;
-const shortDate = ms => new Date(ms).toLocaleDateString(undefined, {day:'numeric', month:'short'});
-// The Exam panel on the Mode screen. forms: bank.examForms for the block or null; status: {cycle, taken, next}
-// (exam.formStatus); plan: the Standard-draw blueprint (exam.blueprint), shown when the block has no forms;
-// last: the latest history row.
-export function examSetupHtml({block, forms, status, plan = null, last, studyOpen}) {
-  const mark = passMark(EXAM.size), order = forms?.order || [], next = status?.next;
-  const size = next ? forms.forms[next].length : EXAM.size;
-  const state = n => status.taken.includes(n) ? 'Taken this cycle' : n === next ? 'Next' : 'Not taken yet';
-  return `<section class="panel exam-setup" data-tone="violet" aria-labelledby="exam-setup-title"><div class="step-head"><span class="num">${LABEL.Group} ${block.id} · All ${block.units.length} ${LABEL.sections}</span><h2 id="exam-setup-title">Exam</h2></div>
-    <dl class="block-figures exam-figures"><div><dt>Questions</dt><dd>${size}</dd></div><div><dt>Time limit</dt><dd>${examTime(EXAM.limitMs)}</dd></div><div><dt>Pass</dt><dd>${Math.round(EXAM.passRatio*100)}%<small> · ${mark} of ${EXAM.size}</small></dd></div></dl>
-    ${next ? `<div class="exam-form">${status.cycle > 1 ? `<p class="label">Cycle ${status.cycle}</p>` : ''}
-      <ul class="form-status" aria-label="Exam versions">${order.map(n => `<li><span class="tag"${n === next ? ' data-tone="violet"' : ''}>Version ${n}</span><span class="muted">${state(n)}</span></li>`).join('')}</ul></div>` : plan ? `<div class="exam-blueprint"><p class="label">Blueprint · ${plan.size} questions from ${plan.pool}</p>
-      <div class="score-list blueprint-list">${plan.units.map(u => `<div><span><span class="unit-number">U${u.id}</span>${escape(block.units.find(x => x.id === u.id)?.title || `${LABEL.Section} ${u.id}`)}</span><strong>${u.count}</strong></div>`).join('')}</div>
-      <dl class="ledger-figures metrics blueprint-difficulty" aria-label="Difficulty">${['Easy','Medium'].map(k => `<div><dt>${k}</dt><dd>${plan.difficulty[k].count}</dd></div>`).join('')}</dl></div>` : ''}
-    <ul class="exam-rules"><li>No feedback, hints, reveal or retry until you submit.</li><li>No pause. The clock runs on real time, also when the app is closed.</li><li>Change any answer before you submit. Flag a question to come back to it later.</li><li>At 0:00 the app submits. A blank answer scores 0.</li><li>Submitted answers count in your ${LABEL.section} stats.</li></ul>
-    ${last ? `<p class="muted exam-last">Last exam: <strong class="${last.pass?'correct-label':'incorrect-label'}">${pct0(last.correct/last.size)} · ${last.pass?'Pass':'Fail'}</strong> · ${escape(shortDate(last.at))}</p>` : ''}
-    ${studyOpen ? '<p class="muted exam-note">Your paused study session stays saved.</p>' : ''}</section>`;
-}
-
-// Exam answers: the selected-state rule (blue border and fill), no grading marks until submit.
-function examAnswersHtml(q, order, picked) {
-  return order.map((id, i) => {
-    const a = q.answers.find(x => x.id === id), on = id === picked;
-    return `<button type="button" class="item${on?' picked':''}" data-exam-answer="${escape(id)}" aria-pressed="${on}" aria-keyshortcuts="${i+1}"><span class="letter" aria-hidden="true">${'ABCDEFGH'[i]}</span><span class="answer-body"><span class="answer-text"><span>${escape(a.text)}</span></span><span class="feedback-label" aria-hidden="true">Your answer</span></span></button>`;
-  }).join('');
-}
-// Exam times read in minutes, so the limit shows as 60:00 (duration() would show 1:00:00). Countdown rounds up.
-const examTime = ms => { const n = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
-export const examClock = ms => examTime(Math.ceil(ms / 1000) * 1000);
-// The exam screen: top bar (Submit, pill, live clock), navigator, question sheet, Previous/Next and tools.
-// navOpen: phones fold the 30 cells under a Questions disclosure so the question shows first.
-export function examHtml({exam, bank, now, navOpen = true}) {
-  const id = exam.pool[exam.index], q = bank.questions.find(x => x.id === id), counts = examCounts(exam), n = exam.pool.length;
-  const left = Math.max(0, exam.deadline - now), last = exam.index === n - 1, flagged = exam.flagged.includes(id);
-  const otherBlank = exam.pool.some((x, i) => i !== exam.index && exam.answers[x] === null);
-  const cell = (qid, i) => { const answered = exam.answers[qid] !== null, flag = exam.flagged.includes(qid), here = i === exam.index;
-    return `<button type="button" class="exam-cell${answered?' answered':''}${flag?' flagged':''}${here?' now':''}" data-exam-go="${i}" aria-label="Question ${i+1}, ${answered?'answered':'blank'}${flag?', flagged':''}"${here?' aria-current="step"':''}>${i+1}</button>`; };
-  // Clock at the left, Submit at the right, as Next sits at the right of Previous.
-  return `<h1 class="sr-only">Exam · ${LABEL.Group} ${exam.block}</h1><div class="toolbar study-toolbar study-top exam-top"><div class="meta exam-clock-cell"><span class="exam-clock${left<=300000?' low':''}" id="exam-clock-box" role="timer" aria-label="Time left"><span id="exam-clock">${examClock(left)}</span></span></div><span class="tag" data-tone="violet">Exam · ${LABEL.Group} ${exam.block}</span><button class="small" data-tone="violet" id="exam-submit">Submit</button></div>
-    <section class="panel ledger exam-ledger" data-tone="violet" aria-label="Question navigator"><dl class="track-row ledger-figures"><div><dt>Answered</dt><dd>${counts.answered}<small>/${n}</small></dd></div><div><dt>Blank</dt><dd>${counts.blank}</dd></div><div><dt>Flagged</dt><dd>${counts.flagged}</dd></div></dl>
-    <div class="exam-time" aria-hidden="true"><i id="exam-time-fill" style="width:${(100*(1-left/EXAM.limitMs)).toFixed(2)}%"></i></div>
-    <details class="exam-nav-box"${navOpen ? ' open' : ''}><summary>Questions</summary><div class="exam-nav" role="group" aria-label="Go to question">${exam.pool.map(cell).join('')}</div>
-    <div class="legend" aria-hidden="true"><span><i class="answered"></i>Answered</span><span><i class="blank"></i>Blank</span><span><i class="flagged"></i>Flagged</span><span><i class="now"></i>Current</span></div></details></section>
-    <article class="panel q-sheet exam-sheet"><section class="question-focus" aria-label="Current question"><div class="question-heading qhead"><p class="qnum">#${exam.index+1} <small>of ${n}</small><span class="sr-only">Question ${exam.index+1} of ${n}</span></p><span class="unit-label">${escape(questionUnitLabel(q,bank.blocks))}</span></div><h2 id="exam-stem" class="stem" tabindex="-1">${escape(q.stem)}</h2></section>
-    <div class="answers" role="group" aria-label="Answer choices">${examAnswersHtml(q, exam.orders[id], exam.answers[id])}</div>
-    <div class="exam-flag-row"><button type="button" class="small exam-flag" id="exam-flag" aria-pressed="${flagged}" aria-keyshortcuts="F">${ICON.flag}<span>${flagged?'Flagged for later':'Flag for later'}</span></button></div></article>
-    <div class="navrow actions question-actions"><button id="exam-previous" ${exam.index?'':'disabled'} aria-keyshortcuts="ArrowLeft">${backLabel('Previous')}</button><button id="exam-next" class="primary" data-tone="violet" aria-keyshortcuts="ArrowRight">${nextLabel(last?'Review and submit':'Next')}</button></div>
-    <div class="tool-row exam-tools"><button id="exam-next-blank" ${otherBlank?'':'disabled'}>Go to next blank</button></div>`;
-}
-
-// Submit check (dialog body; the dialog adds the head and Close).
-export function submitCheckHtml(exam) {
-  const c = examCounts(exam), jumps = list => list.map(n => `<button type="button" class="link-button exam-jump" data-exam-jump="${n-1}">#${n}</button>`).join('');
-  return `<dl class="ledger-figures metrics submit-figures"><div><dt>Answered</dt><dd>${c.answered}<small>/${exam.pool.length}</small></dd></div><div><dt>Blank</dt><dd>${c.blank}</dd></div><div><dt>Flagged</dt><dd>${c.flagged}</dd></div></dl>
-    ${c.blank ? `<div class="jump-row"><span class="label incorrect-label">Blank</span><span class="jump-list">${jumps(c.blankNumbers)}</span></div>` : ''}
-    ${c.flagged ? `<div class="jump-row"><span class="label">Flagged</span><span class="jump-list">${jumps(c.flaggedNumbers)}</span></div>` : ''}
-    <p class="muted">${c.blank ? `${plural(c.blank,'blank answer')} will score 0. ` : ''}After you submit, answers cannot change.</p>
-    <div class="actions"><button class="primary" id="exam-confirm-submit">Submit exam</button></div>`;
-}
-
-// Exam history: score columns against the 70% line (newest at the right), then the latest rows as text.
-function examHistoryHtml(history, currentId = null) {
-  if (!history.length) return '';
-  const shown = history.slice(-12), line = Math.round(EXAM.passRatio * 100);
-  const label = shown.map(h => `${shortDate(h.at)} ${pct0(h.correct/h.size)} ${h.pass?'pass':'fail'}`).join(', ');
-  return `<section class="panel exam-history"><h2>Exam history</h2><p class="label">On this device · ${plural(history.length,'exam')}</p>
-    <div class="exam-chart" role="img" aria-label="Exam scores, oldest first: ${escape(label)}. Pass line at ${line}%."><div class="exam-plot"><span class="pass-line" style="bottom:${line}%"><span>${line}%</span></span>${shown.map(h => `<span class="exam-col${h.pass?' pass':' fail'}${h.id===currentId?' current':''}" style="height:${Math.max(2,100*h.correct/h.size).toFixed(1)}%"></span>`).join('')}</div>
-    <div class="exam-axis" aria-hidden="true">${shown.map(h => `<span>${pct0(h.correct/h.size)}</span>`).join('')}</div></div>
-    <div class="score-list exam-history-list">${[...history].reverse().slice(0,5).map(h => `<div><span>${escape(shortDate(h.at))} · ${examLabel(h)}${h.timedOut?' · timed out':''}</span><strong class="${h.pass?'correct-label':'incorrect-label'}">${pct0(h.correct/h.size)} · ${h.pass?'Pass':'Fail'}</strong></div>`).join('')}</div></section>`;
-}
-
-const FILTER_NAMES = {missed:'Missed', blank:'Blank', changed:'Changed', flagged:'Flagged', all:'All'};
-// One review item: your answer against the correct one, the rationale, then the Save · Key terms · Source · Flag row. Exam reviews never offer Mark for review, old or new exams alike.
-function examReviewItem(item, {box, marked, source, isFlagged, termsFor = () => '', link = null, open = false}) {
-  const T = (part, id, text) => link ? link(item.q, part, id, text) : escape(text);
-  const q = item.q, right = q.answers.find(a => a.id === q.correctAnswerId), pick = item.picked && q.answers.find(a => a.id === item.picked);
-  const why = (text, id) => `<em class="review-explanation">${T('rationale', id, text)}</em>`;
-  const status = item.correct ? '<span class="tag" data-tone="good">Correct</span>' : item.blank ? '<span class="tag" data-tone="bad">Blank</span>' : '<span class="tag" data-tone="bad">Missed</span>';
-  // One row per question (number, ✓ or ✕, stem) that opens to the full item, as first-try-correct rows in Quiz review
-  // (a 30-item review would be about 15 screens long). Open: the summary shows the status tags in place of the
-  // clipped stem, and the full stem shows once below it (the open row was cramped).
-  const mark = item.correct ? '<span class="correct-label" aria-hidden="true">✓</span>' : '<span class="incorrect-label" aria-hidden="true">✕</span>';
-  const said = item.correct ? 'Correct' : item.blank ? 'Blank' : 'Missed';
-  return `<details class="review-item review-compact exam-item" data-exam-item="${escape(q.id)}"${open?' open':''}><summary><strong class="review-number">${reviewNumber(item.number)}</strong>${mark}<span class="review-compact-stem">${escape(q.stem)}</span><span class="review-status" aria-hidden="true">${status}${item.changed?'<span class="tag">Changed</span>':''}${item.flagged?'<span class="tag">Flagged</span>':''}</span><span class="sr-only">${said}${item.changed?', changed':''}${item.flagged?', flagged':''}</span></summary>
-    <p class="review-question">${T('stem', null, q.stem)}</p>
-    ${reviewItem(item.correct?'correct':'wrong','Your answer',pick?T('answer', pick.id, pick.text):'<span class="muted">No answer</span>',pick&&!item.correct?why(pick.rationale, pick.id):'')}
-    ${reviewItem('correct','Correct answer',T('answer', right.id, right.text),why(right.rationale, right.id))}
-    ${sourceRow(source(q),flagButton({question:q.id,label:`Flag question ${item.number}`,flagged:isFlagged(q.id)}),termsFor(q),box||'')}</details>`;
-}
-
-// results: examResults(); boxFor(q) → Save button markup or ''; marked(id) → already marked not understood.
-export function examResultsHtml({exam, results: r, bank, history, filter, boxFor, marked, source, isFlagged, termsFor = () => '', link = null, isOpen = () => false}) {
-  const sign = n => n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0', mark = r.passMark;
-  const gap = r.gap === null ? null : Math.round(r.gap * 100);
-  const counts = Object.fromEntries(REVIEW_FILTERS.map(f => [f, reviewItems(r, f).length])), items = reviewItems(r, filter);
-  const unitRow = u => { const v = u.total ? u.correct / u.total : null;
-    return `<div class="barrow"><span class="bar-name"><span class="unit-number">U${u.id}</span><span class="bar-title">${escape(u.title)}</span>${u.lowConfidence?'<span class="tag" title="3 or fewer questions">Low confidence</span>':''}</span><span class="b" aria-hidden="true"><i style="width:${(v*100).toFixed(1)}%"></i>${u.study===null?'':`<b class="study-tick" style="left:${(u.study*100).toFixed(1)}%"></b>`}</span><span class="mono ${scoreTone(v)}">${u.correct}/${u.total}</span><span class="mono muted">${u.study===null?'—':pct0(u.study)}</span><span class="sr-only">${u.correct} of ${u.total} correct in this exam; study first-answer accuracy ${u.study===null?'not available':pct0(u.study)}</span></div>`; };
-  return `<div class="page-head"><p class="label">Exam results · ${LABEL.Group} ${exam.block} · ${examLabel(exam)}<span class="tag" data-tone="violet">Exam</span></p><h1>Exam</h1></div>
-    <section class="panel exam-verdict" data-tone="violet" aria-label="Exam score"><div class="verdict-row"><strong class="verdict-score">${pct0(r.pct)}</strong><span class="tag verdict-tag" data-tone="${r.pass?'good':'bad'}">${r.pass?'Pass':'Fail'}</span></div>
-      <p><strong>${r.correct} of ${r.size}</strong> correct · pass mark ${Math.round(EXAM.passRatio*100)}% (${mark} of ${r.size})</p>
-      <p class="muted">${r.margin >= 0 ? `${r.margin ? plural(r.margin,'question') : 'Exactly'} ${r.margin ? 'above' : 'at'} the pass mark` : `${plural(-r.margin,'question')} short of the pass mark`}${r.timedOut?' · Time ran out, so the app submitted.':''}</p></section>
-    <div class="stats"><div class="stat"><span class="label">Time used</span><strong>${examTime(r.timeUsedMs)}</strong><small>of ${examTime(EXAM.limitMs)}</small></div><div class="stat"><span class="label">Per question</span><strong>${r.secondsPerQuestion<10?r.secondsPerQuestion.toFixed(1):Math.round(r.secondsPerQuestion)}s</strong><small>${plural(r.size,'question')}</small></div><div class="stat"><span class="label">Blank</span><strong class="${r.blank?'incorrect-label':''}">${r.blank}</strong><small>Scored as wrong</small></div><div class="stat"><span class="label">Practice gap</span><strong class="${gap===null?'':gap<0?'incorrect-label':'correct-label'}">${gap===null?'—':`${sign(gap)} pts`}</strong><small>${r.studyAccuracy===null?'No study answers yet':`Study first answers ${pct0(r.studyAccuracy)}`}</small></div></div>
-    <dl class="ledger-figures metrics exam-changes" aria-label="Changed answers"><div><dt>Changed</dt><dd>${r.changes.changed}</dd></div><div><dt>Wrong → right</dt><dd class="correct-label">${r.changes.wrongToRight}</dd></div><div><dt>Right → wrong</dt><dd class="incorrect-label">${r.changes.rightToWrong}</dd></div><div><dt>Net</dt><dd>${sign(r.changes.net)}</dd></div></dl>
-    <section class="panel unit-bars exam-units"><h2>Score by ${LABEL.section}</h2><p class="label">This exam vs study first-answer accuracy · ${escape(bank.blocks.find(b=>b.id===exam.block)?.title||'')}</p>
-      <div class="bars exam-bars"><div class="barrow bar-head" aria-hidden="true"><span class="bar-key"><i class="key-exam"></i>Exam bar <i class="key-study"></i>Study mark</span><span></span><span class="label">Exam</span><span class="label">Study</span></div>${r.units.map(unitRow).join('')}</div>
-      <p class="muted exam-note">${LABEL.Sections} with 3 or fewer questions in this exam are low confidence: one answer moves the score by 33 points or more.</p></section>
-    ${examHistoryHtml(history, exam.id)}
-    <section class="answer-review exam-review" data-tone="violet" aria-labelledby="exam-review-title"><h2 id="exam-review-title">Exam review</h2>
-      <fieldset class="review-filter"><legend class="sr-only">Show</legend><div class="seg">${REVIEW_FILTERS.map(f => `<label><input type="radio" name="exam-filter" value="${f}" ${f===filter?'checked':''}>${FILTER_NAMES[f]} ${counts[f]}</label>`).join('')}</div></fieldset>
-      ${items.length ? items.map(item => examReviewItem(item, {box:boxFor(item.q), marked:marked(item.q.id), source, isFlagged, termsFor, link, open:isOpen(item.q.id)})).join('') : `<p class="muted review-empty">No ${FILTER_NAMES[filter].toLowerCase()} questions in this exam.</p>`}</section>
-    <div class="navrow actions results-nav"><button id="exam-blocks">${backLabel('Blocks')}</button><button id="exam-again" data-tone="violet"><span class="lbl">${ICON.retry}New exam</span></button></div>`;
 }
 
 // ---- Dialog bodies (the dialog adds the head and Close) ----
