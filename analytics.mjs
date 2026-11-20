@@ -1,4 +1,5 @@
 // On-device first-answer accuracy and exposure history; independent of grading/flags.
+import { LABEL } from './settings.mjs';
 // Question pool kinds (Random / Smart). An older save kept Smart Mode as a boolean in icf:smart: true maps to Smart.
 export const POOL_KINDS = Object.freeze(['random', 'smart']);
 export const POOL_LABEL = Object.freeze({ random: 'Random', smart: 'Smart' });
@@ -80,7 +81,7 @@ export function prioritize(questions,stats,random=Math.random) {
 }
 export function missedUnits(session,blocks) {
   const missed=new Set(session.missedIds||session.attempts.filter(a=>!a.correct).map(a=>a.questionId)),counts=new Map();
-  for(const q of session.questions)if(missed.has(q.id))for(const id of q.units){const key=`${q.block}/${id}`;const title=blocks.find(b=>b.id===q.block)?.units.find(u=>u.id===id)?.title||`Unit ${id}`;const row=counts.get(key)||{id,title,count:0};row.count++;counts.set(key,row);}
+  for(const q of session.questions)if(missed.has(q.id))for(const id of q.units){const key=`${q.block}/${id}`;const title=blocks.find(b=>b.id===q.block)?.units.find(u=>u.id===id)?.title||`${LABEL.Section} ${id}`;const row=counts.get(key)||{id,title,count:0};row.count++;counts.set(key,row);}
   return [...counts.values()].sort((a,b)=>b.count-a.count||a.id-b.id);
 }
 export const scoreTone = ratio => ratio===null?'muted':ratio>0.96?'score-gold':ratio>=0.7?'correct-label':'incorrect-label';

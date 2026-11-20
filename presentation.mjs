@@ -1,4 +1,5 @@
 // Pure markup shared by study/review screens; no grading or storage effects.
+import { LABEL } from './settings.mjs';
 export const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[char]));
@@ -27,7 +28,7 @@ export function highlightedStem(question) {
 export function unitChoices(block, selected, name = 'unit', counts = null, tone = '') {
   const cls = `mono${tone ? ' unit-count' : ''}`, attr = tone ? ` data-tone="${escape(tone)}"` : '';
   return `<div class="all-row"><label class="card row">
-    <input data-all-units type="checkbox" ${selected.length === block.units.length ? 'checked' : ''}><strong>All units</strong>${counts ? `<span class="${cls}"${attr} data-count="all">${escape(counts.all)}</span>` : ''}</label></div>
+    <input data-all-units type="checkbox" ${selected.length === block.units.length ? 'checked' : ''}><strong>All ${LABEL.sections}</strong>${counts ? `<span class="${cls}"${attr} data-count="all">${escape(counts.all)}</span>` : ''}</label></div>
     <div class="units">${block.units.map(unit => `<label class="card row"><input type="checkbox" name="${escape(name)}" value="${unit.id}" ${selected.includes(unit.id) ? 'checked' : ''}>
       <span><span class="unit-number">U${unit.id}</span>${escape(unit.title)}</span>${counts ? `<span class="${cls}"${attr} data-count="${unit.id}">${counts.units[unit.id] ?? 0}</span>` : ''}</label>`).join('')}</div>`;
 }
@@ -118,12 +119,12 @@ export function assistanceTimer(current, mode) {
 }
 
 export function poolShortfall(available, requested) {
-  if(!available)return 'No questions match the selected units.';
+  if(!available)return `No questions match the selected ${LABEL.sections}.`;
   return requested!=='all'&&available<requested?`Your selection only has ${plural(available,'question')}.`:'';
 }
 export function questionUnitLabel(question, blocks) {
   const block=blocks.find(block=>block.id===question.block);
-  return question.units.map(id=>`Unit ${id} · ${block?.units.find(unit=>unit.id===id)?.title||'Course unit'}`).join(' / ');
+  return question.units.map(id=>`${LABEL.Section} ${id} · ${block?.units.find(unit=>unit.id===id)?.title||`Course ${LABEL.section}`}`).join(' / ');
 }
 
 // Review answer card: the quiz .item in its correct or wrong state, with the ✓ / ✕ marker in the letter box.

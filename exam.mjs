@@ -1,10 +1,12 @@
 // Exam Mode: pure exam logic. The caller supplies the clock (now, in ms since the epoch)
 // and randomness, so tests can drive every transition. No DOM, storage or network access here.
 // Fixed format: 30 questions, 60:00 on a wall-clock deadline, no pause, pass at 70% (21 of 30).
+import { EXAM_FORMAT, LABEL } from './settings.mjs';
 import { shuffle } from './engine.mjs';
 import { servedIn } from './storage.mjs';
 
-export const EXAM = Object.freeze({ size: 30, limitMs: 60 * 60 * 1000, passRatio: 0.7 });
+// The exam format (size, time limit, pass ratio) is a setting; this module's name for it is EXAM.
+export const EXAM = EXAM_FORMAT;
 // 21 of 30. The small epsilon keeps 0.7 * 30 from rounding to 22.
 export const passMark = size => Math.ceil(size * EXAM.passRatio - 1e-9);
 // A question with two units counts toward its first unit for per-unit exam scores.
@@ -260,7 +262,7 @@ export function examResults(exam, questions, blocks = []) {
   const study = exam.study, studyRow = id => study?.rows?.find(r => r.id === id) || null;
   const units = unitIds.map(id => {
     const rows = items.filter(r => examUnit(r.q) === id), s = studyRow(id);
-    return { id, title: block?.units.find(u => u.id === id)?.title || `Unit ${id}`, correct: rows.filter(r => r.correct).length, total: rows.length,
+    return { id, title: block?.units.find(u => u.id === id)?.title || `${LABEL.Section} ${id}`, correct: rows.filter(r => r.correct).length, total: rows.length,
       lowConfidence: rows.length <= 3, study: s && s.asked ? s.correct / s.asked : null, studyAsked: s?.asked || 0 };
   });
   const pct = size ? correct / size : 0, studyAccuracy = study?.asked ? study.correct / study.asked : null;

@@ -1,4 +1,5 @@
 // Pure transitions: elapsed active time and randomness are supplied by the caller.
+import { DEFAULTS, POOL_SIZES } from './settings.mjs';
 export const shuffle = (items, random = Math.random) => {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) {
@@ -14,8 +15,8 @@ export function eligible(questions, units, filter, block = null) {
     (filter === 'Slides and Text' || (filter === 'Slides' ? q.sourceGroup === 'slides' : filter === 'Text Only' && q.sourceGroup === 'text')))
     .map(q => [q.id, q])).values()];
 }
-export function sample(questions, random = Math.random, size = 30) {
-  if (![30,45,60,'all'].includes(size)) throw Error('Invalid pool size');
+export function sample(questions, random = Math.random, size = DEFAULTS.poolSize) {
+  if (![...POOL_SIZES,'all'].includes(size)) throw Error('Invalid pool size');
   const order=items=>shuffle(items,random);
   // Diagram cap yields to reaching the available pool size when non-diagrams are scarce.
   const count = size === 'all' ? questions.length : Math.min(size, questions.length);

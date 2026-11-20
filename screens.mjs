@@ -1,8 +1,9 @@
-// Screen markup: pure functions of the state they receive. app.mjs owns state, storage, events and timers,
-// so tests import these screens directly. Every value comes in as an argument; nothing here reads the DOM,
-// except the layout helpers at the end, which receive their elements.
+// Screen markup: pure functions of the state they receive (the app modules own state, storage, events and timers), so tests
+// import these screens directly. Every value comes in as an argument; only the layout helpers at the end touch the DOM.
+import { studyModes } from './features.mjs';
+import { FEATURES, LABEL, POOL_SIZES } from './settings.mjs';
 import { escape, reviewNumber, answersHtml, highlightedStem, unitChoices, poolShortfall, plural, commBadge, questionUnitLabel, answerReviewHtml, reviewItem, tryLabel, studyToolbar, sourceVisible, backLabel, nextLabel, ICON, flagButton, sourceRow, dropHtml, assistanceTimer, saveButton, excerptBody } from './presentation.mjs';
-import { progress, results, questionsForMode, keywordHighlightEnabled, STUDY_MODES } from './engine.mjs';
+import { progress, results, questionsForMode, keywordHighlightEnabled } from './engine.mjs';
 import { understandingRecord, notUnderstoodQuestions, sessionMissedIds, reviewIds } from './learning.mjs';
 import { unitScores, missedUnits, scoreTone, POOL_LABEL } from './analytics.mjs';
 import { EXAM, passMark, examCounts, reviewItems, REVIEW_FILTERS, examLabel, formsFor } from './exam.mjs';
@@ -15,7 +16,7 @@ export const duration = ms => { const n = Math.floor(ms/1000); return n >= 3600 
 
 // ---- Shared setup controls ----
 // Question pool: one choice, Random / Smart; it replaces the Smart Mode checkbox.
-export const POOL_HELP={random:'A random mix from the selected units.',smart:'Unseen questions first, then missed ones.'};
+export const POOL_HELP={random:`A random mix from the selected ${LABEL.sections}.`,smart:'Unseen questions first, then missed ones.'};
 export function poolKindControl({kind}) {
   return `<fieldset class="pool-kind" id="pool-kind"><legend class="sr-only">Question pool</legend><div class="seg pool-kind-seg">${['random','smart'].map(k=>`<label><input type="radio" name="pool-kind" value="${k}" ${kind===k?'checked':''}>${POOL_LABEL[k]}</label>`).join('')}</div><em class="pool-help" id="pool-help">${POOL_HELP[kind]}</em></fieldset>`;
 }
@@ -23,12 +24,11 @@ const dynamicControl = on => `<label class="card row" id="dynamic-choice"><input
 // Mode cards: the Mode screen and Marked practice use the same cards.
 const MODE_HELP={Assisted:'Timed key terms, then removes wrong choices.',Unassisted:'No timed help. Hint is available.',Hard:'Harder scenario questions. No help.'};
 // Mode is the help level only: Exam has its own entry under the study setup.
-export const modeCards=(name,current)=>STUDY_MODES.map(m=>`<label class="card" data-tone="${m==='Hard'?'gold':'blue'}"><input type="radio" name="${name}" value="${m}" ${current===m?'checked':''}><strong>${m}</strong><span>${MODE_HELP[m]}</span></label>`).join('');
+export const modeCards=(name,current)=>studyModes().map(m=>`<label class="card" data-tone="${m==='Hard'?'gold':'blue'}"><input type="radio" name="${name}" value="${m}" ${current===m?'checked':''}><strong>${m}</strong><span>${MODE_HELP[m]}</span></label>`).join('');
 // Pool chips. A selection smaller than the first size shows its own count in that
 // slot (gold) and a note at the right; sizes larger than the selection are disabled.
 // empty: the note at the right when nothing is available (Setup: no unit selected).
-export const NO_UNITS='You must select at least 1 unit.';
-const POOL_SIZES=[30,45,60];
+export const NO_UNITS=`You must select at least 1 ${LABEL.section}.`;
 export const poolSeg=(name,current,n=Infinity,empty='')=>{
   const short=n<POOL_SIZES[0], shown=current!=='all'&&current>n?(short?POOL_SIZES[0]:'all'):current;
   const chip=size=>{const fit=short&&size===POOL_SIZES[0], over=!fit&&size!=='all'&&size>n;
@@ -37,27 +37,27 @@ export const poolSeg=(name,current,n=Infinity,empty='')=>{
 };
 
 // ---- Welcome and Blocks ----
-export const welcomeHtml = ({nickname, open}) => `<section class="hero welcome-copy">${commBadge}<h1>Cyber <em>Fundamentals</em></h1><p class="label">Learn · Practice · Master</p><p class="lede">Pick a block and lock in.</p></section><form class="panel welcome-form" id="welcome"><div class="field"><label for="nickname">Nickname <span class="muted">(optional)</span></label><input id="nickname" maxlength="40" placeholder="Your nickname" autocomplete="nickname" value="${escape(nickname)}"></div><div class="welcome-actions"><button class="${open?'':'primary'}">Start</button>${open?'<button type="button" class="primary" id="welcome-resume">Resume</button>':''}</div><p class="privacy-note">Your nickname and progress stay on this device.</p></form>`;
+export const welcomeHtml = ({nickname, open}) => `<section class="hero welcome-copy">${commBadge}<h1>Cyber <em>Fundamentals</em></h1><p class="label">Learn · Practice · Master</p><p class="lede">Pick a ${LABEL.group} and lock in.</p></section><form class="panel welcome-form" id="welcome"><div class="field"><label for="nickname">Nickname <span class="muted">(optional)</span></label><input id="nickname" maxlength="40" placeholder="Your nickname" autocomplete="nickname" value="${escape(nickname)}"></div><div class="welcome-actions"><button class="${open?'':'primary'}">Start</button>${open?'<button type="button" class="primary" id="welcome-resume">Resume</button>':''}</div><p class="privacy-note">Your nickname and progress stay on this device.</p></form>`;
 
 // For Review: the box shows only the open block: its marked questions (Review, Practice quiz)
 // and its past results (Exam results when the last submitted exam is this block's; History when this block has answered
 // questions). No open block: the box keeps only its title and one line.
 export function forReviewHtml({bank, block = null, understanding, stats, examBlock = null}) {
   const b = bank.blocks.find(x => x.id === block);
-  if (!b) return `<section class="panel practice-section for-review is-empty"><div class="step-head"><h2>For Review</h2></div><p class="muted">Open a block to see its marked questions and results.</p></section>`;
+  if (!b) return `<section class="panel practice-section for-review is-empty"><div class="step-head"><h2>For Review</h2></div><p class="muted">Open a ${LABEL.group} to see its marked questions and results.</p></section>`;
   const n = notUnderstoodQuestions(bank, understanding, null, b.id).length;
   const asked = bank.questions.some(q => q.block === b.id && stats.questions[q.id]?.asked);
   const extra = `${examBlock === b.id ? '<button id="exam-results-link">Exam results</button>' : ''}${asked ? '<button id="saved-results">History</button>' : ''}`;
   const groups = `${n ? `<div class="review-group"><p class="label">Marked questions</p><button class="primary" data-review-block="${b.id}">Review (${n})</button><button data-practice-units="${b.id}">Practice quiz</button></div>` : ''}${extra ? `<div class="review-group"><p class="label">Past results</p>${extra}</div>` : ''}`;
-  return `<section class="panel practice-section for-review" data-review-for="${b.id}"><div class="step-head"><span class="num">Block ${b.id} · ${n ? `${n} marked` : 'Nothing marked'}</span><h2>For Review</h2></div>
-    ${groups ? `<div class="review-groups">${groups}</div>` : `<p class="muted">No marked questions or results for this block yet.</p>`}</section>`;
+  return `<section class="panel practice-section for-review" data-review-for="${b.id}"><div class="step-head"><span class="num">${LABEL.Group} ${b.id} · ${n ? `${n} marked` : 'Nothing marked'}</span><h2>For Review</h2></div>
+    ${groups ? `<div class="review-groups">${groups}</div>` : `<p class="muted">No marked questions or results for this ${LABEL.group} yet.</p>`}</section>`;
 }
 
 export function blocksHtml({bank, nickname, open, understanding, missedReview, stats, examBlock = null, current = null, extra = () => ({facts:'', button:''})}) {  // extra(block): more HTML for a block card (its facts, a button for its actions row)
   const shown = bank.blocks.some(b => b.id === current) ? current : bank.blocks[0]?.id;
   const normal = questionsForMode(bank.questions,'Unassisted'), hardBank = questionsForMode(bank.questions,'Hard');
   const forReview = forReviewHtml({bank, block:shown, understanding, stats, examBlock});
-  return `<div class="page-head hub-head"><p class="label">${escape(nickname ? `Welcome, ${nickname}` : 'Cyber Fundamentals')}</p><h1>Choose a block</h1>${commBadge}</div>
+  return `<div class="page-head hub-head"><p class="label">${escape(nickname ? `Welcome, ${nickname}` : 'Cyber Fundamentals')}</p><h1>Choose a ${LABEL.group}</h1>${commBadge}</div>
     ${open ? `<section class="panel resume-panel" data-tone="blue"><div><h2>Continue your session</h2><p class="muted">Your progress and answer order are saved.</p></div><button class="primary" id="resume">Resume</button></section>` : ''}
     ${bank.blocks.map(block => {
       const count = normal.filter(q => q.block === block.id).length, hard = hardBank.filter(q => q.block === block.id).length;
@@ -66,9 +66,9 @@ export function blocksHtml({bank, nickname, open, understanding, missedReview, s
       // (details name="block-list"): the last studied block, else the first block. Only blocks with questions are listed
       // (the app drops the others at load).
       const open = block.id === shown ? ' open' : '';
-      const head = `<summary><span class="step-head"><span class="num">Block ${block.id}</span><h2>${escape(block.title)}</h2></span></summary>`;
+      const head = `<summary><span class="step-head"><span class="num">${LABEL.Group} ${block.id}</span><h2>${escape(block.title)}</h2></span></summary>`;
       return `<details class="panel block-card" data-tone="blue" name="block-list"${open}>${head}
-        <dl class="block-figures"><div><dt>Units</dt><dd>${block.units.length}</dd></div><div><dt>Standard</dt><dd>${count}</dd></div><div data-tone="gold"><dt>Hard</dt><dd>${hard}</dd></div>${exams?`<div data-tone="violet"><dt>Exams</dt><dd>${exams}</dd></div>`:''}</dl>
+        <dl class="block-figures"><div><dt>${LABEL.Sections}</dt><dd>${block.units.length}</dd></div><div><dt>Standard</dt><dd>${count}</dd></div><div data-tone="gold"><dt>Hard</dt><dd>${hard}</dd></div>${exams?`<div data-tone="violet"><dt>Exams</dt><dd>${exams}</dd></div>`:''}</dl>
         ${(more => `${more.facts}<div class="block-actions">${more.button}<button data-block="${block.id}" class="primary" ${count ? '' : 'disabled'}>${nextLabel('Mode')}</button></div>`)(extra(block))}</details>
 `;
     }).join('')}
@@ -84,8 +84,8 @@ const TILES=[['questions','Questions','Answer, score and retry.'],['cards','Flas
 export function studyHubHtml({block, scholar = false, scholarDone = null}) {
   const tile = ([v,t,d]) => `<button type="button" class="card" data-study="${v}"><strong>${t}</strong><span>${d}</span></button>`;
   const divider = '<div class="exam-divider" aria-hidden="true"><span>Or</span></div>';
-  return `<div class="page-head"><p class="label">Block ${block.id} · ${escape(block.title)}</p><h1>Mode</h1></div>
-    <div class="type-grid study-tiles" role="group" aria-label="Study type">${TILES.map(tile).join('')}</div>
+  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · ${escape(block.title)}</p><h1>Mode</h1></div>
+    <div class="type-grid study-tiles" role="group" aria-label="Study type">${TILES.filter(([v])=>v!=='cards'||FEATURES.cardCatalog).map(tile).join('')}</div>
     ${scholar ? `${divider}<section class="card exam-entry scholar-entry" data-tone="scholar" aria-labelledby="scholar-entry-title"><div class="exam-entry-text"><h2 id="scholar-entry-title">Scholar</h2><p class="exam-entry-sub">Go deeper with interactive lessons.</p>${scholarDone ? `<p class="exam-entry-sub scholar-entry-done">${scholarDone.done} of ${plural(scholarDone.total, 'term')} done</p>` : ''}</div><button id="scholar-open" class="primary" data-tone="scholar">${nextLabel('Open Scholar')}</button></section>` : ''}
     ${divider}
     <section class="card exam-entry" data-tone="violet" aria-labelledby="exam-entry-title"><div class="exam-entry-text"><h2 id="exam-entry-title">Exam</h2><p class="exam-entry-sub">Prove your mastery of the material.</p></div><button id="exam-open" class="primary" data-tone="violet">${nextLabel('Take exam')}</button></section>`;
@@ -96,11 +96,11 @@ export const REPLACING_NOTE = '<p class="muted replacing-note">Starting replaces
 // Questions setup: help level, units, question pool (Random / Smart and size), Dynamic Flash Cards.
 // counts: {all: 'label', units: {unitId: n}}; pool: {kind, size, n, empty}.
 export function questionsSetupHtml({block, mode, units, counts, pool, dynamic, replacing = false}) {
-  return `<div class="page-head"><p class="label">Block ${block.id} · Questions</p><h1>Questions</h1></div>
+  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Questions</p><h1>Questions</h1></div>
     <fieldset class="modes mode-options"><legend class="sr-only">Help level</legend>${modeCards('mode',mode)}</fieldset>
-    <section class="panel unit-panel"><div class="step-head"><span class="num">Block ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">Units</legend>${unitChoices(block,units,'unit',counts)}</fieldset></section>
+    <section class="panel unit-panel"><div class="step-head"><span class="num">${LABEL.Group} ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">${LABEL.Sections}</legend>${unitChoices(block,units,'unit',counts)}</fieldset></section>
     <section class="panel pool-panel" aria-labelledby="pool-title"><div class="step-head"><span class="num">Pool</span><h2 id="pool-title">Questions</h2></div>${poolKindControl({kind:pool.kind})}<fieldset id="pool-size" class="pool-size"><legend class="sr-only">Number of questions</legend>${poolSeg('pool-size',pool.size,pool.n,pool.empty||'')}</fieldset></section>
-    ${dynamicControl(dynamic)}<p id="mode-availability" class="status" role="status"></p>${replacing ? REPLACING_NOTE : ''}
+    ${FEATURES.cardCatalog?dynamicControl(dynamic):''}<p id="mode-availability" class="status" role="status"></p>${replacing ? REPLACING_NOTE : ''}
     <div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary"${mode==='Hard'?' data-tone="gold"':''} id="mode-next">${nextLabel('Study')}</button></div>`;
 }
 
@@ -108,32 +108,32 @@ export function questionsSetupHtml({block, mode, units, counts, pool, dynamic, r
 // setsBlock: the saved sets' block filter (this block by default, or ALL_BLOCKS); blocks: every block, for the filter.
 export function cardsSetupHtml({block, blocks = [block], library, pickSetId, catalog, units, counts, setsBlock = block.id}) {
   const setRows = library.sets.map(set => { const n = cardsInSet(set,catalog,setsBlock).length; return `<label class="card row"><input type="radio" name="card-set" value="${escape(set.id)}" ${set.id===pickSetId?'checked':''} ${n?'':'disabled'}><span><strong>${escape(set.name)}</strong>${set.id===MISSED_ID?' <span class="tag">Auto</span>':''}</span><span class="set-pick-count mono">${plural(n,'card')}</span></label>`; }).join('');
-  return `<div class="page-head"><p class="label">Block ${block.id} · Flash cards</p><h1>Flash cards</h1></div>
+  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Flash cards</p><h1>Flash cards</h1></div>
       ${library.sets.every(set => !cardsInSet(set, catalog, ALL_BLOCKS).length) ? `<section class="panel card-set-pick card-set-none"><p class="muted">No saved cards yet. Missed questions and cards you SAVE show up here.</p><button class="small" id="manage-sets">Manage sets</button></section>` : `<section class="panel card-set-pick"><div class="step-head"><span class="num">Saved</span><h2>Card sets</h2><button class="small" id="manage-sets">Manage sets</button></div>${setsBlockHtml(blocks, setsBlock, 'setup-sets-block')}<div class="setlist" role="radiogroup" aria-label="Saved card sets">${setRows}</div></section>`}
-      <section class="panel unit-panel${pickSetId?' is-dimmed':''}"><div class="step-head"><span class="num">Block ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">Units</legend>${unitChoices(block,pickSetId?[]:units,'unit',counts)}</fieldset><p id="eligible-count" class="status count" role="status"></p></section>
+      <section class="panel unit-panel${pickSetId?' is-dimmed':''}"><div class="step-head"><span class="num">${LABEL.Group} ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">${LABEL.Sections}</legend>${unitChoices(block,pickSetId?[]:units,'unit',counts)}</fieldset><p id="eligible-count" class="status count" role="status"></p></section>
       <div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary" id="units-next">${nextLabel('Study')}</button></div>`;
 }
 
 // Status line under the units: the card count or the saved set in use.
 export function cardCountText({pickName, n}) {
-  return pickName ? `Using saved set “${pickName}”. Choose a unit to switch back.` : n ? `${plural(n,'card')} in this selection.` : 'No cards match these units.';
+  return pickName ? `Using saved set “${pickName}”. Choose a ${LABEL.section} to switch back.` : n ? `${plural(n,'card')} in this selection.` : `No cards match these ${LABEL.sections}.`;
 }
 
 // Exam setup (from the hub's Take exam): the Exam panel, Back to study, Start exam.
 export function examSetupScreenHtml({blockId, examSetup}) {
-  return `<div class="page-head"><p class="label">Block ${blockId} · Exam</p><h1>Take exam</h1></div>${examSetup}<p id="mode-availability" class="status" role="status"></p><div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary" data-tone="violet" id="mode-next">${nextLabel('Start exam')}</button></div>`;
+  return `<div class="page-head"><p class="label">${LABEL.Group} ${blockId} · Exam</p><h1>Take exam</h1></div>${examSetup}<p id="mode-availability" class="status" role="status"></p><div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary" data-tone="violet" id="mode-next">${nextLabel('Start exam')}</button></div>`;
 }
 
 // The line under the mode cards: only Hard can lack questions for these units.
 export function modeAvailability({mode, count, poolSize, hardPending}) {
   if (mode !== 'Hard') return '';
-  return count ? poolShortfall(count,poolSize) : hardPending ? 'Hard questions are awaiting review.' : 'No Hard questions match these units.';
+  return count ? poolShortfall(count,poolSize) : hardPending ? 'Hard questions are awaiting review.' : `No Hard questions match these ${LABEL.sections}.`;
 }
 
 // counts (optional): {all, units: {unitId: n}} marked questions available per unit for this mode, shown in red (bad tone).
 export function practiceSetupHtml({block, quizScope, units, mode, poolKind = 'random', poolSize, available, replacing, counts = null}) {
-  return `<div class="page-head"><p class="label">Block ${block.id} · Marked for review${quizScope === 'all' ? ` · All ${block.units.length} units` : ''}</p><h1>${quizScope === 'all' ? 'Practice all units' : 'Choose practice units'}</h1></div>
-    ${quizScope === 'units' ? `<section class="panel unit-panel"><div class="step-head"><span class="num">Block ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">Units</legend>${unitChoices(block,units,'review-unit',counts,'bad')}</fieldset></section>` : ''}
+  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Marked for review${quizScope === 'all' ? ` · All ${block.units.length} ${LABEL.sections}` : ''}</p><h1>${quizScope === 'all' ? `Practice all ${LABEL.sections}` : `Choose practice ${LABEL.sections}`}</h1></div>
+    ${quizScope === 'units' ? `<section class="panel unit-panel"><div class="step-head"><span class="num">${LABEL.Group} ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">${LABEL.Sections}</legend>${unitChoices(block,units,'review-unit',counts,'bad')}</fieldset></section>` : ''}
     <fieldset class="modes mode-options" id="practice-mode"><legend class="sr-only">Study mode</legend>${modeCards('practice-mode',mode)}</fieldset>
     <section class="panel pool-panel"><div class="step-head"><span class="num">Pool</span><h2>Questions</h2></div>${poolKindControl({kind:poolKind==='smart'?'smart':'random'})}<fieldset id="practice-pool-size"><legend class="sr-only">Number of questions</legend>${poolSeg('practice-pool',poolSize,available)}</fieldset><p id="practice-count" class="status" role="status"></p></section>
     ${replacing ? REPLACING_NOTE : ''}
@@ -237,13 +237,13 @@ export const IN_MISSED = '<span class="tag in-missed" data-tone="bad">Missed set
 export function glossaryHtml({block, g, list, query, unit, entry, questionCount, save = '', flag = '', toCard = '', group = 'unit', replacing = false, scholar = false}) {
   const letter = e => (e.term.match(/[A-Za-z]/)?.[0] || '#').toUpperCase();
   const letters = [...new Set(list.map(letter))];
-  const head = `<div class="page-head"><p class="label">Block ${block.id} · ${plural(g.entries.filter(e => e.block === block.id).length,'term')} from the course</p><h1>Glossary</h1></div>`;
+  const head = `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · ${plural(g.entries.filter(e => e.block === block.id).length,'term')} from the course</p><h1>Glossary</h1></div>`;
   if (entry) {
     const n = questionCount(entry);
     const poolButton = (id, label, count, tone = '') => count ? `<button id="${id}" class="primary"${tone ? ` data-tone="${tone}"` : ''}>${label} questions with this term (${count})</button>` : '';
     const pools = poolButton('gloss-questions', 'Standard', n.standard) + poolButton('gloss-hard-questions', 'Hard', n.hard, 'gold');
     return `${head}
-      <article class="panel gloss-entry" aria-labelledby="gloss-term"><div class="step-head"><span class="num">Unit ${entry.unit} · ${escape(block.units.find(u => u.id === entry.unit)?.title || '')}</span><h2 id="gloss-term">${escape(entry.term)}</h2></div>
+      <article class="panel gloss-entry" aria-labelledby="gloss-term"><div class="step-head"><span class="num">${LABEL.Section} ${entry.unit} · ${escape(block.units.find(u => u.id === entry.unit)?.title || '')}</span><h2 id="gloss-term">${escape(entry.term)}</h2></div>
       ${entry.aliases.length ? `<p class="label">${entry.aliases.map(escape).join(' · ')}</p>` : ''}<p class="gloss-short">${escape(entry.short)}</p>
       ${sourceRow(entrySource(entry, g.docs), flag, keyTermsHtml(entryTerms(entry, g)), save)}
       ${pools ? `<div class="actions gloss-pools">${pools}</div>${replacing ? REPLACING_NOTE : ''}` : ''}
@@ -259,11 +259,11 @@ export function glossaryHtml({block, g, list, query, unit, entry, questionCount,
   // The Unit chips filter the list, so By unit has no jump row; A–Z keeps the letter row.
   const jump = group === 'az' ? `<nav class="az" aria-label="Jump to letter">${letters.map(l => `<a href="#gloss-${l}">${l}</a>`).join('')}</nav>` : '';
   return `${head}<div class="panel gloss-tools"><label class="field" for="gloss-search">Search<input id="gloss-search" type="search" value="${escape(query)}" placeholder="Term, acronym or words" autocomplete="off"></label>
-    <fieldset class="unit-chips"><legend class="field">Unit</legend><div class="chips">${[{id: 0, title: 'All units'}, ...block.units].map(u => `<label title="${escape(u.title)}"><input type="radio" name="gloss-unit" value="${u.id}" ${u.id===unit?'checked':''}>${u.id ? `U${u.id}<span class="sr-only"> · ${escape(u.title)}</span>` : 'All'}</label>`).join('')}</div></fieldset>
-    <fieldset class="gloss-group"><legend class="sr-only">Group terms</legend><div class="seg">${[['unit','By unit'],['az','A–Z']].map(([v,t]) => `<label><input type="radio" name="gloss-group" value="${v}" ${group===v?'checked':''}>${t}</label>`).join('')}</div></fieldset>
+    <fieldset class="unit-chips"><legend class="field">${LABEL.Section}</legend><div class="chips">${[{id: 0, title: `All ${LABEL.sections}`}, ...block.units].map(u => `<label title="${escape(u.title)}"><input type="radio" name="gloss-unit" value="${u.id}" ${u.id===unit?'checked':''}>${u.id ? `U${u.id}<span class="sr-only"> · ${escape(u.title)}</span>` : 'All'}</label>`).join('')}</div></fieldset>
+    <fieldset class="gloss-group"><legend class="sr-only">Group terms</legend><div class="seg">${[['unit',`By ${LABEL.section}`],['az','A–Z']].map(([v,t]) => `<label><input type="radio" name="gloss-group" value="${v}" ${group===v?'checked':''}>${t}</label>`).join('')}</div></fieldset>
     ${jump}</div>
     <p class="status count" role="status">${plural(list.length,'term')}</p>
-    <div class="gloss-list">${sections || `<p class="muted gloss-empty">No terms match. Try a shorter word${unit ? ', or choose All units' : ''}.</p>`}</div>
+    <div class="gloss-list">${sections || `<p class="muted gloss-empty">No terms match. Try a shorter word${unit ? `, or choose All ${LABEL.sections}` : ''}.</p>`}</div>
     <div class="navrow actions">${toCard ? `<button id="gloss-card">${backLabel(toCard)}</button>` : `<button id="back">${backLabel('Mode')}</button>`}</div>`;
 }
 
@@ -308,19 +308,19 @@ const listName = (term, g) => { const alias = term.length > SHORT_NAME && g?.ali
  * @returns {string} the screen markup */
 export function scholarListHtml({block, units, unit, items, done = {}, todo = null, review = false, glossOf = () => null, unitDone = {}, nextUnit = null, query = '', matches = []}) {
   const seg = units.map(u => { const c = unitDone[u];
-    return `<label><input type="radio" name="scholar-unit" value="${u}" ${u === unit ? 'checked' : ''}><span aria-hidden="true">U${u}</span><span class="sr-only">Unit ${u}${c ? `, ${c.done} of ${c.total} done` : ''}</span>${c ? `<small class="scholar-unit-done" aria-hidden="true">${c.done}/${c.total}</small>` : ''}</label>`; }).join('');
+    return `<label><input type="radio" name="scholar-unit" value="${u}" ${u === unit ? 'checked' : ''}><span aria-hidden="true">U${u}</span><span class="sr-only">${LABEL.Section} ${u}${c ? `, ${c.done} of ${c.total} done` : ''}</span>${c ? `<small class="scholar-unit-done" aria-hidden="true">${c.done}/${c.total}</small>` : ''}</label>`; }).join('');
   const title = escape(block.units.find(u => u.id === unit)?.title || ''), searching = query.trim() !== '';
   const row = it => { const n = done[it.id] || 0, all = it.questions.length, g = glossOf(it.entry);
-    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${listName(it.term, g)}</strong>${searching && it.unit !== unit ? `<span class="scholar-also">Unit ${it.unit}</span>` : ''}${it.covers ? `<span class="scholar-also">Also: ${it.covers.map(c => escape(c.term)).join(' · ')}</span>` : ''}<span>${escape(g?.short || it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
+    return `<li><button type="button" class="card" data-scholar-item="${escape(it.id)}"><strong>${listName(it.term, g)}</strong>${searching && it.unit !== unit ? `<span class="scholar-also">${LABEL.Section} ${it.unit}</span>` : ''}${it.covers ? `<span class="scholar-also">Also: ${it.covers.map(c => escape(c.term)).join(' · ')}</span>` : ''}<span>${escape(g?.short || it.summary)}</span>${n ? `<span class="tag" data-tone="scholar">${n === all ? 'Done' : `${n} of ${all} right`}</span>` : ''}</button></li>`; };
   const lead = searching ? (matches.length ? '' : '<p class="muted scholar-empty">No term matches. Try fewer words, or clear the search.</p>') : `${items.length && !todo ? `
-    <p class="muted scholar-unit-complete">Unit ${unit} done.</p>${nextUnit ? `<div class="actions scholar-todo"><button type="button" id="scholar-next-unit" class="primary" data-tone="scholar" data-unit="${nextUnit}">${nextLabel(`Next unit: Unit ${nextUnit}`)}</button></div>` : ''}` : ''}${todo ? `
+    <p class="muted scholar-unit-complete">${LABEL.Section} ${unit} done.</p>${nextUnit ? `<div class="actions scholar-todo"><button type="button" id="scholar-next-unit" class="primary" data-tone="scholar" data-unit="${nextUnit}">${nextLabel(`Next ${LABEL.section}: ${LABEL.Section} ${nextUnit}`)}</button></div>` : ''}` : ''}${todo ? `
     <div class="actions scholar-todo"><button type="button" id="scholar-todo" class="primary" data-tone="scholar" data-scholar-next="${escape(todo.id)}">${nextLabel(`Study next: ${todo.term}`)}</button></div>` : ''}${review ? `
-    <div class="actions scholar-review-start"><button type="button" id="scholar-review" data-tone="scholar">Review this unit</button></div>` : ''}`;
-  return `<div class="page-head"><p class="label">Block ${block.id} · Scholar</p><h1>Scholar</h1></div>
-    <section class="panel scholar-units" data-tone="scholar"><fieldset><legend class="label">Unit</legend><div class="seg scholar-unit-seg">${seg}</div></fieldset>
-      <div class="step-head"><span class="num">Unit ${unit}</span><h2>${title}</h2></div></section>
-    <div class="panel gloss-tools scholar-find"><label class="field" for="scholar-search">Find a term<input id="scholar-search" type="search" value="${escape(query)}" placeholder="Term or words, all units" autocomplete="off"></label></div>
-    <p class="status count" role="status">${searching ? `${plural(matches.length, 'match', 'matches')} in Block ${block.id}` : `${plural(items.length,'term')} · ${items.filter(it => (done[it.id] || 0) === it.questions.length).length} done`}</p>${lead}
+    <div class="actions scholar-review-start"><button type="button" id="scholar-review" data-tone="scholar">Review this ${LABEL.section}</button></div>` : ''}`;
+  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Scholar</p><h1>Scholar</h1></div>
+    <section class="panel scholar-units" data-tone="scholar"><fieldset><legend class="label">${LABEL.Section}</legend><div class="seg scholar-unit-seg">${seg}</div></fieldset>
+      <div class="step-head"><span class="num">${LABEL.Section} ${unit}</span><h2>${title}</h2></div></section>
+    <div class="panel gloss-tools scholar-find"><label class="field" for="scholar-search">Find a term<input id="scholar-search" type="search" value="${escape(query)}" placeholder="Term or words, all ${LABEL.sections}" autocomplete="off"></label></div>
+    <p class="status count" role="status">${searching ? `${plural(matches.length, 'match', 'matches')} in ${LABEL.Group} ${block.id}` : `${plural(items.length,'term')} · ${items.filter(it => (done[it.id] || 0) === it.questions.length).length} done`}</p>${lead}
     <ul class="scholar-list">${(searching ? matches : items).map(row).join('')}</ul>
     <div class="navrow actions"><button id="back">${backLabel('Mode')}</button></div>`;
 }
@@ -415,7 +415,7 @@ function guidedSection(item, qn, g, hint, {see = true} = {}) {
 // deck: [{item, q}]; k: the place in it; tries, hint, draft as on the term page.
 export function scholarReviewHtml({block, unit, item, qn, k, total, tries = [], hint = false, draft = null}) {
   const g = guidedBody(item, qn, tries, draft), over = g.over;
-  return `<div class="page-head"><p class="label">Block ${block.id} · Scholar · Unit ${unit} review</p><h1 id="scholar-review-title">Review: question ${k + 1} of ${total}</h1></div>
+  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Scholar · ${LABEL.Section} ${unit} review</p><h1 id="scholar-review-title">Review: question ${k + 1} of ${total}</h1></div>
     <article class="panel scholar-item scholar-review" data-tone="scholar" aria-labelledby="scholar-review-title">
       <p class="label scholar-review-term">Term · <button type="button" class="link-button" id="scholar-review-term" data-scholar-item="${escape(item.id)}">${escape(item.term)}</button></p>
       <div class="scholar-q" data-type="${typeOf(qn)}">${guidedSection(item, qn, g, hint, {see: false})}
@@ -442,13 +442,13 @@ export function scholarItemHtml({block, item, q, tries = [], hint = false, nav, 
   // Previous term's place on the first term; the way back (Glossary / Card N) under them.
   const first = nav.previous ? `<button id="scholar-prev" data-scholar-item="${escape(nav.previous.id)}">${backLabel('Previous term')}</button>` : `<button id="scholar-list">${backLabel('All terms')}</button>`;
   const second = [nav.previous ? `<button id="scholar-list">${backLabel('All terms')}</button>` : '', back ? `<button id="scholar-return">${backLabel(back)}</button>` : ''].join('');
-  return `<div class="page-head"><p class="label">Block ${block.id} · Scholar · Unit ${item.unit}</p><h1 id="scholar-term">${escape(item.term)}</h1></div>
+  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Scholar · ${LABEL.Section} ${item.unit}</p><h1 id="scholar-term">${escape(item.term)}</h1></div>
     <article class="panel scholar-item" data-tone="scholar" aria-labelledby="scholar-term">
       <p class="scholar-summary">${escape(item.summary)}</p>${item.covers ? `
       <p class="scholar-also"><span class="label">Also covers</span> ${item.covers.map(c => `<button type="button" class="link-button" data-see="picture:${c.part}">${escape(c.term)}</button>`).join(' · ')}</p>` : ''}${related.length ? `
       <p class="scholar-related"><span class="label">Related</span> ${related.map(r => r.item ? `<button type="button" class="link-button" data-scholar-item="${escape(r.item)}"${Number.isInteger(r.part) ? ` data-part="${r.part}"` : ''}>${escape(r.term)}</button>` : `<button type="button" class="link-button term-link" data-term="${escape(r.id)}" aria-haspopup="dialog">${escape(r.term)}</button>`).join(' · ')}</p>` : ''}
       <div class="scholar-accordion">${item.picture ? section('picture', `Picture · ${item.picture.kind === 'steps' ? 'step through' : 'tap a part'}`, pictureHtml(item.picture, pic.index ?? 0, pic)) : ''}${section('deeper', 'Deeper explanation', text(item.deeper))}${section('analogy', 'Analogy', text(item.analogy))}${section('scenario', 'Sample scenario', text(item.scenario))}${section('example', 'Everyday example', exampleHtml(item.example))}${section('questions', `Guided question ${q + 1} of ${n}`, quiz)}</div></article>
-    <div class="navrow actions scholar-nav">${first}${nav.next ? `<button id="scholar-next" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.next.id)}">${nextLabel('Next term')}</button>` : nav.nextUnit ? `<button id="scholar-next-unit" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.nextUnit.id)}" aria-label="Next unit: Unit ${nav.nextUnit.unit}, ${escape(nav.nextUnit.term)}">${nextLabel('Next unit')}</button>` : ''}${second}</div>`;
+    <div class="navrow actions scholar-nav">${first}${nav.next ? `<button id="scholar-next" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.next.id)}">${nextLabel('Next term')}</button>` : nav.nextUnit ? `<button id="scholar-next-unit" class="primary" data-tone="scholar" data-scholar-item="${escape(nav.nextUnit.id)}" aria-label="Next ${LABEL.section}: ${LABEL.Section} ${nav.nextUnit.unit}, ${escape(nav.nextUnit.term)}">${nextLabel(`Next ${LABEL.section}`)}</button>` : ''}${second}</div>`;
 }
 
 // ---- Flash cards ----
@@ -494,12 +494,12 @@ export function resultsHtml({session, bank, blockId, stats, understanding, sourc
   const block=bank.blocks.find(b=>b.id===(session.questions[0]?.block??blockId))||bank.blocks[0],scores=unitScores(stats,block.id,block.units),tried=scores.rows.filter(row=>row.asked),untried=scores.rows.length-tried.length;
   // A session ended before any answer (or with only reveals) has nothing to review.
   const review=answerReviewHtml(session,missed,source,isFlagged,gloss,{save,isOpen})||'<p class="muted review-empty">There\'s nothing here yet. Answer a question in a session and it shows up here.</p>';
-  return `<div class="page-head"><p class="label">Latest session results<span class="tag" data-tone="${session.mode==='Hard'?'gold':'blue'}">${escape(session.mode)}</span></p><h1>Results</h1></div><div class="stats"><div class="stat"><span class="label">Active time</span><strong>${duration(r.activeMs)}</strong><small>Pauses excluded</small></div><div class="stat"><span class="label">Avg / question</span><strong>${r.averageSeconds===null?'—':`${r.averageSeconds.toFixed(1)}s`}</strong><small>${plural(r.seen,'question')} answered</small></div><div class="stat"><span class="label">Accuracy</span><strong>${pct(r.accuracy)}</strong><small>${r.correct}/${r.correct+r.incorrect} answers</small></div><div class="stat"><div class="stat-split"><span class="label correct-label" aria-hidden="true">✓</span><span class="label stat-sep" aria-hidden="true">·</span><span class="label incorrect-label" aria-hidden="true">✕</span><strong class="correct-label">${r.correct}<span class="sr-only"> correct</span></strong><strong class="stat-sep" aria-hidden="true">·</strong><strong class="incorrect-label">${r.incorrect}<span class="sr-only"> incorrect</span></strong></div><small>First try ${pct(r.firstAccuracy)}</small></div></div>${extras.length?`<dl class="ledger-figures metrics" aria-label="Help used">${extras.map(([k,n])=>`<div><dt>${k}</dt><dd>${n}</dd></div>`).join('')}</dl>`:''}${toReview.length?`<div class="actions"><button class="primary" id="review-missed">Review ${session.kind==='not_understood'?'marked':'missed'} questions (${toReview.length})</button></div>`:''}<section class="panel unit-bars"><h2>First-answer accuracy by unit</h2><p class="label">All sessions on this device · ${escape(block.title)}</p>${unitBarsHtml(tried.length?tried:scores.rows,row=>missedBy[row.id]?`<em class="tag" data-tone="bad">${missedBy[row.id]} missed</em>`:'')}${tried.length&&untried?`<p class="muted bars-rest">${plural(untried,'unit')} not practised yet</p>`:''}</section><section class="answer-review"><h2>Quiz review</h2>${review}</section><div class="navrow actions results-nav"><button id="again">${backLabel('Blocks')}</button><button id="retry-session">${retakeLabel}</button></div>`;
+  return `<div class="page-head"><p class="label">Latest session results<span class="tag" data-tone="${session.mode==='Hard'?'gold':'blue'}">${escape(session.mode)}</span></p><h1>Results</h1></div><div class="stats"><div class="stat"><span class="label">Active time</span><strong>${duration(r.activeMs)}</strong><small>Pauses excluded</small></div><div class="stat"><span class="label">Avg / question</span><strong>${r.averageSeconds===null?'—':`${r.averageSeconds.toFixed(1)}s`}</strong><small>${plural(r.seen,'question')} answered</small></div><div class="stat"><span class="label">Accuracy</span><strong>${pct(r.accuracy)}</strong><small>${r.correct}/${r.correct+r.incorrect} answers</small></div><div class="stat"><div class="stat-split"><span class="label correct-label" aria-hidden="true">✓</span><span class="label stat-sep" aria-hidden="true">·</span><span class="label incorrect-label" aria-hidden="true">✕</span><strong class="correct-label">${r.correct}<span class="sr-only"> correct</span></strong><strong class="stat-sep" aria-hidden="true">·</strong><strong class="incorrect-label">${r.incorrect}<span class="sr-only"> incorrect</span></strong></div><small>First try ${pct(r.firstAccuracy)}</small></div></div>${extras.length?`<dl class="ledger-figures metrics" aria-label="Help used">${extras.map(([k,n])=>`<div><dt>${k}</dt><dd>${n}</dd></div>`).join('')}</dl>`:''}${toReview.length?`<div class="actions"><button class="primary" id="review-missed">Review ${session.kind==='not_understood'?'marked':'missed'} questions (${toReview.length})</button></div>`:''}<section class="panel unit-bars"><h2>First-answer accuracy by ${LABEL.section}</h2><p class="label">All sessions on this device · ${escape(block.title)}</p>${unitBarsHtml(tried.length?tried:scores.rows,row=>missedBy[row.id]?`<em class="tag" data-tone="bad">${missedBy[row.id]} missed</em>`:'')}${tried.length&&untried?`<p class="muted bars-rest">${plural(untried,'unit')} not practised yet</p>`:''}</section><section class="answer-review"><h2>Quiz review</h2>${review}</section><div class="navrow actions results-nav"><button id="again">${backLabel('Blocks')}</button><button id="retry-session">${retakeLabel}</button></div>`;
 }
 
 // block: the block chosen in For Review; only its units and exam history show. null shows every block.
-export const previousAttemptsHtml = ({bank, stats, hasResults, history = [], block = null}) => `<div class="page-head"><p class="label">On this device${block === null ? '' : ` · Block ${block}`}</p><h1>Previous Attempts</h1></div><p class="muted">Reveals count as missed.</p>${bank.blocks.filter(b => block === null || b.id === block).map(block=>{
-    const scores=unitScores(stats,block.id,block.units),rows=[{title:'All units',...scores},...scores.rows];
+export const previousAttemptsHtml = ({bank, stats, hasResults, history = [], block = null}) => `<div class="page-head"><p class="label">On this device${block === null ? '' : ` · ${LABEL.Group} ${block}`}</p><h1>Previous Attempts</h1></div><p class="muted">Reveals count as missed.</p>${bank.blocks.filter(b => block === null || b.id === block).map(block=>{
+    const scores=unitScores(stats,block.id,block.units),rows=[{title:`All ${LABEL.sections}`,...scores},...scores.rows];
     return `<section class="panel attempts-panel"><h2>${escape(block.title)}</h2>${unitBarsHtml(rows,row=>row.asked?`<em class="tag">${row.correct}/${row.asked}</em>`:'')}</section>`;
   }).join('')}${examHistoryHtml(block === null ? history : history.filter(h => h.block === block))}<div class="navrow actions review-toolbar"><button id="attempts-back">${backLabel('Blocks')}</button>${hasResults?'<button id="last-results">Latest session results</button>':''}</div>`;
 
@@ -520,13 +520,13 @@ export function examSetupHtml({block, forms, status, plan = null, last, studyOpe
   const mark = passMark(EXAM.size), order = forms?.order || [], next = status?.next;
   const size = next ? forms.forms[next].length : EXAM.size;
   const state = n => status.taken.includes(n) ? 'Taken this cycle' : n === next ? 'Next' : 'Not taken yet';
-  return `<section class="panel exam-setup" data-tone="violet" aria-labelledby="exam-setup-title"><div class="step-head"><span class="num">Block ${block.id} · All ${block.units.length} units</span><h2 id="exam-setup-title">Exam</h2></div>
+  return `<section class="panel exam-setup" data-tone="violet" aria-labelledby="exam-setup-title"><div class="step-head"><span class="num">${LABEL.Group} ${block.id} · All ${block.units.length} ${LABEL.sections}</span><h2 id="exam-setup-title">Exam</h2></div>
     <dl class="block-figures exam-figures"><div><dt>Questions</dt><dd>${size}</dd></div><div><dt>Time limit</dt><dd>${examTime(EXAM.limitMs)}</dd></div><div><dt>Pass</dt><dd>${Math.round(EXAM.passRatio*100)}%<small> · ${mark} of ${EXAM.size}</small></dd></div></dl>
     ${next ? `<div class="exam-form">${status.cycle > 1 ? `<p class="label">Cycle ${status.cycle}</p>` : ''}
       <ul class="form-status" aria-label="Exam versions">${order.map(n => `<li><span class="tag"${n === next ? ' data-tone="violet"' : ''}>Version ${n}</span><span class="muted">${state(n)}</span></li>`).join('')}</ul></div>` : plan ? `<div class="exam-blueprint"><p class="label">Blueprint · ${plan.size} questions from ${plan.pool}</p>
-      <div class="score-list blueprint-list">${plan.units.map(u => `<div><span><span class="unit-number">U${u.id}</span>${escape(block.units.find(x => x.id === u.id)?.title || `Unit ${u.id}`)}</span><strong>${u.count}</strong></div>`).join('')}</div>
+      <div class="score-list blueprint-list">${plan.units.map(u => `<div><span><span class="unit-number">U${u.id}</span>${escape(block.units.find(x => x.id === u.id)?.title || `${LABEL.Section} ${u.id}`)}</span><strong>${u.count}</strong></div>`).join('')}</div>
       <dl class="ledger-figures metrics blueprint-difficulty" aria-label="Difficulty">${['Easy','Medium'].map(k => `<div><dt>${k}</dt><dd>${plan.difficulty[k].count}</dd></div>`).join('')}</dl></div>` : ''}
-    <ul class="exam-rules"><li>No feedback, hints, reveal or retry until you submit.</li><li>No pause. The clock runs on real time, also when the app is closed.</li><li>Change any answer before you submit. Flag a question to come back to it later.</li><li>At 0:00 the app submits. A blank answer scores 0.</li><li>Submitted answers count in your unit stats.</li></ul>
+    <ul class="exam-rules"><li>No feedback, hints, reveal or retry until you submit.</li><li>No pause. The clock runs on real time, also when the app is closed.</li><li>Change any answer before you submit. Flag a question to come back to it later.</li><li>At 0:00 the app submits. A blank answer scores 0.</li><li>Submitted answers count in your ${LABEL.section} stats.</li></ul>
     ${last ? `<p class="muted exam-last">Last exam: <strong class="${last.pass?'correct-label':'incorrect-label'}">${pct0(last.correct/last.size)} · ${last.pass?'Pass':'Fail'}</strong> · ${escape(shortDate(last.at))}</p>` : ''}
     ${studyOpen ? '<p class="muted exam-note">Your paused study session stays saved.</p>' : ''}</section>`;
 }
@@ -550,7 +550,7 @@ export function examHtml({exam, bank, now, navOpen = true}) {
   const cell = (qid, i) => { const answered = exam.answers[qid] !== null, flag = exam.flagged.includes(qid), here = i === exam.index;
     return `<button type="button" class="exam-cell${answered?' answered':''}${flag?' flagged':''}${here?' now':''}" data-exam-go="${i}" aria-label="Question ${i+1}, ${answered?'answered':'blank'}${flag?', flagged':''}"${here?' aria-current="step"':''}>${i+1}</button>`; };
   // Clock at the left, Submit at the right, as Next sits at the right of Previous.
-  return `<h1 class="sr-only">Exam · Block ${exam.block}</h1><div class="toolbar study-toolbar study-top exam-top"><div class="meta exam-clock-cell"><span class="exam-clock${left<=300000?' low':''}" id="exam-clock-box" role="timer" aria-label="Time left"><span id="exam-clock">${examClock(left)}</span></span></div><span class="tag" data-tone="violet">Exam · Block ${exam.block}</span><button class="small" data-tone="violet" id="exam-submit">Submit</button></div>
+  return `<h1 class="sr-only">Exam · ${LABEL.Group} ${exam.block}</h1><div class="toolbar study-toolbar study-top exam-top"><div class="meta exam-clock-cell"><span class="exam-clock${left<=300000?' low':''}" id="exam-clock-box" role="timer" aria-label="Time left"><span id="exam-clock">${examClock(left)}</span></span></div><span class="tag" data-tone="violet">Exam · ${LABEL.Group} ${exam.block}</span><button class="small" data-tone="violet" id="exam-submit">Submit</button></div>
     <section class="panel ledger exam-ledger" data-tone="violet" aria-label="Question navigator"><dl class="track-row ledger-figures"><div><dt>Answered</dt><dd>${counts.answered}<small>/${n}</small></dd></div><div><dt>Blank</dt><dd>${counts.blank}</dd></div><div><dt>Flagged</dt><dd>${counts.flagged}</dd></div></dl>
     <div class="exam-time" aria-hidden="true"><i id="exam-time-fill" style="width:${(100*(1-left/EXAM.limitMs)).toFixed(2)}%"></i></div>
     <details class="exam-nav-box"${navOpen ? ' open' : ''}><summary>Questions</summary><div class="exam-nav" role="group" aria-label="Go to question">${exam.pool.map(cell).join('')}</div>
@@ -609,15 +609,15 @@ export function examResultsHtml({exam, results: r, bank, history, filter, boxFor
   const counts = Object.fromEntries(REVIEW_FILTERS.map(f => [f, reviewItems(r, f).length])), items = reviewItems(r, filter);
   const unitRow = u => { const v = u.total ? u.correct / u.total : null;
     return `<div class="barrow"><span class="bar-name"><span class="unit-number">U${u.id}</span><span class="bar-title">${escape(u.title)}</span>${u.lowConfidence?'<span class="tag" title="3 or fewer questions">Low confidence</span>':''}</span><span class="b" aria-hidden="true"><i style="width:${(v*100).toFixed(1)}%"></i>${u.study===null?'':`<b class="study-tick" style="left:${(u.study*100).toFixed(1)}%"></b>`}</span><span class="mono ${scoreTone(v)}">${u.correct}/${u.total}</span><span class="mono muted">${u.study===null?'—':pct0(u.study)}</span><span class="sr-only">${u.correct} of ${u.total} correct in this exam; study first-answer accuracy ${u.study===null?'not available':pct0(u.study)}</span></div>`; };
-  return `<div class="page-head"><p class="label">Exam results · Block ${exam.block} · ${examLabel(exam)}<span class="tag" data-tone="violet">Exam</span></p><h1>Exam</h1></div>
+  return `<div class="page-head"><p class="label">Exam results · ${LABEL.Group} ${exam.block} · ${examLabel(exam)}<span class="tag" data-tone="violet">Exam</span></p><h1>Exam</h1></div>
     <section class="panel exam-verdict" data-tone="violet" aria-label="Exam score"><div class="verdict-row"><strong class="verdict-score">${pct0(r.pct)}</strong><span class="tag verdict-tag" data-tone="${r.pass?'good':'bad'}">${r.pass?'Pass':'Fail'}</span></div>
       <p><strong>${r.correct} of ${r.size}</strong> correct · pass mark ${Math.round(EXAM.passRatio*100)}% (${mark} of ${r.size})</p>
       <p class="muted">${r.margin >= 0 ? `${r.margin ? plural(r.margin,'question') : 'Exactly'} ${r.margin ? 'above' : 'at'} the pass mark` : `${plural(-r.margin,'question')} short of the pass mark`}${r.timedOut?' · Time ran out, so the app submitted.':''}</p></section>
     <div class="stats"><div class="stat"><span class="label">Time used</span><strong>${examTime(r.timeUsedMs)}</strong><small>of ${examTime(EXAM.limitMs)}</small></div><div class="stat"><span class="label">Per question</span><strong>${r.secondsPerQuestion<10?r.secondsPerQuestion.toFixed(1):Math.round(r.secondsPerQuestion)}s</strong><small>${plural(r.size,'question')}</small></div><div class="stat"><span class="label">Blank</span><strong class="${r.blank?'incorrect-label':''}">${r.blank}</strong><small>Scored as wrong</small></div><div class="stat"><span class="label">Practice gap</span><strong class="${gap===null?'':gap<0?'incorrect-label':'correct-label'}">${gap===null?'—':`${sign(gap)} pts`}</strong><small>${r.studyAccuracy===null?'No study answers yet':`Study first answers ${pct0(r.studyAccuracy)}`}</small></div></div>
     <dl class="ledger-figures metrics exam-changes" aria-label="Changed answers"><div><dt>Changed</dt><dd>${r.changes.changed}</dd></div><div><dt>Wrong → right</dt><dd class="correct-label">${r.changes.wrongToRight}</dd></div><div><dt>Right → wrong</dt><dd class="incorrect-label">${r.changes.rightToWrong}</dd></div><div><dt>Net</dt><dd>${sign(r.changes.net)}</dd></div></dl>
-    <section class="panel unit-bars exam-units"><h2>Score by unit</h2><p class="label">This exam vs study first-answer accuracy · ${escape(bank.blocks.find(b=>b.id===exam.block)?.title||'')}</p>
+    <section class="panel unit-bars exam-units"><h2>Score by ${LABEL.section}</h2><p class="label">This exam vs study first-answer accuracy · ${escape(bank.blocks.find(b=>b.id===exam.block)?.title||'')}</p>
       <div class="bars exam-bars"><div class="barrow bar-head" aria-hidden="true"><span class="bar-key"><i class="key-exam"></i>Exam bar <i class="key-study"></i>Study mark</span><span></span><span class="label">Exam</span><span class="label">Study</span></div>${r.units.map(unitRow).join('')}</div>
-      <p class="muted exam-note">Units with 3 or fewer questions in this exam are low confidence: one answer moves the score by 33 points or more.</p></section>
+      <p class="muted exam-note">${LABEL.Sections} with 3 or fewer questions in this exam are low confidence: one answer moves the score by 33 points or more.</p></section>
     ${examHistoryHtml(history, exam.id)}
     <section class="answer-review exam-review" data-tone="violet" aria-labelledby="exam-review-title"><h2 id="exam-review-title">Exam review</h2>
       <fieldset class="review-filter"><legend class="sr-only">Show</legend><div class="seg">${REVIEW_FILTERS.map(f => `<label><input type="radio" name="exam-filter" value="${f}" ${f===filter?'checked':''}>${FILTER_NAMES[f]} ${counts[f]}</label>`).join('')}</div></fieldset>
@@ -640,12 +640,12 @@ export function cardFlagContext(card) {
 
 // How to use (Settings menu): one short line per feature, for a first-time player.
 const HELP=[
-  ['Start','Pick a block, then the units, how many questions and a mode.'],
+  ['Start',`Pick a ${LABEL.group}, then the ${LABEL.sections}, how many questions and a mode.`],
   ['Modes','Assisted shows the key terms after a short wait, then removes wrong choices. Unassisted gives no timed help; Hint highlights the key terms. Hard asks harder scenario questions with no help.'],
-  ['Random or Smart','Random mixes the selected units. Smart shows unseen questions first, then missed ones.'], ['Keys','In a question, press 1 to 4 to answer and Enter to continue.'],
+  ['Random or Smart',`Random mixes the selected ${LABEL.sections}. Smart shows unseen questions first, then missed ones.`], ['Keys','In a question, press 1 to 4 to answer and Enter to continue.'],
   ['After you answer','Read the explanation. Source shows the course text it comes from. Outside Hard, tap a key term for its glossary definition.'],
   ['Flash cards','SAVE puts the question\u2019s card in your Manual set. With Dynamic Flash Cards on, missed questions go to the Missed Questions set.'],
-  ['Marked for review','Questions you miss in practice wait on the Blocks screen until you say you mastered them.'],
+  ['Marked for review',`Questions you miss in practice wait on the ${LABEL.Groups} screen until you say you mastered them.`],
   ['Exam','30 questions in 60 minutes, no pause. 21 correct (70%) passes.'],
   ['Scholar','Short lessons with a picture and two practice questions. They do not count in your results.'],
   ['Flag','Report a problem with a question or card. Settings \u203a Diagnostics downloads or copies your notes to send.'],

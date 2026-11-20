@@ -4,6 +4,7 @@
 // Network: none
 // Writes: none (the app's callbacks save the session)
 // Credentials: none
+import { LABEL } from './settings.mjs';
 import { escape, commBadge } from './presentation.mjs';
 
 // Questions in the first session: short enough for about five minutes.
@@ -21,9 +22,9 @@ export const firstRun = ({visited, answered, session, exams, lastBlock}) => !vis
 // The screen, built from the parts of the Blocks screen so the two look alike: the same head (greeting, heading,
 // badge), what a block does, one block card per block as a button (accent bar, "Block N", title, an arrow at the
 // right), then the way to the full setup and the help panel.
-export const firstBlockHtml = (blocks, nickname = '') => `<div class="page-head hub-head"><p class="label">${escape(nickname ? `Welcome, ${nickname}` : 'Cyber Fundamentals')}</p><h1>Which block are you in?</h1>${commBadge}</div>
-  <p class="lede first-lede">Pick your block to start ${FIRST_SESSION_SIZE} practice questions.</p>
-  <div class="first-blocks">${blocks.map(b => `<button type="button" class="panel block-card first-block" data-tone="blue" data-first-block="${b.id}"><span class="step-head"><span class="num">Block ${b.id}</span><span class="first-title">${escape(b.title)}</span></span></button>`).join('')}</div>
+export const firstBlockHtml = (blocks, nickname = '') => `<div class="page-head hub-head"><p class="label">${escape(nickname ? `Welcome, ${nickname}` : 'Cyber Fundamentals')}</p><h1>Which ${LABEL.group} are you in?</h1>${commBadge}</div>
+  <p class="lede first-lede">Pick your ${LABEL.group} to start ${FIRST_SESSION_SIZE} practice questions.</p>
+  <div class="first-blocks">${blocks.map(b => `<button type="button" class="panel block-card first-block" data-tone="blue" data-first-block="${b.id}"><span class="step-head"><span class="num">${LABEL.Group} ${b.id}</span><span class="first-title">${escape(b.title)}</span></span></button>`).join('')}</div>
   <p class="first-links"><button type="button" class="link-button" id="first-setup">Set up my own session</button><button type="button" class="link-button" id="first-help">How to use</button></p>`;
 
 /**

@@ -5,6 +5,7 @@
 // Network: none
 // Writes: none
 // Credentials: none
+import { LABEL } from './settings.mjs';
 import { scoreTone } from './analytics.mjs';
 import { questionsForMode } from './engine.mjs';
 import { EXAM } from './exam.mjs';
@@ -92,7 +93,7 @@ export function readinessHtml(result) {
 
 // The button for the block card's actions row. Empty when there is nothing to target, and while a session is open:
 // a start would replace that session, and the screen already offers Resume.
-export const weakButtonHtml = (result, sessionOpen = false) => result.history && result.targets.length && !sessionOpen ? `<button type="button" data-weak-block="${result.block}">Study weak units</button>` : '';
+export const weakButtonHtml = (result, sessionOpen = false) => result.history && result.targets.length && !sessionOpen ? `<button type="button" data-weak-block="${result.block}">Study weak ${LABEL.sections}</button>` : '';
 
 /**
  * Binds the card buttons: a press hands the block and its target units to the app, which starts the session.

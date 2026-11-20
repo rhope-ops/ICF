@@ -1,16 +1,17 @@
+import { APP, LABEL } from './settings.mjs';
 import { start, questionsForMode, STUDY_MODES } from './engine.mjs';
 import { sessionMissedIds } from './learning.mjs';
 export function persistence(storage) {
   return {
     read(key, fallback = null) {
-      try { const raw = storage.getItem('icf:' + key); return { value: raw === null ? fallback : JSON.parse(raw), error: null }; }
+      try { const raw = storage.getItem(APP.storagePrefix + key); return { value: raw === null ? fallback : JSON.parse(raw), error: null }; }
       catch { return { value: fallback, error: 'Saved data could not be read. You can continue with temporary progress.' }; }
     },
     write(key, value) {
-      try { storage.setItem('icf:' + key, JSON.stringify(value)); return null; }
+      try { storage.setItem(APP.storagePrefix + key, JSON.stringify(value)); return null; }
       catch { return 'Storage is unavailable or full. Progress is temporary; export review notes before closing.'; }
     },
-    clear() { try { ['profile','session','flags','understanding','missedReview','device','theme','stats','smart','cardSets','highlights','dynamicCards','saveTarget','pinQuestion','exam','examHistory','examHard','examMix','examCycle','poolKind','glossaryBookmarks','lastBlock','scholar'].forEach(k => storage.removeItem('icf:' + k)); return null; } catch { return 'Local data could not be cleared.'; } }
+    clear() { try { ['profile','session','flags','understanding','missedReview','device','theme','stats','smart','cardSets','highlights','dynamicCards','saveTarget','pinQuestion','exam','examHistory','examHard','examMix','examCycle','poolKind','glossaryBookmarks','lastBlock','scholar'].forEach(k => storage.removeItem(APP.storagePrefix + k)); return null; } catch { return 'Local data could not be cleared.'; } }
   };
 }
 // Save IDs/version once, rather than duplicating all static content every second.
@@ -40,11 +41,11 @@ export function validateBank(bank) {
   if (bank.schema !== 1 || typeof bank.version !== 'string' || !Array.isArray(bank.questions)) throw Error('Invalid study content');
   const ids = new Set();
   const blocks = new Map();
-  if (!Array.isArray(bank.blocks) || !bank.blocks.length) throw Error('Missing block catalog');
+  if (!Array.isArray(bank.blocks) || !bank.blocks.length) throw Error(`Missing ${LABEL.group} catalog`);
   for (const block of bank.blocks) {
     if (!Number.isInteger(block.id) || block.id < 1 || blocks.has(block.id) || typeof block.title !== 'string' || !block.title.trim() ||
         !Array.isArray(block.units) || !block.units.length || new Set(block.units.map(u => u.id)).size !== block.units.length ||
-        block.units.some(u => !Number.isInteger(u.id) || u.id < 1 || typeof u.title !== 'string' || !u.title.trim())) throw Error('Invalid block catalog');
+        block.units.some(u => !Number.isInteger(u.id) || u.id < 1 || typeof u.title !== 'string' || !u.title.trim())) throw Error(`Invalid ${LABEL.group} catalog`);
     blocks.set(block.id, new Set(block.units.map(u => u.id)));
   }
   for (const q of bank.questions) {
