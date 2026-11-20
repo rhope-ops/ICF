@@ -1281,7 +1281,7 @@ try {
     if(exam.submitted){finalizeExam();resultsKind=sessionDone()&&!wasLive?'study':'exam';if(wasLive){step='exam-results';examFilter='missed';blockId=exam.block;units=allUnits();}}
     else{step='exam';blockId=exam.block;units=allUnits();}
   }
-  $('#app-version').textContent=`ICF Companion v${APP_VERSION} · 19 Nov 2026`;
+  $('#app-version').textContent=`ICF Companion v${APP_VERSION} · 20 Nov 2026`;
   render();loadExtras().catch(()=>{});  // optional data never stops the app
 } catch (error) {
   // Offline is the likely cause only when the browser reports it; Diagnostics needs a bank.
