@@ -1,5 +1,11 @@
 // Pure markup shared by study/review screens; no grading or storage effects.
+// Inputs: questions, sessions, appearances and labels. Outputs: HTML strings, small icon markup, labels and a gear-menu
+// controller. Run: imported as an ES module by the app, the other screen modules and the tests; it is not run on its own.
+// Network: none.
+// Writes: toolsMenu() changes the attributes of the two page elements it is given; everything else only returns strings.
+// Credentials: none.
 import { LABEL } from './settings.mjs';
+// Escape a value for use in HTML text or an attribute (& < > " '); null and undefined become an empty string.
 export const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
 }[char]));
@@ -13,6 +19,7 @@ export const pageLabel = (label, n) => `${label} · p. ${n}`;
 // COMM badge, one flat accent colour (flat, not a duotone): Welcome and the Blocks screen head.
 export const commBadge = '<span class="comm-badge" role="img" aria-label="USAF Communications and Information badge"></span>';
 
+// The question stem as HTML with its key terms wrapped in <mark>, all text escaped.
 export function highlightedStem(question) {
   let cursor = 0, output = '';
   for (const term of [...question.keywords].sort((a, b) => a.start - b.start)) {
@@ -62,6 +69,7 @@ export const flagButton = ({id = '', question, label = 'Flag question', flagged 
 // ({p}) and real lists ({ul: [{t, sub?}]}), or the text as one paragraph. A short first line with no end punctuation
 // right above a list is its heading ("Patch Management": bullets show as real lists).
 const excerptHeading = (b, next) => next?.ul && b.p.length <= 60 && b.p.split(' ').length <= 8 && !/[.,;!?]$/.test(b.p);
+// The HTML of one excerpt: its paragraphs and lists, or its plain text as one paragraph.
 export const excerptBody = x => { const blocks = x.blocks || [{p: x.text}];
   return blocks.map((b, i) => b.p !== undefined ? `<p${i === 0 && excerptHeading(b, blocks[1]) ? ' class="excerpt-head"' : ''}>${escape(b.p)}</p>`
     : `<ul>${b.ul.map(it => `<li>${escape(it.t)}${it.sub ? `<ul>${it.sub.map(t => `<li>${escape(t)}</li>`).join('')}</ul>` : ''}</li>`).join('')}</ul>`).join(''); };
@@ -79,12 +87,21 @@ export const dropHtml = (kind, label, count, unit, body) =>
 // save: the Save button or ''. DOM order is SAVE, KEY TERMS, SOURCE, FLAG.
 export const sourceRow = (source, flag, terms = '', save = '') => source || terms || flag || save
   ? `<div class="source-row${terms ? '' : ' no-terms'}${source ? '' : ' no-source'}${flag ? '' : ' no-flag'}${save ? '' : ' no-save'}">${save}${terms}${source}${flag}</div>` : '';
+// A Back button label: the back arrow icon and the escaped text.
 export const backLabel = text => `<span class="lbl">${ICON.back}${escape(text)}</span>`;
+// A Next button label: the escaped text and the next arrow icon.
 export const nextLabel = text => `<span class="lbl">${escape(text)}${ICON.next}</span>`;
 
-// neutralUnpicked: after the reveal, a wrong choice nobody picked keeps its why but is not marked red.
-// Every tile carries its why from the start; a pending why is hidden but keeps its space, so all tiles hold their answered
-// height and a reveal moves nothing. The marker and tile colour show Correct / Incorrect.
+/**
+ * The answer buttons of a question. Every tile carries its why from the start; a pending why is hidden but keeps its
+ * space, so all tiles hold their answered height and a reveal moves nothing. The marker and tile colour show Correct /
+ * Incorrect.
+ * @param {object} q the question.
+ * @param {object} c the current appearance (order, resolved, stage, eliminated, wrongIds, flippedWrong).
+ * @param {object} options assisted (Assisted mode), reviewing, and neutralUnpicked (after the reveal, a wrong choice
+ * nobody picked keeps its why but is not marked red).
+ * @returns {string} the HTML.
+ */
 export function answersHtml(q,c,{assisted,reviewing=false,neutralUnpicked=false}) {
   const revealed=['correct','revealed'].includes(c.resolved)||assisted&&c.stage>=4;
   return c.order.map((id,i)=>{
@@ -105,6 +122,7 @@ export function answersHtml(q,c,{assisted,reviewing=false,neutralUnpicked=false}
 // Gear menu: the toggle opens and closes the panel; close() serves Escape, outside taps and menu actions.
 export function toolsMenu({toggle, panel, onChange = () => {}}) {
   let open = false;
+  // Open or close the panel, keep aria-expanded in step and tell the caller.
   const set = value => { open = value; panel.hidden = !open; toggle.setAttribute('aria-expanded', String(open)); onChange(open); };
   toggle.addEventListener('click', () => set(!open));
   set(false);
@@ -118,10 +136,12 @@ export function assistanceTimer(current, mode) {
   return `Next assistance in ${plural(Math.ceil(remaining/1000),'second')}`;
 }
 
+// The note to show when the pool is empty or smaller than the number asked for; an empty string when it is fine.
 export function poolShortfall(available, requested) {
   if(!available)return `No questions match the selected ${LABEL.sections}.`;
   return requested!=='all'&&available<requested?`Your selection only has ${plural(available,'question')}.`:'';
 }
+// The unit line of a question: section number and title for each of its units, joined with a slash.
 export function questionUnitLabel(question, blocks) {
   const block=blocks.find(block=>block.id===question.block);
   return question.units.map(id=>`${LABEL.Section} ${id} · ${block?.units.find(unit=>unit.id===id)?.title||`Course ${LABEL.section}`}`).join(' / ');
@@ -130,15 +150,33 @@ export function questionUnitLabel(question, blocks) {
 // Review answer card: the quiz .item in its correct or wrong state, with the ✓ / ✕ marker in the letter box.
 // Review row numbers: two digits (#01–#09) so every row's number and stem line up.
 export const reviewNumber = n => `#${String(n).padStart(2, '0')}`;
+// One review answer card: the quiz item in its correct or wrong state, with the marker, the text and an optional why.
 export const reviewItem = (tone, label, text, why = '') => `<div class="item ${tone}"><span class="letter" aria-hidden="true">${tone === 'correct' ? '✓' : '✕'}</span><span class="answer-body"><span class="feedback-label">${label}</span><span class="answer-text"><span>${text}</span></span>${why}</span></div>`;
-// Only answered questions appear in the answer review, in pool order; wrong attempts keep their order.
-// gloss (optional): {text(q, part, answerId, text) -> linked html, terms(q) -> Key terms drop-down}.
-// save(q): the SAVE button for the question's card, or '' where it has none; isOpen(id): a compact row was open.
+/**
+ * The answer review of a session. Only answered questions appear, in pool order; wrong attempts keep their order. The
+ * correct answer appears once, with its memory cue and its explanation. Wrong attempts follow in order. A question
+ * answered right on the first try is one line that opens to the full item.
+ * @param {object} session the session.
+ * @param {string[]} [missed] ids of the questions missed in this session.
+ * @param {function} [source] gives the Source drop-down HTML of a question.
+ * @param {function} [isFlagged] tells whether a question is flagged.
+ * @param {object|null} [gloss] optional {text(q, part, answerId, text) -> linked html, terms(q) -> Key terms drop-down}.
+ * @param {object} [options] save(q) (the SAVE button for the question's card, or '' where it has none) and isOpen(id) (a compact row was open).
+ * @returns {string} the HTML.
+ */
 export function answerReviewHtml(session, missed = [], source = () => '', isFlagged = () => false, gloss = null, {save = () => '', isOpen = () => false} = {}) {
-  // The correct answer appears once, with its memory cue and its explanation. Wrong attempts follow in order.
+  /**
+   * Text of a part of a question, with glossary links when a glossary is given, else just escaped.
+   * @param {object} q the question.
+   * @param {string} part the part name (for example 'answer' or 'rationale').
+   * @param {string} id the answer id.
+   * @param {string} text the text.
+   * @returns {string} HTML.
+   */
   const T = (q, part, id, text) => gloss ? gloss.text(q, part, id, text) : escape(text);
   return session.questions.filter(q=>session.attempts.some(a=>a.questionId===q.id)).map(q=>{
     const right=q.answers.find(a=>a.id===q.correctAnswerId), wrong=session.attempts.filter(a=>a.questionId===q.id&&!a.correct);
+    // The explanation line of an answer, as HTML.
     const why=(text,id=null)=>`<em class="review-explanation">${id?T(q,'rationale',id,text):escape(text)}</em>`;
     const n=session.pool.indexOf(q.id)+1, compact=!wrong.length&&!missed.includes(q.id);
     const body=`${missed.includes(q.id)&&!wrong.length?'<p><span class="tag" data-tone="bad">Missed in this session</span></p>':''}${reviewItem('correct','Correct answer',T(q,'answer',right.id,right.text),(q.reviewCue&&q.reviewCue!==right.rationale?why(q.reviewCue):'')+why(right.rationale,right.id))}${wrong.length?`<div class="answer-attempts">${wrong.map((a,i)=>{const pick=q.answers.find(x=>x.id===a.answerId);return reviewItem('wrong',wrong.length===1?'Your answer':`${ordinal(i+1)} answer`,T(q,'answer',pick.id,pick.text),why(pick.rationale,pick.id));}).join('')}</div>`:''}${sourceRow(source(q),flagButton({question:q.id,label:`Flag question ${n}`,flagged:isFlagged(q.id)}),gloss?gloss.terms(q):'',save(q))}`;

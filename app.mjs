@@ -28,23 +28,28 @@ import * as screens from './screens.mjs';
 import { allSections, noteGroup, pauseStudy, resumeStudy, save, saveUnderstanding, send, servedGroup, sessionDone, sessionOpen, updateStats, updateStudy } from './session.mjs';
 import { migrateLearning, migrateReview, migrateSession, persistence, restoreSession, savedBoolean, validateBank, withMigrations } from './storage.mjs';
 import { holdScholarHeights, positionStudyQuestion, scholarHold, updateTrack } from './study-ui.mjs';
+// Short for document.querySelector: return the first page element that matches the selector.
 export const $ = s => document.querySelector(s);
 export const main = $('#main'), dialog = $('#dialog');
 
 try { shared.local = window.localStorage; } catch { shared.local = { getItem(){throw Error();}, setItem(){throw Error();}, removeItem(){throw Error();} }; }
 export const store = persistence(shared.local);
+// Read one saved value through the storage layer; show the storage notice when the read fails and return the value or fallback.
 export function read(key, fallback) { const r = store.read(key, fallback); if (r.error) notice(r.error); return r.value; }
+// Show a message in the page's storage notice area; an empty message clears it.
 export function notice(message) { $('#storage-notice').textContent = message || ''; }
 // Write one saved value. A failed write shows the storage notice and returns false; success leaves other notices in place.
 export function persist(key, value) { const error = store.write(key, value); if (error) notice(error); return !error; }
 shared.theme=window.icfTheme.choice;
 // Dark theme switch: a row of the gear menu (the light/dark toggle sits with the other settings).
 const themeSwitch=document.querySelector('#settings-dark');
+// Set the dark theme switch in the gear menu to match the theme that is active on the page.
 export const syncThemeSwitch=()=>{if(themeSwitch)themeSwitch.checked=document.documentElement.dataset.theme==='dark';};
 if(themeSwitch){syncThemeSwitch();themeSwitch.onchange=()=>{shared.theme=themeSwitch.checked?'dark':'light';window.icfTheme.set(shared.theme);syncThemeSwitch();persist('theme',shared.theme);};
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>setTimeout(syncThemeSwitch));}
 shared.pinQuestion=savedBoolean(read('pinQuestion',true),true);
 document.documentElement.dataset.pinQuestion=String(shared.pinQuestion);
+// Copy the current header height into the --header-height CSS variable so the page layout can use it.
 const updateHeaderHeight=()=>document.documentElement.style.setProperty('--header-height',`${Math.ceil($('header').getBoundingClientRect().height)}px`);
 updateHeaderHeight();
 if('ResizeObserver' in window)new ResizeObserver(updateHeaderHeight).observe($('header'));

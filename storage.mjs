@@ -1,16 +1,33 @@
+// Saved data layer: reading and writing the app's browser-storage keys, checking the question bank, restoring and
+// migrating saved sessions, review lists and card sets. Every restore accepts only an exact known version and rejects
+// corrupt or unknown data (it returns null or throws), so a bad save is never used.
+// Inputs: a storage object (the browser's localStorage in the app), the parsed question bank and saved values.
+// Outputs: validated, restored or migrated values and error messages. Run: imported as an ES module by the app and the tests.
+// Network: none (the migrations file is fetched by the caller and passed in as a loader function).
+// Writes: persistence() writes and removes keys in the storage object it is given, under the app's key prefix.
+// Credentials: none.
 import { APP, LABEL } from './settings.mjs';
 import { start, questionsForMode, STUDY_MODES } from './engine.mjs';
 import { sessionMissedIds } from './learning.mjs';
+/**
+ * A small reader and writer over a storage object (the browser's localStorage). Keys get the app's prefix and values
+ * are stored as JSON. Failures return a message instead of throwing.
+ * @param {Storage} storage an object with getItem, setItem and removeItem.
+ * @returns {{read: function, write: function, clear: function}} the three operations.
+ */
 export function persistence(storage) {
   return {
+    // Read one key: {value, error}. A missing key gives the fallback; unreadable data gives the fallback and an error message.
     read(key, fallback = null) {
       try { const raw = storage.getItem(APP.storagePrefix + key); return { value: raw === null ? fallback : JSON.parse(raw), error: null }; }
       catch { return { value: fallback, error: 'Saved data could not be read. You can continue with temporary progress.' }; }
     },
+    // Write one key; returns null on success, else an error message (storage unavailable or full).
     write(key, value) {
       try { storage.setItem(APP.storagePrefix + key, JSON.stringify(value)); return null; }
       catch { return 'Storage is unavailable or full. Progress is temporary; export review notes before closing.'; }
     },
+    // Remove every key the app saves; returns null on success, else an error message.
     clear() { try { ['profile','session','flags','understanding','missedReview','device','theme','stats','smart','cardSets','highlights','dynamicCards','saveTarget','pinQuestion','exam','examHistory','examHard','examMix','examCycle','poolKind','glossaryBookmarks','lastBlock','scholar'].forEach(k => storage.removeItem(APP.storagePrefix + k)); return null; } catch { return 'Local data could not be cleared.'; } }
   };
 }
@@ -19,10 +36,21 @@ export function sessionSnapshot(session) {
   const { questions, ...snapshot } = session;
   return { ...snapshot, contentRef: session.version };
 }
+/**
+ * Expand a bank that stores its repeated text in a shared dictionary: each {$text: n} becomes the nth string. A bank
+ * without a dictionary is returned as it is. Throws on a bad dictionary or reference.
+ * @param {object} bank the parsed questions.json.
+ * @returns {object} the bank with its text filled in.
+ */
 export function expandBank(bank) {
   if(!bank.textDictionary)return bank;
   const strings=bank.textDictionary;
   if(!Array.isArray(strings)||strings.some(s=>typeof s!=='string'))throw Error('Invalid content dictionary');
+  /**
+   * Copy a value, replacing each {$text: n} reference with its dictionary string and dropping the dictionary itself.
+   * @param {*} v the value (a list, an object or a plain value).
+   * @returns {*} the copy.
+   */
   const decode=v=>{
     if(Array.isArray(v))return v.map(decode);
     if(v&&typeof v==='object'){
@@ -36,6 +64,12 @@ export function expandBank(bank) {
   };
   return decode(bank);
 }
+/**
+ * Check the whole question bank (schema, version, blocks, units, questions, answers and the save migration list) and
+ * return it expanded. Throws an error when anything is not as expected.
+ * @param {object} bank the parsed questions.json.
+ * @returns {object} the expanded bank.
+ */
 export function validateBank(bank) {
   bank=expandBank(bank);
   if (bank.schema !== 1 || typeof bank.version !== 'string' || !Array.isArray(bank.questions)) throw Error('Invalid study content');
@@ -151,6 +185,13 @@ export async function withMigrations(bank, saves, load) {
   try { return { bank: attachMigrations(bank, await load()), held: false }; }
   catch { return { bank, held: true }; }
 }
+/**
+ * Restore a saved study session against the current bank. A compact save (contentRef) is expanded to full questions.
+ * Every field is checked; any mismatch gives null, so a damaged save is never resumed.
+ * @param {object} saved the parsed saved session.
+ * @param {object} bank the current question bank.
+ * @returns {object|null} the restored session, or null.
+ */
 export function restoreSession(saved, bank) {
   try {
     if (saved?.contentRef !== undefined) {
@@ -226,6 +267,7 @@ export function restoreSession(saved, bank) {
     return restored;
   } catch { return null; }
 }
+// Build the saved review flag of a question: the chosen answers, the question flag, a note (up to 2000 characters) and the testing data. Throws on an invalid target.
 export function reviewFlag({ version, question, answerIds = [], questionFlag = false, note = '', now = new Date().toISOString() }) {
   if (!version || !question || !Array.isArray(answerIds) || answerIds.some(id => !question.answers.some(a => a.id === id))) throw Error('Invalid review target');
   return { version, questionId: question.id, answerIds: [...new Set(answerIds)], questionFlag: Boolean(questionFlag),
@@ -274,8 +316,14 @@ async function servedRecord(migration, bank, q) {
   const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(b => b.toString(16).padStart(2, '0')).join('');
   return pinned === hash;
 }
-// Migrate only exact, hash-pinned old served records from this authorized wording revision.
-// Corrupt/mismatched snapshots still flow to the usual restore rejection. Needs the attached migrations (attachMigrations).
+/**
+ * Migrate a saved session made on an earlier content version. Only exact, hash-pinned old served records from this
+ * authorized wording revision migrate. Corrupt or mismatched snapshots still flow to the usual restore rejection.
+ * Needs the attached migrations (attachMigrations).
+ * @param {object} saved the parsed saved session.
+ * @param {object} bank the current bank, with its migrations attached.
+ * @returns {Promise<object|null>} the migrated session, the same save when nothing applies, or null when no question is left.
+ */
 export async function migrateSession(saved, bank) {
   const migration=bank.migrations?.find(m=>m.version===saved?.version);
   if(!migration)return saved;
@@ -290,6 +338,7 @@ export async function migrateSession(saved, bank) {
   const next=structuredClone(saved);delete next.contentRef;
   if(!Array.isArray(next.pool)||!Array.isArray(next.queue)||!Array.isArray(next.attempts))return saved;
   if(next.queue.some(id=>!next.pool.includes(id)))return saved;
+  // Keep only the ids that the current bank still serves.
   const kept=ids=>ids.filter(id=>allowed.has(id));
   next.pool=kept(next.pool);
   if(!next.pool.length)return null;
@@ -329,6 +378,7 @@ export function migrateLearning(records, bank) {
   }
   return out;
 }
+// Move a saved review list from an old content version to the current one, dropping ids the bank no longer serves; null when it is damaged or empty.
 export function migrateReview(raw, bank) {
   if(!raw||!bank.migrationVersions?.includes(raw.version))return raw;
   if(!Array.isArray(raw.ids)||!Number.isInteger(raw.index))return null;
@@ -343,8 +393,14 @@ export function migrateReview(raw, bank) {
 // leads, then the rest in saved order. A card is kept once, at its first occurrence (sets store no save times, so saved
 // order is the earliest order known). Nothing is dropped.
 export const MISSED_SET=Object.freeze({id:'missed',name:'Missed Questions'}), MANUAL_SET=Object.freeze({id:'manual',name:'Manual'});
+/**
+ * Merge the card sets of schema 1 or 2 into the two fixed sets of schema 3; throws when the schema is unknown.
+ * @param {object} raw the saved card-set library (schema 1 or 2).
+ * @returns {object} the library in schema 3.
+ */
 export function migrateCardSets(raw) {
   if(!raw||![1,2].includes(raw.schema)||!Array.isArray(raw.sets))throw Error('Saved card sets have an unknown version.');
+  // True when two names are the same ignoring case.
   const same=(a,b)=>String(a).toLowerCase()===b.toLowerCase();
   const missed=raw.sets.find(s=>s.id===MISSED_SET.id)||raw.sets.find(s=>same(s.name,MISSED_SET.name))||null;
   const rest=raw.sets.filter(s=>s!==missed),lead=rest.filter(s=>s.id===MANUAL_SET.id||same(s.name,MANUAL_SET.name));

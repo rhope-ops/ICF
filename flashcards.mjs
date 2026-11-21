@@ -1,3 +1,10 @@
+// Flash Cards logic and markup: the card catalog check, which cards can be studied, card sets (Missed Questions and
+// Manual) and the HTML of a card and of the saved-sets screen.
+// Inputs: the question bank, the cards.json catalog, the saved card-set library and the user's actions.
+// Outputs: new state or library objects and HTML strings. Run: imported as an ES module by the app and the tests.
+// Network: none.
+// Writes: none directly (a caller passes a `store` object; its commit() does the saving, in cards-ui.mjs).
+// Credentials: none.
 import { LABEL } from './settings.mjs';
 import { shuffle } from './engine.mjs';
 import { migrateCardSets, MISSED_SET, MANUAL_SET } from './storage.mjs';
@@ -104,6 +111,7 @@ export const HARD_CARD_MAP = Object.freeze({
 export const MERGED_CARDS = Object.freeze({  });
 // End of generated card links.
 const linkedFrom = Object.entries(MERGED_CARDS).reduce((m, [from, to]) => m.set(to, [...(m.get(to) || []), from]), new Map());
+// True when a question can be a flash card: not Hard, Easy or Medium, and with a non-empty review cue.
 const cardEligible = q => q && q.studyMode !== 'Hard' && ['Easy','Medium'].includes(q.difficulty) && typeof q.reviewCue === 'string' && Boolean(q.reviewCue.trim());
 
 // The served catalog (site/dist/cards.json, loaded after the first screen): schema 1, a list of authored factual cards,
@@ -136,12 +144,14 @@ export function previewCards(questions, catalog) {
   });
 }
 
+// Start a card session: shuffle the cards and give each a random first side; throw when there are no cards.
 export function startCards(cards, random = Math.random) {
   if (!cards.length) throw Error(`No Flash Cards match these ${LABEL.sections}`);
   return { cards: shuffle(cards, random).map(card => ({ ...card,
     initialSide: random() < 0.5 ? 'definition' : 'term', flipped: false, hintUsed: false })), index: 0 };
 }
 
+// Apply one action (flip, hint, previous or next) to a card session and return the new state.
 export function moveCards(state, event) {
   const next = { ...state, cards: state.cards.map(c => ({ ...c })) };
   const card = next.cards[next.index];
@@ -156,13 +166,20 @@ export function moveCards(state, event) {
 // question cards stay ID-only and resolve against the current catalog.
 export const cardKey = card => card.kind === 'highlight' ? card.id : card.questionId;
 
+// Find the catalog card for a question id, following the Hard-question and merged-card maps; null when none.
 export function cardForQuestion(catalogCards, id) {
   const target = HARD_CARD_MAP[id] || MERGED_CARDS[id] || id;
   return catalogCards.find(c => c.questionId === target) || null;
 }
 
-// missed: the card is in Missed Questions (a Missed set tag beside the unit). tools: extra buttons for the row under
-// Back, at its left (Open in Glossary); Hint stays at the right, under Next.
+/**
+ * Build the HTML of the current flash card with its Back, Next and Hint controls. `missed` shows a Missed set tag
+ * beside the unit. `tools` is extra buttons for the row under Back, at its left (Open in Glossary); Hint stays at the
+ * right, under Next.
+ * @param {object} state the card session (cards, index).
+ * @param {object} [options] saveBox (HTML), unit (label), missed (boolean) and tools (HTML).
+ * @returns {string} the HTML.
+ */
 export function cardHtml(state, { saveBox = '', unit = '', missed = false, tools = '' } = {}) {
   const c = state.cards[state.index], highlight = c.kind === 'highlight';
   const side = c.flipped ? (c.initialSide === 'definition' ? 'term' : 'definition') : c.initialSide;
@@ -184,11 +201,15 @@ export function cardHtml(state, { saveBox = '', unit = '', missed = false, tools
 // shape is checked here, then storage.migrateCardSets merges every other set into Manual. Any other schema is refused.
 const CARD_SET_SCHEMA = 3, OLD_SET_LIMIT = 500, SET_LIMIT = 50000, ADD_LIMIT = 2000;
 const SAFE_ID = /^[\w-]{1,100}$/, DOC_ID = /^[A-Z0-9-]{1,20}$/;
+// True when the value is a string without edge spaces and with a length from 1 to `max`.
 const clean = (value, max) => typeof value === 'string' && value.trim() === value && value.length > 0 && value.length <= max;
+// True when the value is a well-formed highlight source: document, label, page and a start and end position.
 const validSource = s => s && DOC_ID.test(s.doc ?? '') && clean(s.label, 80) && Number.isInteger(s.page) && s.page >= 1 &&
   Number.isInteger(s.start) && s.start >= 0 && Number.isInteger(s.end) && s.end > s.start && Object.keys(s).length === 5;
+// True when the value is a well-formed saved highlight card.
 const validCard = c => c && c.kind === 'highlight' && SAFE_ID.test(c.id ?? '') && clean(c.term, 80) && clean(c.definition, 1000) &&
   validSource(c.source) && Object.keys(c).length === 5;
+// True when the value is a well-formed card set for the given schema and size limit.
 const validSet = (s, schema, limit) => s && typeof s.id === 'string' && SAFE_ID.test(s.id) &&
   typeof s.name === 'string' && s.name.trim() && s.name === s.name.trim() && s.name.length <= 40 &&
   Array.isArray(s.questionIds) && s.questionIds.length <= limit && new Set(s.questionIds).size === s.questionIds.length &&
@@ -199,11 +220,14 @@ const validOldSets = (sets, schema) => Array.isArray(sets) && sets.length <= 100
   new Set(sets.map(s => s?.name?.toLowerCase())).size === sets.length && sets.every(s => validSet(s, schema, OLD_SET_LIMIT));
 // Schema 3: Missed Questions then Manual, with their fixed IDs and names.
 const FIXED = [MISSED_SET, MANUAL_SET];
+// True when the sets are exactly the two fixed sets, Missed Questions then Manual.
 const validFixedSets = sets => Array.isArray(sets) && sets.length === 2 &&
   sets.every((s, i) => validSet(s, 2, SET_LIMIT) && s.id === FIXED[i].id && s.name === FIXED[i].name);
 export const MISSED_ID = MISSED_SET.id, MANUAL_ID = MANUAL_SET.id;
+// Return a new library with the two fixed sets and no cards.
 const emptyLibrary = () => ({ schema: CARD_SET_SCHEMA, sets: FIXED.map(f => ({ ...f, questionIds: [], cards: [] })) });
 
+// Check a saved library and return a clean copy (older schemas are migrated); throw when it cannot be read.
 export function restoreCardSets(raw = emptyLibrary()) {
   if (raw && [1, 2].includes(raw.schema) && validOldSets(raw.sets, raw.schema)) raw = migrateCardSets(raw);
   if (!raw || raw.schema !== CARD_SET_SCHEMA || !validFixedSets(raw.sets)) throw Error('Saved card sets could not be read.');
@@ -211,6 +235,7 @@ export function restoreCardSets(raw = emptyLibrary()) {
     cards: s.cards.map(c => ({ id:c.id, kind:c.kind, term:c.term, definition:c.definition, source:{ ...c.source } })) })) };
 }
 
+// Copy a highlight card, trimming its text, into the shape that is stored.
 const storedCard = c => ({ id:c.id, kind:'highlight', term:String(c.term).trim(), definition:String(c.definition).trim(), source:{ doc:c.source.doc, label:c.source.label, page:c.source.page, start:c.source.start, end:c.source.end } });
 // Add a card (a question card, or a saved highlight card) to Missed Questions or Manual.
 export function addCardToSet(library, setId, card) {
@@ -223,15 +248,18 @@ export function addCardToSet(library, setId, card) {
   return restoreCardSets(next);
 }
 
+// Remove a card (by key) from a set of the library and return the new library.
 export function removeSavedCard(library, setId, key) {
   const next = restoreCardSets(library), set = next.sets.find(s => s.id === setId);
   if (set) { set.questionIds = set.questionIds.filter(id => id !== key); set.cards = set.cards.filter(c => c.id !== key); }
   return next;
 }
 
+// True when the set already holds the card.
 export function setHasCard(set, card) {
   return Boolean(set && (card.kind === 'highlight' ? set.cards.some(c => c.id === card.id) : set.questionIds.includes(card.questionId)));
 }
+// True when the Manual set already holds the card.
 export const manualHas = (library, card) => setHasCard(library.sets.find(s => s.id === MANUAL_ID), card);
 
 // Saved cards by block: the one library holds every block's cards, and each view shows one block
@@ -239,8 +267,11 @@ export const manualHas = (library, card) => setHasCard(library.sets.find(s => s.
 // card's question ID (B4-U2-Q020 is Block 4), so the stored schema is unchanged. Highlight cards have no block and show
 // in every view.
 export const ALL_BLOCKS = 'all';
+// The block number in a question id such as B4-U2-Q020 (4); null when the id has none.
 export const cardBlock = id => Number(/^B(\d+)-/.exec(id)?.[1]) || null;
+// True when the question id belongs to the block, or the view shows all blocks.
 const inBlock = (id, block) => block === ALL_BLOCKS || cardBlock(id) === block;
+// The cards of a set that are in the block: its question cards from the catalog, then its highlight cards.
 export function cardsInSet(set, catalog, block = ALL_BLOCKS) {
   return [...set.questionIds.filter(id => inBlock(id, block)).flatMap(id => catalog.filter(c => c.questionId === id)),
     ...(set.cards || []).map(c => ({ ...c, source:{ ...c.source } }))];
@@ -260,6 +291,7 @@ function setCardsHtml(set, catalog, block) {
   const entries = setEntries(set, catalog, block);
   if (!entries.length) return '';
   const groups = [...new Set(entries.map(e => e.block))].sort((a, b) => (a ?? Infinity) - (b ?? Infinity));
+  // One list row of a card with its Remove button.
   const row = e => `<li><span>${e.term ? escape(e.term) : `Unavailable card <span class="muted">${escape(e.key)}</span>`}${e.highlight ? ' <span class="muted">· highlight</span>' : ''}</span><button class="small" data-remove-card="${escape(e.key)}" data-set="${escape(set.id)}" aria-label="Remove ${escape(e.term || e.key)} from ${escape(set.name)}">Remove</button></li>`;
   return `<details class="set-cards"><summary>Edit cards (${entries.length})</summary>${groups.map(b => `<h3 class="label set-block">${b === null ? 'Highlights' : `${LABEL.Group} ${b}`}</h3><ul>${entries.filter(e => e.block === b).map(row).join('')}</ul>`).join('')}</details>`;
 }
@@ -267,6 +299,7 @@ function setCardsHtml(set, catalog, block) {
 // The block filter of the saved sets (Saved card sets screen and the card setup): All blocks, then each block.
 // blocks: [{id, title}]; block: a block id or ALL_BLOCKS.
 export const setsBlockHtml = (blocks, block, id = 'sets-block') => `<label class="field sets-block" for="${escape(id)}">${LABEL.Group}<span class="selwrap"><select id="${escape(id)}"><option value="${ALL_BLOCKS}"${block === ALL_BLOCKS ? ' selected' : ''}>All ${LABEL.groups}</option>${blocks.map(b => `<option value="${b.id}"${b.id === block ? ' selected' : ''}>${LABEL.Group} ${b.id} · ${escape(b.title)}</option>`).join('')}</select></span></label>`;
+// Read the value of the block filter: ALL_BLOCKS stays as it is, anything else becomes a number.
 export const setsBlockValue = value => value === ALL_BLOCKS ? ALL_BLOCKS : Number(value);
 
 // The two sets: study either one, or remove cards from it. No create, rename or delete. blocks/block: the block filter.

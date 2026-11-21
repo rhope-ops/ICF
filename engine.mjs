@@ -1,5 +1,13 @@
-// Pure transitions: elapsed active time and randomness are supplied by the caller.
+// Study session engine: pure functions that build a session, pick its questions and move it from one state to the next.
+// Elapsed active time and randomness are supplied by the caller, so the same input always gives the same result.
+// Inputs: question lists, settings, a session state object and events (answer, tick, hint, reveal, next and so on).
+// Outputs: new session state objects, a question pool, result and progress summaries.
+// Run: imported as an ES module by the app and the tests; it is not run on its own.
+// Network: none.
+// Writes: none (the functions change only the copies they make; session.mjs and storage.mjs do the saving).
+// Credentials: none.
 import { DEFAULTS, POOL_SIZES } from './settings.mjs';
+// Return a shuffled copy of a list (Fisher-Yates); throw if the random source gives a number outside 0 to 1.
 export const shuffle = (items, random = Math.random) => {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) {
@@ -9,14 +17,24 @@ export const shuffle = (items, random = Math.random) => {
   }
   return out;
 };
+// Return the questions of the chosen units (and block, if given) that match the source filter, without duplicate ids.
 export function eligible(questions, units, filter, block = null) {
   if (!units.length) return [];
   return [...new Map(questions.filter(q => (block === null || q.block === block) && q.units.some(u => units.includes(u)) &&
     (filter === 'Slides and Text' || (filter === 'Slides' ? q.sourceGroup === 'slides' : filter === 'Text Only' && q.sourceGroup === 'text')))
     .map(q => [q.id, q])).values()];
 }
+/**
+ * Pick a study pool from the questions. It aims for about one sixth text questions and caps diagram questions at one
+ * in fifteen, then fills any gap so the pool reaches the wanted size, and returns it in random order.
+ * @param {object[]} questions the questions to choose from.
+ * @param {function} [random] a function that returns a number from 0 up to but not including 1.
+ * @param {number|string} [size] a pool size from POOL_SIZES, or 'all'.
+ * @returns {object[]} the chosen questions.
+ */
 export function sample(questions, random = Math.random, size = DEFAULTS.poolSize) {
   if (![...POOL_SIZES,'all'].includes(size)) throw Error('Invalid pool size');
+  // Shuffle with the random source that was passed in.
   const order=items=>shuffle(items,random);
   // Diagram cap yields to reaching the available pool size when non-diagrams are scarce.
   const count = size === 'all' ? questions.length : Math.min(size, questions.length);
@@ -39,6 +57,7 @@ export function sample(questions, random = Math.random, size = DEFAULTS.poolSize
   if (chosen.length < count) chosen.push(...order(questions.filter(q => !chosen.includes(q))).slice(0, count - chosen.length));
   return order(chosen);
 }
+// Move a session to its next question: take the next id off the queue (or finish), file the old appearance in the history and start a new one.
 function open(s, random) {
   if (!s.queue.length) { s.current = null; s.finished = true; return; }
   const id = s.queue.shift(), q = s.questions.find(q => q.id === id);
@@ -52,6 +71,13 @@ function open(s, random) {
 // Exam-tier items (studyMode 'Exam') belong to exam forms only: never in a study pool.
 export const questionsForMode = (questions, mode) => questions.filter(q => q.studyMode !== 'Exam' && (q.studyMode === 'Hard') === (mode === 'Hard'));
 export const STUDY_MODES = Object.freeze(['Assisted','Unassisted','Hard']);
+/**
+ * Create a new study session over a pool of questions. It throws when the pool is empty, has duplicate ids, does not fit
+ * the mode or the kind is unknown.
+ * @param {object[]} pool the questions of the session.
+ * @param {object} [options] version (the content version), mode, random (the random source) and kind ('study' or 'not_understood').
+ * @returns {object} the new session state with its first question open.
+ */
 export function start(pool, { version, mode = 'Assisted', random = Math.random, kind = 'study' } = {}) {
   if (!pool.length || new Set(pool.map(q=>q.id)).size !== pool.length || !['study','not_understood'].includes(kind) || !version || !STUDY_MODES.includes(mode) || questionsForMode(pool,mode).length !== pool.length) throw Error('Invalid session setup');
   const s = { schema: 1, version, kind, missedIds: [], questions: structuredClone(pool), pool: pool.map(q => q.id), queue: pool.map(q => q.id),
@@ -59,10 +85,12 @@ export function start(pool, { version, mode = 'Assisted', random = Math.random, 
     correctIds: [], independentIds: [], hints: [], reveals: 0, retryCount: 0, current: null };
   open(s, random); return s;
 }
+// Record that the current question was missed, once.
 function markMiss(s) {
   s.missedIds ??= [];
   if (!s.missedIds.includes(s.current.id)) s.missedIds.push(s.current.id);
 }
+// Put the current question back in the queue at a random place after the first few, once only.
 function retry(s, random) {
   const c = s.current;
   if (c.retryScheduled) return;
@@ -71,11 +99,20 @@ function retry(s, random) {
   const at = lower + Math.floor(random() * (s.queue.length - lower + 1));
   s.queue.splice(at, 0, c.id);
 }
+// Show the answer of the current question: mark it assisted, revealed and missed, and queue a retry.
 function reveal(s, random) {
   const c=s.current;
   c.stage=5;c.assisted=true;c.resolved='revealed';c.resolvedMs=0;
   s.reveals++;markMiss(s);retry(s,random);
 }
+/**
+ * Apply one event to a session and return the new state. The old state is not changed. Static question data is
+ * immutable, so only the changing state is copied: cloning the whole bank five times a second would stall larger pools.
+ * @param {object} state the current session.
+ * @param {object} event an object with a `type` (pause, resume, end, previous, next, mode, reveal, hint, tick, answer or flipWrong) and its data.
+ * @param {function} [random] the random source for shuffles and retry places.
+ * @returns {object} the new session state.
+ */
 export function transition(state, event, random = Math.random) {
   // Static question/assessment data is immutable. Copy only changing state on
   // ticks; cloning the entire bank five times per second stalls larger pools.
@@ -161,6 +198,11 @@ export function transition(state, event, random = Math.random) {
 export function keywordHighlightEnabled(s, c = s.current) {
   return Boolean(s.mode !== 'Hard' && c && (c.hintUsed || c.resolved === 'correct' || (c.mode || s.mode) === 'Assisted' && c.stage >= 1));
 }
+/**
+ * Summarise a session: time, counts, accuracy, first-answer accuracy and whether it was completed.
+ * @param {object} s the session.
+ * @returns {object} the summary fields.
+ */
 export function results(s) {
   const correct = s.attempts.filter(a => a.correct).length, incorrect = s.attempts.length - correct;
   const first = s.pool.map(id => s.attempts.find(a => a.questionId === id)).filter(Boolean);
@@ -172,6 +214,7 @@ export function results(s) {
     independent: s.independentIds.length, hints: s.hints?.length || 0, reveals: s.reveals, retries: s.retryCount,
     complete: !s.ended && s.finished && s.correctIds.length === s.pool.length };
 }
+// Count a session's completed questions and its retries still waiting, with the pool size and totals.
 export function progress(s) {
   return { completed: s.pool.filter(id => s.correctIds.includes(id) && !s.queue.includes(id) && !(s.current?.id === id && !s.current.resolved)).length,
     pool: s.pool.length, appearances: s.appearances, attempts: s.attempts.length,

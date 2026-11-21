@@ -3,6 +3,11 @@
 // kind 'steps': Back / Next step through captions; each step lights, hides and moves parts. kind 'explore': each part
 // is a button; the chosen part is lit and its caption shows. Captions are stacked in one grid cell so the caption box
 // always holds the tallest caption (the box keeps a fixed height).
+// Inputs: a picture description (kind, alt text, scene of nodes, links and groups, steps or parts) and a step or part index.
+// Outputs: SVG and control markup as strings, and checks of a picture description. Run: imported as an ES module by the app and the tests.
+// Network: none.
+// Writes: none (it returns strings; scholar-ui.mjs puts them on the page).
+// Credentials: none.
 import { escape, ICON } from './presentation.mjs';
 
 export const VIEW = { w: 400, h: 240 };
@@ -19,9 +24,13 @@ const BOXES = ['frame', 'panel', 'stack', 'timeline'];
 export const BAND_H = 22;
 // Each band of a stack and each mark of a timeline is a target (<node>.<id>), like frame segments and panel lines.
 const subs = n => [...(n.segments || []), ...(n.lines || []), ...(n.layers || []), ...(n.marks || [])];
+// True when the list holds 2 to `max` items that each have a unique id and a label.
 const subList = (list, max = 8) => Array.isArray(list) && list.length >= 2 && list.length <= max && list.every(x => isObj(x) && isText(x.id) && isText(x.label)) && new Set(list.map(x => x.id)).size === list.length;
+// True when the value is a plain object (not null, not an array).
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+// True when the value is a string with something other than spaces in it.
 const isText = v => typeof v === 'string' && v.trim() !== '';
+// True when the point lies inside the 400 x 240 drawing area.
 const inView = (x, y) => Number.isFinite(x) && Number.isFinite(y) && x >= 0 && x <= VIEW.w && y >= 0 && y <= VIEW.h;
 
 // Every id a step or part may name: nodes, links, groups, frame segments (<node>.<seg>), panel lines (<node>.<line>), stack
@@ -34,7 +43,11 @@ export function targetIds(p) {
   return ids;
 }
 
-// null when the picture is usable, else the first problem (the build script checks the same rules).
+/**
+ * Check a picture description against the picture rules. The build script checks the same rules.
+ * @param {*} p the picture.
+ * @returns {string|null} null when the picture is usable, else a short text naming the first problem.
+ */
 export function pictureProblem(p) {
   if (!isObj(p) || !['steps', 'explore'].includes(p.kind) || !isText(p.alt) || !isObj(p.scene) || !Array.isArray(p.scene.nodes) || !p.scene.nodes.length) return 'shape';
   const ids = new Set();
@@ -65,6 +78,7 @@ export function pictureProblem(p) {
     // A step never lights a part it hides (a hidden node takes its parts, such as "f.h", with it), or a line whose end it
     // hides, nor moves a packet on such a line.
     for (const s of p.steps) { const off = hiddenIds(p, s); if ([...(s.light || []), ...(s.packets || []).map(k => k.on)].some(id => isHidden(off, id))) return 'a step lights a part or line it hides'; }
+    // A signature of a step's drawing (what is lit, hidden and moving), to spot a step that changes nothing.
     const look = s => JSON.stringify([[...(s.light || [])].sort(), [...(s.hide || [])].sort(), (s.packets || []).map(k => [k.on, k.at, k.label || '', k.tag || ''])]);
     if (p.steps.some((s, i) => i && look(s) === look(p.steps[i - 1]))) return 'a step changes nothing in the drawing';
   } else {
@@ -80,17 +94,25 @@ const SIZE = { pc: [30, 30], switch: [60, 20], router: [30, 30], server: [24, 34
   alert: [30, 26], envelope: [30, 20], shield: [24, 30], cloud: [34, 22], clock: [28, 28], building: [32, 32], disk: [28, 30], chip: [30, 30] };
 // Label width estimate: capitals are wider (COMSEC overflowed its group box on phones).
 const textW = t => [...(t || '')].reduce((a, c) => a + (/[A-Z0-9]/.test(c) ? 8 : 6.5), 0);
+// The bounding box {x, y, w, h} of a node: its icon, text, frame, panel, stack or timeline.
 const box = n => n.type === 'text' ? { x: n.x - textW(n.label) / 2, y: n.y - 12, w: textW(n.label), h: 16 }
   : n.type === 'frame' ? { x: n.x, y: n.y, w: n.segments.reduce((a, s) => a + s.w, 0), h: 22 }
   : n.type === 'panel' ? { x: n.x, y: n.y, w: n.w, h: 14 * n.lines.length + 10 }
   : n.type === 'stack' ? { x: n.x, y: n.y, w: n.w, h: BAND_H * n.layers.length }
   : n.type === 'timeline' ? { x: n.x, y: n.y - 6, w: n.w, h: 28 }
   : { x: n.x - SIZE[n.type][0] / 2, y: n.y - SIZE[n.type][1] / 2, w: SIZE[n.type][0], h: SIZE[n.type][1] };
+// The centre point [x, y] of a node's box.
 const centre = n => { const b = box(n); return [b.x + b.w / 2, b.y + b.h / 2]; };
 // st: {on, off, fresh}: lit, hidden, and lit now but not in the previous state (fresh parts fade in).
 const cls = (id, st) => `${st.on.has(id) ? ' is-on' : ''}${st.fresh.has(id) ? ' is-new' : ''}${st.off.has(id) ? ' is-off' : ''}`;
+// An SVG text element centred at x, y; an empty string when there is no text.
 const label = (x, y, text, extra = '') => text ? `<text class="pic-label${extra}" x="${x}" y="${y}" text-anchor="middle">${escape(text)}</text>` : '';
 
+/**
+ * The SVG of a node's drawn shape (pc, switch, router and so on); an empty string for a type with no icon.
+ * @param {object} n the node, with its type and position.
+ * @returns {string} the SVG markup.
+ */
 function icon(n) {
   const [x, y] = [n.x, n.y];
   if (n.type === 'pc') return `<rect class="pic-shape" x="${x - 14}" y="${y - 13}" width="28" height="19" rx="2"/><path class="pic-line" d="M${x} ${y + 6}v5M${x - 7} ${y + 12}h14"/>`;
@@ -113,6 +135,12 @@ function icon(n) {
   return '';
 }
 
+/**
+ * The SVG group of one node: its shape and label, or a frame, panel, stack or timeline with its parts.
+ * @param {object} n the node.
+ * @param {{on: Set, off: Set, fresh: Set}} st which ids are lit, hidden and newly lit.
+ * @returns {string} the SVG markup.
+ */
 function nodeSvg(n, st) {
   if (n.type === 'text') return `<g class="pic-node${cls(n.id, st)}" data-pic-id="${escape(n.id)}">${label(n.x, n.y, n.label, ' pic-note')}</g>`;
   if (n.type === 'frame') {
@@ -136,10 +164,16 @@ function nodeSvg(n, st) {
   return `<g class="pic-node${cls(n.id, st)}" data-pic-id="${escape(n.id)}">${icon(n)}${label(n.x, b.y + b.h + 12, n.label)}</g>`;
 }
 
-// A link runs between the edges of its two boxes, not their centres: a dimmed box is see-through, so a line drawn to the
-// centre of a frame or panel crossed its label. Icons hid that part of the line anyway.
-// A link that would cross its own icon's label starts where it leaves the label: a downward or
-// diagonal line no longer runs through the name under the icon.
+/**
+ * The point where a link leaves a node, on the edge of its box and not at its centre: a dimmed box is see-through, so a
+ * line drawn to the centre of a frame or panel crossed its label. A link that would cross its own icon's label starts
+ * where it leaves the label, so a downward or diagonal line no longer runs through the name under the icon.
+ * @param {object} n the node.
+ * @param {number[]} from the centre [x, y] of this node.
+ * @param {number[]} to the centre [x, y] of the node at the other end.
+ * @param {boolean} [clear] true to keep clear of the node's label.
+ * @returns {number[]} the point [x, y].
+ */
 function edge(n, [x, y], [tx, ty], clear = true) {
   const b = box(n), dx = tx - x, dy = ty - y;
   let t = Math.min(1, dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity);
@@ -152,6 +186,7 @@ function edge(n, [x, y], [tx, ty], clear = true) {
   }
   return [x + dx * t, y + dy * t];
 }
+// The SVG group of one link: its hit line, its drawn line and, for a cable, a plug at each end.
 function linkSvg(l, nodes, st) {
   const a = nodes.get(l.from), z = nodes.get(l.to), ca = centre(a), cz = centre(z);
   let [x1, y1] = edge(a, ca, cz), [x2, y2] = edge(z, cz, ca);
@@ -163,9 +198,19 @@ function linkSvg(l, nodes, st) {
   return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}" data-from="${escape(l.from)}" data-to="${escape(l.to)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${plugs}${l.label ? linkLabel(l, x1, y1, x2, y2, st.carried?.has(l.id)) : ''}</g>`;
 }
 
-// A line's label sits beside the line, never on it: its centre moves along the normal (up, or right
-// on a vertical line) far enough that the label box clears the line; a flat line keeps the old 7 px gap (11 px to the centre).
-// carries: a packet rides this line in some step, so the label also clears the packet (17 px from the line: the packet's 9 px half height, the label's 6 px half height and a 2 px gap).
+/**
+ * A line's label sits beside the line, never on it: its centre moves along the normal (up, or right on a vertical
+ * line) far enough that the label box clears the line; a flat line keeps the old 7 px gap (11 px to the centre).
+ * The other side is used when the first leaves the 400 x 240 frame by more.
+ * @param {object} l the link, with its label, kind and labelAt position.
+ * @param {number} x1 the start x.
+ * @param {number} y1 the start y.
+ * @param {number} x2 the end x.
+ * @param {number} y2 the end y.
+ * @param {boolean} [carries] a packet rides this line in some step, so the label also clears the packet (17 px from the
+ * line: the packet's 9 px half height, the label's 6 px half height and a 2 px gap).
+ * @returns {string} the SVG text of the label.
+ */
 export function linkLabel(l, x1, y1, x2, y2, carries = false) {
   const t = l.labelAt ?? 0.5, px = x1 + (x2 - x1) * t, py = y1 + (y2 - y1) * t, len = Math.hypot(x2 - x1, y2 - y1) || 1;
   let nx = -(y2 - y1) / len, ny = (x2 - x1) / len;
@@ -178,6 +223,7 @@ export function linkLabel(l, x1, y1, x2, y2, carries = false) {
   return label(Math.round(px + nx * d), Math.round(py + ny * d + 4), l.label, ' pic-small');
 }
 
+// The SVG group of one group box around its member nodes, with the group's label; `i` picks one of three colours.
 function groupSvg(g, nodes, st, i) {
   // The box holds each member's icon and its label (textW; 5.5 px per character let a label touch the box).
   const bs = g.members.map(id => nodes.get(id)).filter(Boolean).map(n => { const b = box(n), lw = textW(n.label); return lw > b.w && !BOXES.includes(n.type) ? { ...b, x: n.x - lw / 2, w: lw } : b; });
@@ -191,6 +237,7 @@ function groupSvg(g, nodes, st, i) {
 // needs no script; reduced motion passes from = null.
 function packetSvg(k, links, nodes, from = null) {
   const l = links.get(k.on), [x1, y1] = centre(nodes.get(l.from)), [x2, y2] = centre(nodes.get(l.to));
+  // The point at fraction t of the way along the link.
   const at = t => [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t], [x, y] = at(k.at), text = k.tag ? `Tag ${k.tag}` : (k.label || 'Frame'), w = 8 + 6 * text.length;
   const glide = from !== null && from !== 'new' && from !== k.at ? (([fx, fy]) => `<animateTransform attributeName="transform" type="translate" from="${(fx - x).toFixed(1)} ${(fy - y).toFixed(1)}" to="0 0" dur="0.45s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".2 .7 .3 1"/>`)(at(from)) : '';
   return `<g class="pic-packet${k.tag ? ' is-tagged' : ''}${from === 'new' ? ' is-new' : ''}">${glide}<rect x="${x - w / 2}" y="${y - 9}" width="${w}" height="18" rx="4"/>${label(x, y + 4, text, ' pic-small pic-packet-text')}</g>`;
@@ -210,7 +257,14 @@ function hiddenIds(p, s) {
 // Animation: prev is the state shown before (null on first draw); packets glide from their
 // previous place and newly lit parts fade in. still: reduced motion, so nothing moves or fades.
 const stateOf = (p, index) => p.kind === 'steps' ? p.steps[Math.min(Math.max(index, 0), p.steps.length - 1)] : (p.parts[index] || {});
-// fixed: a state to draw instead of a step or part ({light, hide}; the tap board of a guided question).
+/**
+ * The SVG for one state. Animation: prev is the state shown before (null on first draw); packets glide from their
+ * previous place and newly lit parts fade in. still: reduced motion, so nothing moves or fades.
+ * @param {object} p the picture.
+ * @param {number} [index] the step (steps) or the chosen part (explore; -1 = none).
+ * @param {object} [options] prev (the index drawn before), still (reduced motion) and fixed (a state to draw instead of a step or part: {light, hide}; the tap board of a guided question).
+ * @returns {string} the SVG markup.
+ */
 export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = null } = {}) {
   const nodes = new Map(p.scene.nodes.map(n => [n.id, n])), links = new Map((p.scene.links || []).map(l => [l.id, l]));
   const s = fixed || stateOf(p, index), before = fixed || prev === null || still || prev === index ? null : stateOf(p, prev);
@@ -218,6 +272,7 @@ export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = n
   const st = { on, off, carried: new Set((p.steps || []).flatMap(x => (x.packets || []).map(k => k.on))), fresh: before ? new Set([...on].filter(id => !(before.light || []).includes(id))) : new Set() };
   // The n-th packet on a line glides from the n-th packet that was on that line (two packets can share a line).
   const nth = (list, k) => list.filter(b => b.on === k.on).indexOf(k);
+  // Where a packet was in the previous state: 0-1 along the line, 'new' when it was not there, null for no motion.
   const from = k => !before ? null : ((before.packets || []).filter(b => b.on === k.on)[nth(s.packets, k)]?.at ?? 'new');
   const dim = on.size ? ' has-light' : '';
   return `<svg class="pic${dim}" viewBox="0 0 ${VIEW.w} ${VIEW.h}" role="img" aria-label="${escape(p.alt)}" focusable="false">`
@@ -227,11 +282,18 @@ export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = n
     + (s.packets || []).filter(k => !off.has(k.on)).map(k => packetSvg(k, links, nodes, from(k))).join('') + '</svg>';
 }
 
-// The picture body (the term page wraps it in its collapsible section): drawing, controls and the held caption box.
-// Controls: steps = rewind and forward icon buttons on the left (on the last step, forward becomes Replay); both kinds have a Flag-sized
-// play/pause button at the right. playing: the loop runs (app.mjs advances it); captions are not announced meanwhile.
+/**
+ * The picture body (the term page wraps it in its collapsible section): drawing, controls and the held caption box.
+ * Controls: steps = rewind and forward icon buttons on the left (on the last step, forward becomes Replay); both kinds
+ * have a Flag-sized play/pause button at the right. Captions are not announced while the loop plays.
+ * @param {object} p the picture.
+ * @param {number} [index] the step or chosen part.
+ * @param {object} [options] motion (the options for pictureSvg) and playing (the loop runs; app.mjs advances it).
+ * @returns {string} the HTML.
+ */
 export function pictureHtml(p, index = 0, { motion = {}, playing = false } = {}) {
   const steps = p.kind === 'steps', list = steps ? p.steps : p.parts, i = steps ? Math.min(Math.max(index, 0), list.length - 1) : index;
+  // True when caption k is the one shown now.
   const now = k => steps ? k === i : k === i + 1;
   const captions = (steps ? list : [{ caption: 'Choose a part of the picture to read about it.' }, ...list])
     .map((s, k) => `<p class="pic-caption${now(k) ? ' is-now' : ''}"${now(k) ? '' : ' aria-hidden="true"'}>${steps ? `<span class="label pic-step">Step ${k + 1} of ${list.length}</span> ` : ''}${escape(s.caption)}</p>`).join('');

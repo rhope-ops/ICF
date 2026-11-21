@@ -1,10 +1,25 @@
 // Glossary: pure lookups over glossary.json (built from the authored
 // flash cards and the course excerpts). No DOM, storage or network access. Every text shown comes from that file.
+// Inputs: the parsed glossary.json, questions, cards and saved bookmark lists. Outputs: entries, links, terms and lists.
+// Run: imported as an ES module by the app and the tests; it is not run on its own.
+// Network: none.
+// Writes: none (the caller saves bookmarks).
+// Credentials: none.
 
 // Block scope: each block is self-contained. Links, answer terms and
 // related lists name entries of the question's own block; an acronym carries {expansion, blocks: {"<block>": {entry, see}}},
 // and a lookup takes the block from the question (q.block) or an explicit {block}.
+/**
+ * True when the value is a plain object (not null, not an array).
+ * @param {*} v the value to test.
+ * @returns {boolean} the answer.
+ */
 const isObj = v => v !== null && typeof v === 'object' && !Array.isArray(v);
+/**
+ * Check the parsed glossary file and add a lookup table of its entries by id.
+ * @param {*} raw the parsed glossary.json.
+ * @returns {object|null} the glossary with `byId` added, or null when the file is not the expected shape.
+ */
 export function restoreGlossary(raw) {
   const ok = raw && raw.schema === 1 && Array.isArray(raw.entries) && isObj(raw.acronyms) && raw.questionLinks && raw.answerTerms && raw.docs &&
     raw.entries.every(e => typeof e.id === 'string' && typeof e.term === 'string' && typeof e.short === 'string' && Array.isArray(e.excerpts) && Array.isArray(e.questionIds) &&
@@ -23,9 +38,11 @@ export const acronymOf = (g, acr, block) => {
   const a = Object.hasOwn(g.acronyms, acr) ? g.acronyms[acr] : null, b = a && Object.hasOwn(a.blocks, String(block)) ? a.blocks[block] : null;
   return b ? { expansion: a.expansion, entry: b.entry, see: b.see } : null;
 };
+// Find a glossary entry by id; null when there is none.
 export const entryOf = (g, id) => g.byId.get(id) || null;
 // A flash card's glossary entry: the entry built from that card (same term, same source question).
 export const entryForCard = (g, card) => card && card.kind !== 'highlight' ? g.entries.find(e => e.sourceId === card.questionId) || null : null;
+// Resolve a link reference to an entry id: an `acr:` reference goes through the acronym's entry for the block.
 const refEntry = (g, ref, block) => ref.startsWith('acr:') ? acronymOf(g, ref.slice(4), block)?.entry || null : ref;
 
 // Exposure rule: no stem term is underlined or linked before a correct answer.
@@ -52,10 +69,18 @@ export function popover(g, ref, { block } = {}) {
   return e && (block === undefined || e.block === Number(block)) ? { title: e.term, expansion: null, entry: e, see: [] } : null;
 }
 
-// Terms of a question (stem, choices, rationales), in order of first appearance; acronyms count through their entry.
+/**
+ * Terms of a question (stem, choices, rationales), in order of first appearance; acronyms count through their entry.
+ * The question's own card entry and the term of the correct answer are kept inside the limit.
+ * @param {object} g the glossary.
+ * @param {object} q the question.
+ * @param {number} [max] the most entries to return.
+ * @returns {string[]} entry ids.
+ */
 export function keyTerms(g, q, max = 6) {
   const L = g.questionLinks[q.id]; if (!L) return [];
   const ids = [];
+  // Add the entry ids that a list of links names to `ids`, skipping repeats.
   const add = list => { for (const [, , ref] of list) { const id = refEntry(g, ref, q.block); if (id && !ids.includes(id)) ids.push(id); } };
   add(L.stem); for (const a of q.answers) add(L.answers[a.id] || []);
   for (const id of Object.values(g.answerTerms[q.id] || {})) if (!ids.includes(id) && !g.generic.includes(id)) ids.push(id);
@@ -152,5 +177,6 @@ export const RENAMED_ENTRIES = Object.freeze({ 'domain-name-system-dns-name-hier
   'routing-information-protocol-b1': 'routing-information-protocol', 'network-switch-b2': 'network-switch', 'syslog-b1': 'syslog', 'service-set-identifier-ssid': 'service-set-identifier',
   'shielded-twisted-pair-stp': 'shielded-twisted-pair', 'single-mode-fiber-smf': 'single-mode-fiber',
   'wireless-metropolitan-area-network-wman': 'wireless-metropolitan-area-network', 'wireless-wide-area-network-wwan': 'wireless-wide-area-network' });
+// Clean a saved bookmark list: follow renamed ids, drop unknown ids and repeats; anything not a list gives an empty list.
 export const restoreBookmarks = (raw, g) => Array.isArray(raw) ? [...new Set(raw.map(id => typeof id === 'string' && Object.hasOwn(RENAMED_ENTRIES, id) ? RENAMED_ENTRIES[id] : id)
   .filter(id => typeof id === 'string' && g.byId.has(id)))] : [];

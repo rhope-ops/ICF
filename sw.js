@@ -12,14 +12,26 @@
 // Storage that fails never holds a request, and storage that does not answer holds it for at most a few seconds
 // once; then every request goes to the network.
 // This file has no build-specific text: a release changes index.html, not this worker.
+// Inputs: fetch and message events from the page, and the page's own file list (index.html, #release-files).
+// Outputs: responses to those fetches (from the network, or from the stored copy when the page request fails) and
+// a stored record of the last build. Run: the browser loads it as the offline worker (app.mjs registers ./sw.js).
+// Network: only the site's own files, in this worker's scope (the page and the files its list names).
+// Writes: the browser's Cache Storage, in two caches (icf-assets-1 for files and icf-release-1 for the build record).
+// Credentials: none.
 const ASSETS = 'icf-assets-1', META = 'icf-release-1', STORAGE_MS = 1500;
 const scope = self.registration.scope;
+// Turn bytes into a lower-case hex string.
 const hex = buffer => [...new Uint8Array(buffer)].map(b => b.toString(16).padStart(2, '0')).join('');
+// The SHA-256 of the bytes, as a hex string.
 const digest = async buffer => hex(await crypto.subtle.digest('SHA-256', buffer));
+// The cache key of a file: its address in the scope with the hash as the ?v= tag.
 const keyUrl = (name, hash) => `${scope}${name}?v=${hash}`;
+// True when the value is a file list {name: 12-character hash} that includes app.mjs and has only safe names and hashes.
 const validFiles = files => !!files && typeof files === 'object' && !!files['app.mjs'] &&
   Object.entries(files).every(([name, hash]) => /^[\w.-]+$/.test(name) && /^[0-9a-f]{12}$/.test(hash));
+// True when two file lists hold the same names and hashes.
 const sameFiles = (a, b) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
+// Read the file list from the page text (the #release-files script); null when it is missing or not valid.
 function listedFiles(html) {
   const found = html.match(/<script type="application\/json" id="release-files">(.*?)<\/script>/s);
   try { const files = JSON.parse(found[1]); return validFiles(files) ? files : null; } catch { return null; }
@@ -51,8 +63,11 @@ let turn = Promise.resolve(), epoch = 0;
 // one, whichever hash finishes first. A removal of the record takes a number too, so a page that arrived before the
 // removal cannot write the record back after it.
 let arrivals = 0, newest = 0;
+// Give the next arrival number to a page answer that skips the recording, so older arrivals cannot write the record later.
 const passed = () => { newest = ++arrivals; };
+// Run a step after the earlier steps on the record, one at a time; a failed step does not stop the next one.
 const inTurn = step => { const run = turn.then(step, step); turn = run.catch(() => {}); return run; };
+// Write the record unless the record was removed since the step started (its epoch changed); true when written.
 async function writeRecord(record, started) {
   if (started !== epoch) return false;
   await (await caches.open(META)).put(`${scope}release`, new Response(JSON.stringify(record), { headers: { 'content-type': 'application/json' } }));
@@ -61,6 +76,7 @@ async function writeRecord(record, started) {
 // Only this scope's record: another copy of the app on the same origin keeps its own.
 // The removal waits its turn, so a write that is already on its way cannot land after it.
 const dropRecord = () => { epoch++; return inTurn(async () => (await caches.open(META)).delete(`${scope}release`)); };
+// Delete stored files of this scope that are in neither the recorded build nor the one before it.
 async function prune(record) {
   const keep = new Set([record.seen.files, record.previous || {}].flatMap(files => Object.entries(files)).map(([name, hash]) => keyUrl(name, hash)));
   const assets = await caches.open(ASSETS);
@@ -75,10 +91,15 @@ async function storeVerified(name, hash, response) {
   await (await caches.open(ASSETS)).put(keyUrl(name, hash), new Response(body, { headers: type ? { 'content-type': type } : {} }));
   return true;
 }
+// True when the file with this hash is already stored.
 const isStored = async (name, hash) => !!(await (await caches.open(ASSETS)).match(keyUrl(name, hash)));
-// Records the build that this page text names; the caller gives this page to a tab. arrival: the number the page
-// answer got when it reached the worker. Returns {id, files}, or null when the text names no build. Rejects when
-// the record cannot be written. A page that arrived before one already recorded leaves the record alone.
+/**
+ * Record the build that this page text names; the caller gives this page to a tab. A page that arrived before one
+ * already recorded leaves the record alone. Rejects when the record cannot be written.
+ * @param {string} html the page text.
+ * @param {number} arrival the number the page answer got when it reached the worker.
+ * @returns {Promise<{id: string, files: object}|null>} the build, or null when the text names no build.
+ */
 async function note(html, arrival) {
   const files = listedFiles(html);
   if (!files) return null;
@@ -93,8 +114,12 @@ async function note(html, arrival) {
   });
   return { id, files };
 }
-// Stores each missing file of the recorded build, one after another, each with a request of its own, then marks
-// the build whole or not whole. Safe to run again: it restores a file that went missing.
+/**
+ * Store each missing file of the recorded build, one after another, each with a request of its own, then mark the
+ * build whole or not whole. Safe to run again: it restores a file that went missing.
+ * @param {{id: string, files: object}|null} build the build to complete.
+ * @returns {Promise<boolean>} true when every file of the build is stored.
+ */
 async function fill(build) {
   if (!build) return false;
   for (const [name, hash] of Object.entries(build.files)) {
@@ -111,7 +136,13 @@ async function fill(build) {
   });
 }
 
-// settle: ends the event's waitUntil, with background work or with nothing.
+/**
+ * Answer a page request: from the network when it gives a page (and record that build first), else from the recorded
+ * copy when the build is whole.
+ * @param {FetchEvent} event the fetch event.
+ * @param {function} settle ends the event's waitUntil, with background work or with nothing.
+ * @returns {Promise<Response>} the response.
+ */
 async function page(event, settle) {
   let response = null, error = null;
   try { response = await fetch(event.request.url, { cache: 'no-cache' }); } catch (failure) { error = failure; }
@@ -135,6 +166,15 @@ async function page(event, settle) {
   if (error) throw error;
   return response;
 }
+/**
+ * Answer a request for a file: from the stored copy when its hash is known and stored, else from the network (and store
+ * it when its bytes match the hash).
+ * @param {FetchEvent} event the fetch event.
+ * @param {function} settle ends the event's waitUntil, with background work or with nothing.
+ * @param {string} name the file name.
+ * @param {string|null} tag the ?v= hash on the request, or null.
+ * @returns {Promise<Response>} the response.
+ */
 async function asset(event, settle, name, tag) {
   // An untagged request (a font, the badge) is answered from the copy only when the recorded build is whole.
   const found = await timed((async () => {

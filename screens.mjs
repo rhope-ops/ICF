@@ -26,9 +26,11 @@ export const duration = ms => { const n = Math.floor(ms/1000); return n >= 3600 
 // ---- Shared setup controls ----
 // Question pool: one choice, Random / Smart; it replaces the Smart Mode checkbox.
 export const POOL_HELP={random:`A random mix from the selected ${LABEL.sections}.`,smart:'Unseen questions first, then missed ones.'};
+// The Random / Smart choice of the question pool (radio buttons) with the help line of the chosen kind.
 export function poolKindControl({kind}) {
   return `<fieldset class="pool-kind" id="pool-kind"><legend class="sr-only">Question pool</legend><div class="seg pool-kind-seg">${['random','smart'].map(k=>`<label><input type="radio" name="pool-kind" value="${k}" ${kind===k?'checked':''}>${POOL_LABEL[k]}</label>`).join('')}</div><em class="pool-help" id="pool-help">${POOL_HELP[kind]}</em></fieldset>`;
 }
+// The Dynamic Flash Cards check box row; `on` sets it checked.
 const dynamicControl = on => `<label class="card row" id="dynamic-choice"><input id="dynamic-cards" type="checkbox" aria-describedby="dynamic-help" ${on?'checked':''}><span><strong>Dynamic Flash Cards</strong><em id="dynamic-help">Automatically save missed questions as flash cards.</em></span></label>`;
 // Mode cards: the Mode screen and Marked practice use the same cards.
 const MODE_HELP={Assisted:'Timed key terms, then removes wrong choices.',Unassisted:'No timed help. Hint is available.',Hard:'Harder scenario questions. No help.'};
@@ -38,14 +40,17 @@ export const modeCards=(name,current)=>studyModes().map(m=>`<label class="card" 
 // slot (gold) and a note at the right; sizes larger than the selection are disabled.
 // empty: the note at the right when nothing is available (Setup: no unit selected).
 export const NO_UNITS=`You must select at least 1 ${LABEL.section}.`;
+// The pool size chips (radio buttons) for a form field `name`; n is how many questions are available, `empty` the note when none are.
 export const poolSeg=(name,current,n=Infinity,empty='')=>{
   const short=n<POOL_SIZES[0], shown=current!=='all'&&current>n?(short?POOL_SIZES[0]:'all'):current;
+  // One pool size chip: gold with the available count when the selection is smaller than the first size, disabled when larger than the selection.
   const chip=size=>{const fit=short&&size===POOL_SIZES[0], over=!fit&&size!=='all'&&size>n;
     return `<label class="${fit?'pool-fit':''}"><input type="radio" name="${name}" value="${size}" ${shown===size?'checked':''} ${over?'disabled':''}>${size==='all'?'All':fit?n:size}</label>`;};
   return `<div class="pool-row"><div class="seg">${[...POOL_SIZES,'all'].map(chip).join('')}</div>${short&&n&&shown!=='all'?`<p class="pool-note">${poolShortfall(n,POOL_SIZES[0])}</p>`:!n&&empty?`<p class="pool-note">${escape(empty)}</p>`:''}</div>`;
 };
 
 // ---- Welcome and Blocks ----
+// The Welcome screen: title, a nickname field and the Start button (a continue button too when a session is open).
 export const welcomeHtml = ({nickname, open}) => `<section class="hero welcome-copy">${commBadge}<h1>Cyber <em>Fundamentals</em></h1><p class="label">Learn · Practice · Master</p><p class="lede">Pick a ${LABEL.group} and lock in.</p></section><form class="panel welcome-form" id="welcome"><div class="field"><label for="nickname">Nickname <span class="muted">(optional)</span></label><input id="nickname" maxlength="40" placeholder="Your nickname" autocomplete="nickname" value="${escape(nickname)}"></div><div class="welcome-actions"><button class="${open?'':'primary'}">Start</button>${open?'<button type="button" class="primary" id="welcome-resume">Resume</button>':''}</div><p class="privacy-note">Your nickname and progress stay on this device.</p></form>`;
 
 // For Review: the box shows only the open block: its marked questions (Review, Practice quiz)
@@ -62,6 +67,13 @@ export function forReviewHtml({bank, block = null, understanding, stats, examBlo
     ${groups ? `<div class="review-groups">${groups}</div>` : `<p class="muted">No marked questions or results for this ${LABEL.group} yet.</p>`}</section>`;
 }
 
+/**
+ * The Blocks screen: a Continue panel when a session is open, one collapsible card per block with its figures and
+ * actions, and the For Review box of the open block.
+ * @param {object} args bank, nickname, open (a saved session exists), understanding, missedReview, stats, examBlock,
+ * current (the block to open) and extra(block) (more HTML for a block card).
+ * @returns {string} the HTML.
+ */
 export function blocksHtml({bank, nickname, open, understanding, missedReview, stats, examBlock = null, current = null, extra = () => ({facts:'', button:''})}) {  // extra(block): more HTML for a block card (its facts, a button for its actions row)
   const shown = bank.blocks.some(b => b.id === current) ? current : bank.blocks[0]?.id;
   const normal = questionsForMode(bank.questions,'Unassisted'), hardBank = questionsForMode(bank.questions,'Hard');
@@ -91,6 +103,7 @@ export function blocksHtml({bank, nickname, open, understanding, missedReview, s
 const TILES=[['questions','Questions','Answer, score and retry.'],['cards','Flash cards','Terms and definitions.'],['glossary','Glossary','Course terms with their sources.']];
 // The Mode screen. scholar: the block has Scholar; scholarDone: {done, total} terms once its Scholar file is loaded.
 export function studyHubHtml({block, scholar = false, scholarDone = null}) {
+  // One study-type tile (a button with its title and one line of help).
   const tile = ([v,t,d]) => `<button type="button" class="card" data-study="${v}"><strong>${t}</strong><span>${d}</span></button>`;
   const divider = '<div class="exam-divider" aria-hidden="true"><span>Or</span></div>';
   return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · ${escape(block.title)}</p><h1>Mode</h1></div>
@@ -156,6 +169,7 @@ export const viewedAppearance = session => session.viewIndex != null ? session.h
 // Pool ledger: one cell per pool question, in pool order.
 function ledgerHtml(session) {
   const p=progress(session),missedIds=new Set(session.attempts.filter(a=>!a.correct).map(a=>a.questionId)),current=viewedAppearance(session)?.id;
+  // The CSS classes of one ledger cell: done (ok or miss), retry queued and the one being viewed now.
   const cell=id=>{const queued=session.queue.includes(id)&&(session.attempts.some(a=>a.questionId===id)||session.current?.id===id&&session.current.resolved);
     const done=session.correctIds.includes(id)&&!queued;return `cell${done?missedIds.has(id)?' miss':' ok':''}${queued?' retry':''}${id===current?' now':''}`;};
   return `<section class="panel ledger question-counter" aria-label="Pool progress"><dl class="track-row ledger-figures"><div><dt>Pool</dt><dd>${p.pool}</dd></div><div><dt>Cleared</dt><dd>${p.completed}<small>/${p.pool}</small></dd></div><div><dt>${p.pendingRetries===1?'Retry':'Retries'}</dt><dd>${p.pendingRetries}</dd></div></dl><div class="cells${p.pool>30?' dense':''}" aria-hidden="true">${session.pool.map(id=>`<span class="${cell(id)}"></span>`).join('')}</div><div class="legend" aria-hidden="true"><span><i class="ok"></i>Correct</span><span><i class="miss"></i>Missed</span><span><i class="retry"></i>Retry queued</span><span><i class="now"></i>Now</span></div><progress class="session-progress sr-only" value="${p.completed}" max="${p.pool}" aria-label="Pool questions completed">${p.completed} of ${p.pool}</progress></section>`;
@@ -163,6 +177,7 @@ function ledgerHtml(session) {
 
 // Assisted track: key terms at 20 s, a wrong choice removed at 30 s and 40 s, the answer at 50 s.
 export const TRACK_MARKS=[[20000,'mk-terms','Terms'],[30000,'mk-x','✕'],[40000,'mk-x','✕'],[50000,'mk-ok','✓']];
+// The Assisted track: the clock and a bar that fills over the 50 s of the Assisted steps, with the marks of TRACK_MARKS.
 function trackHtml(c, mode) {
   const ms=c.assistedMs,fill=Math.min(100,ms/500);
   return `<div class="track" id="track"><span class="mono clock" id="clock" aria-hidden="true">${duration(ms)}</span><div class="track-body"><div class="track-bar"><div class="track-fill" id="track-fill" style="width:${fill}%"></div>${TRACK_MARKS.map(([at])=>`<i class="tick" style="left:${at/500}%"></i>`).join('')}</div><div class="marks" aria-hidden="true">${TRACK_MARKS.map(([at,kind,text])=>`<span class="${kind}${ms>=at?' hit':''}" style="left:${at/500}%">${text}</span>`).join('')}</div></div>${c.resolved?'':`<span id="countdown" class="countdown sr-only" role="timer" aria-live="off">${assistanceTimer(c,mode)}</span>`}</div>`;
@@ -173,9 +188,14 @@ function trackHtml(c, mode) {
 // is always an atomic box, so a long term broke the sentence into centred lines on phones. Enter and Space open it
 // (one keydown listener in app.mjs). Lists of terms (Key terms, Related) keep real buttons.
 const TERM_SPAN = ref => `<span role="button" tabindex="0" class="term-link" data-term="${escape(ref)}" aria-haspopup="dialog">`;
-// Stem with key-term marks and glossary links. links: glossary.stemLinks() spans; a link that partly overlaps a key-term
-// mark is split at the mark's edge into two spans with the same term, so the markup always nests
-// and the term still opens. Each link is an inline span (dotted underline, no colour change).
+/**
+ * Stem with key-term marks and glossary links. A link that partly overlaps a key-term mark is split at the mark's edge
+ * into two spans with the same term, so the markup always nests and the term still opens. Each link is an inline span
+ * (dotted underline, no colour change).
+ * @param {object} q the question.
+ * @param {object} [options] marks (show the key-term marks) and links (the spans from glossary.stemLinks()).
+ * @returns {string} the HTML.
+ */
 export function linkedStem(q, {marks = false, links = []} = {}) {
   const kw = marks ? [...q.keywords].sort((a, b) => a.start - b.start) : [];
   let ok = links;
@@ -206,8 +226,13 @@ export const keyTermsHtml = terms => terms.length ? dropHtml('terms', 'Key terms
 // Course excerpts of an entry, verbatim, each with its document and page.
 // Layout comes from the build (blocks: paragraphs and real lists); the words are the course text.
 const excerptsHtml = (entry, docs) => entry.excerpts.length ? `<ul class="term-excerpts">${entry.excerpts.map(x => `<li><blockquote>${excerptBody(x)}</blockquote><span class="label">${escape(docs[x.doc] || x.doc)} · p. ${x.page}</span></li>`).join('')}</ul>` : '';
-// box: the SAVE button state ({key, saved}) once the answer is known, or null. source(q): the excerpt markup.
-// gloss (optional): {links, keyTerms} — the stem links allowed now and the Key terms drop-down.
+/**
+ * The study question screen: the stem, the answer tiles, the tools row and the buttons for the viewed appearance.
+ * @param {object} args session, bank, box (the SAVE button state {key, saved} once the answer is known, or null),
+ * source(q) (the excerpt markup), isFlagged, and gloss (optional: {links, keyTerms}, the stem links allowed now and
+ * the Key terms drop-down).
+ * @returns {string} the HTML.
+ */
 export function studyHtml({session, bank, box, source, isFlagged, gloss = null}) {
   const reviewing=session.viewIndex!=null,c=viewedAppearance(session);
   const q=session.questions.find(q=>q.id===c.id),p=progress(session),assisted=(c.mode||session.mode)==='Assisted',hard=session.mode==='Hard',locked=hard;
@@ -229,6 +254,7 @@ export function studyHtml({session, bank, box, source, isFlagged, gloss = null})
 // with the term (one button per pool; the Hard one in the Hard gold; a pool with none shows no button).
 // Key terms of a glossary entry (card back and Glossary entry): the terms linked in its definition, then its related terms.
 export function entryTerms(entry, g) {
+  // The name to show for a link reference: an acronym's text, or the entry's term, else the reference itself.
   const termName = ref => { const p = ref.startsWith('acr:') ? ref.slice(4) : g.byId.get(ref)?.term; return p || ref; };
   const refs = [...(entry.defLinks || []).map(([, , ref]) => ref), ...entry.related.filter(id => g.byId.has(id))];
   return [...new Set(refs)].map(ref => ({id: ref, term: termName(ref)}));
@@ -238,17 +264,25 @@ const entrySource = (entry, docs) => entry.excerpts.length ? dropHtml('source', 
   `<div class="excerpt">${entry.excerpts.map(x => `<figure><blockquote>${excerptBody(x)}</blockquote><figcaption>${escape(docs[x.doc] || x.doc)} · p. ${x.page}</figcaption></figure>`).join('')}</div>`) : '';
 // The Missed set tag: the card is in Missed Questions (SAVE shows Manual only). Bad tone = missed, as on Results.
 export const IN_MISSED = '<span class="tag in-missed" data-tone="bad">Missed set</span>';
-// save: the Save button for the entry's card or ''. toCard: 'Card N' when the entry was opened from a flash card
-// (the back button to that card), else ''.
-// group: 'unit' (Unit 1 ... Unit 8 headings, A-Z inside each) or 'az' (one A-Z list with the letter bar).
-// flag: the entry card's Flag button.
-// scholar: the entry has a Scholar item: an Open in Scholar button under the entry.
+/**
+ * The Glossary screen: the open entry, or the term list with search, unit chips and the grouping choice.
+ * @param {object} args block, g (the glossary), list (entries to show), query, unit (the unit filter), entry (the open
+ * entry or null), questionCount(e) ({standard, hard} questions with the term: one button per pool, the Hard one in
+ * gold; a pool with none shows no button), save (the Save button for the entry's card or ''), flag (the entry
+ * card's Flag button), toCard ('Card N' when the entry was opened from a flash card, giving the back button to
+ * that card, else ''), group ('unit': Unit 1 ... Unit 8 headings with A-Z inside each; or 'az': one A-Z list with the
+ * letter bar), replacing (show the note about replacing the pool) and scholar (the entry has a Scholar item: an Open
+ * in Scholar button under the entry).
+ * @returns {string} the HTML.
+ */
 export function glossaryHtml({block, g, list, query, unit, entry, questionCount, save = '', flag = '', toCard = '', group = 'unit', replacing = false, scholar = false}) {
+  // The first letter of a term, capitalised, or # when it has no letter.
   const letter = e => (e.term.match(/[A-Za-z]/)?.[0] || '#').toUpperCase();
   const letters = [...new Set(list.map(letter))];
   const head = `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · ${plural(g.entries.filter(e => e.block === block.id).length,'term')} from the course</p><h1>Glossary</h1></div>`;
   if (entry) {
     const n = questionCount(entry);
+    // A button that opens the questions with this term; nothing when the count is 0.
     const poolButton = (id, label, count, tone = '') => count ? `<button id="${id}" class="primary"${tone ? ` data-tone="${tone}"` : ''}>${label} questions with this term (${count})</button>` : '';
     const pools = poolButton('gloss-questions', 'Standard', n.standard) + poolButton('gloss-hard-questions', 'Hard', n.hard, 'gold');
     return `${head}
@@ -259,7 +293,9 @@ export function glossaryHtml({block, g, list, query, unit, entry, questionCount,
       ${scholar ? `<div class="actions gloss-scholar"><button id="gloss-open-scholar" data-tone="scholar">${nextLabel('Open in Scholar')}</button></div>` : ''}</article>
       <div class="navrow actions">${toCard ? `<button id="gloss-card">${backLabel(toCard)}</button><button id="gloss-back">All terms</button>` : `<button id="gloss-back">${backLabel('All terms')}</button>`}</div>`;
   }
+  // One entry of the term list: a card button with the term and its short definition.
   const item = e => `<li><button type="button" class="card" data-entry="${escape(e.id)}"><strong>${escape(e.term)}</strong><span>${escape(e.short)}</span></button></li>`;
+  // Compare two entries by term, ignoring case, for sorting.
   const byTerm = (a, b) => a.term.toLowerCase() < b.term.toLowerCase() ? -1 : 1;
   const units = block.units.filter(u => list.some(e => e.unit === u.id));
   const sections = group === 'az'
@@ -327,6 +363,7 @@ export function cardBackHtml({entry, g, source = '', flagged = false, questionId
     ${sourceRow(questionId ? source || '' : '', questionId ? flagButton({id:'flag-card', question:questionId, label:'Flag card', flagged, card:true}) : '', keyTermsHtml(terms), save)}</section>`;
 }
 
+// The Saved card sets screen: the sets with their block filter, and a Back button.
 export const savedSetsScreenHtml = ({library, catalog, back, blocks = [], block}) => `${savedSetsHtml(library,catalog,{blocks,block})}<div class="navrow actions"><button id="cards-home">${backLabel(back)}</button></div>`;
 
 // ---- Results, Previous Attempts, Marked review ----
@@ -354,6 +391,7 @@ export const previousAttemptsHtml = ({bank, stats, hasResults, history = [], blo
     return `<section class="panel attempts-panel"><h2>${escape(block.title)}</h2>${unitBarsHtml(rows,row=>row.asked?`<em class="tag">${row.correct}/${row.asked}</em>`:'')}</section>`;
   }).join('')}${examHistoryHtml(block === null ? history : history.filter(h => h.block === block))}<div class="navrow actions review-toolbar"><button id="attempts-back">${backLabel('Blocks')}</button>${hasResults?'<button id="last-results">Latest session results</button>':''}</div>`;
 
+// The Marked for review screen: the current question with its answer, the understanding choice and its tools.
 export function missedReviewHtml({bank, review, understanding, source, isFlagged, save = '', terms = ''}) {
   const q=bank.questions.find(q=>q.id===review.ids[review.index]);
   const record=understandingRecord(understanding,bank.version,q.id),answer=q.answers.find(a=>a.id===q.correctAnswerId);
@@ -362,7 +400,9 @@ export function missedReviewHtml({bank, review, understanding, source, isFlagged
 }
 
 // ---- Dialog bodies (the dialog adds the head and Close) ----
+// The buttons of the flag dialog: Save flag, and Clear flag when a flag already exists.
 const flagActions = exists => `<p id="flag-error" role="status"></p><div class="actions"><button class="primary" id="save-flag">Save flag</button>${exists ? '<button id="clear-flag">Clear flag</button>' : ''}</div>`;
+// The optional note box of the flag dialog, filled with the saved note.
 const noteField = old => `<label class="field">Optional note<textarea id="flag-note" maxlength="2000">${escape(old.note || '')}</textarea></label>`;
 // old: the saved flag ({} when none); exists: a flag is saved, so Clear flag shows.
 export const questionFlagHtml = (q, old, exists) => `<p class="muted">Select the question or answers to flag. Notes stay on this device.</p><p>${escape(q.stem)}</p><label class="card row"><input id="question-flag" type="checkbox" ${old.questionFlag ? 'checked' : ''}>Question</label>${q.answers.map(a => `<label class="card row"><input type="checkbox" name="answer-flag" value="${escape(a.id)}" ${(old.answerIds || []).includes(a.id) ? 'checked' : ''}>${escape(a.text)}</label>`).join('')}${noteField(old)}${flagActions(exists)}`;
@@ -387,6 +427,7 @@ const HELP=[
   ['Flag','Report a problem with a question or card. Settings \u203a Diagnostics downloads or copies your notes to send.'],
   ['Your data','Progress stays in this browser only. Settings \u203a Delete Local Data clears it.'],
 ];
+// The Help list: a title and its text for each item of HELP.
 export const helpHtml = () => `<ul class="help-list">${HELP.map(([t,d])=>`<li><strong>${t}</strong><span>${d}</span></li>`).join('')}</ul>`;
 
 // Diagnostics: one row per saved note (ID, Question or Card tag, question text, note, Edit), then Download and Copy.
@@ -397,6 +438,7 @@ export function diagnosticsHtml(flags, bank) {
   }).join('');
   return `<p class="muted">Includes question flags, notes, answer attempts, content version and coarse device information. Nickname is excluded.</p>${rows?`<ul class="diag-list">${rows}</ul>`:'<p class="diag-empty">No review notes yet. Use Flag on a question or card to add one.</p>'}<p id="copy-status" class="status count" role="status"></p><div class="actions"><button class="primary" id="download-flags">Download</button><button id="copy-flags">Copy</button></div>`;
 }
+// The body for a flag note saved under earlier content: the note text and a line saying it stays in exports.
 export const oldNoteHtml = f => `<p>${escape(f.note)}</p><p class="muted">This note belongs to earlier content and remains in exports.</p><div class="actions"><button class="danger" id="clear-old-note">Clear this note</button></div>`;
 
 // ---- Layout (receives its elements) ----
