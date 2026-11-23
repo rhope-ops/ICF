@@ -1,53 +1,29 @@
 // Screen markup: pure functions of the state they receive (the app modules own state, storage, events and timers), so tests
 // import these screens directly. Every value comes in as an argument; only the layout helpers at the end touch the DOM.
 // Inputs: the arguments of each function. Outputs: HTML strings; positionQuestion scrolls the window it receives.
-// Run: imported by the app modules and the tests (screens.*); the Scholar and Exam groups are re-exported from
-// screens-scholar.mjs and screens-exam.mjs.
+// Run: imported by the app modules and the tests (screens.*); the Scholar, Exam, setup and Glossary groups are
+// re-exported from screens-scholar.mjs, screens-exam.mjs, screens-setup.mjs and screens-glossary.mjs.
 // Network: none.
 // Writes: none (positionQuestion changes only the scroll position of the window and answers it receives).
 // Credentials: none.
-import { studyModes } from './features.mjs';
-import { FEATURES, LABEL, POOL_SIZES } from './settings.mjs';
-import { escape, answersHtml, highlightedStem, unitChoices, poolShortfall, plural, commBadge, questionUnitLabel, answerReviewHtml, reviewItem, tryLabel, studyToolbar, sourceVisible, backLabel, nextLabel, ICON, flagButton, sourceRow, dropHtml, assistanceTimer, saveButton, excerptBody } from './presentation.mjs';
+import { LABEL, NARROW_OR_SHORT_QUERY } from './settings.mjs';
+import { escape, answersHtml, highlightedStem, plural, commBadge, questionUnitLabel, answerReviewHtml, reviewItem, tryLabel, studyToolbar, sourceVisible, backLabel, nextLabel, ICON, flagButton, sourceRow, assistanceTimer, saveButton } from './presentation.mjs';
 import { progress, results, questionsForMode, keywordHighlightEnabled } from './engine.mjs';
 import { understandingRecord, notUnderstoodQuestions, sessionMissedIds, reviewIds } from './learning.mjs';
-import { unitScores, missedUnits, scoreTone, POOL_LABEL } from './analytics.mjs';
+import { unitScores, missedUnits, scoreTone } from './analytics.mjs';
 import { formsFor } from './exam.mjs';
-import { cardHtml, cardsInSet, savedSetsHtml, setsBlockHtml, cardKey, MISSED_ID, ALL_BLOCKS } from './flashcards.mjs';
+import { cardHtml, savedSetsHtml, cardKey } from './flashcards.mjs';
 // The Scholar and Exam screens live in their own modules; screens.mjs re-exports their public functions, so callers and
 // tests keep one import (screens.*).
 export { scholarListHtml, seeLabel, exampleHtml, scholarRowProbes, scholarReviewHtml, scholarItemHtml } from './screens-scholar.mjs';
 export { examSetupHtml, examClock, examHtml, submitCheckHtml, examResultsHtml } from './screens-exam.mjs';
 import { examHistoryHtml } from './screens-exam.mjs';
+export { POOL_HELP, poolKindControl, modeCards, NO_UNITS, poolSeg, studyHubHtml, REPLACING_NOTE, questionsSetupHtml, cardsSetupHtml, cardCountText, examSetupScreenHtml, modeAvailability, practiceSetupHtml } from './screens-setup.mjs';
+import { linkedStem, keyTermsHtml, IN_MISSED, entryTerms } from './screens-glossary.mjs';
+export { linkedStem, linkedText, keyTermsHtml, entryTerms, IN_MISSED, glossaryHtml, splitSummary, termPopoverHtml } from './screens-glossary.mjs';
 
 // m:ss, or h:mm:ss from one hour.
 export const duration = ms => { const n = Math.floor(ms/1000); return n >= 3600 ? `${Math.floor(n/3600)}:${String(Math.floor(n/60)%60).padStart(2,'0')}:${String(n%60).padStart(2,'0')}` : `${Math.floor(n/60)}:${String(n%60).padStart(2,'0')}`; };
-
-// ---- Shared setup controls ----
-// Question pool: one choice, Random / Smart; it replaces the Smart Mode checkbox.
-export const POOL_HELP={random:`A random mix from the selected ${LABEL.sections}.`,smart:'Unseen questions first, then missed ones.'};
-// The Random / Smart choice of the question pool (radio buttons) with the help line of the chosen kind.
-export function poolKindControl({kind}) {
-  return `<fieldset class="pool-kind" id="pool-kind"><legend class="sr-only">Question pool</legend><div class="seg pool-kind-seg">${['random','smart'].map(k=>`<label><input type="radio" name="pool-kind" value="${k}" ${kind===k?'checked':''}>${POOL_LABEL[k]}</label>`).join('')}</div><em class="pool-help" id="pool-help">${POOL_HELP[kind]}</em></fieldset>`;
-}
-// The Dynamic Flash Cards check box row; `on` sets it checked.
-const dynamicControl = on => `<label class="card row" id="dynamic-choice"><input id="dynamic-cards" type="checkbox" aria-describedby="dynamic-help" ${on?'checked':''}><span><strong>Dynamic Flash Cards</strong><em id="dynamic-help">Automatically save missed questions as flash cards.</em></span></label>`;
-// Mode cards: the Mode screen and Marked practice use the same cards.
-const MODE_HELP={Assisted:'Timed key terms, then removes wrong choices.',Unassisted:'No timed help. Hint is available.',Hard:'Harder scenario questions. No help.'};
-// Mode is the help level only: Exam has its own entry under the study setup.
-export const modeCards=(name,current)=>studyModes().map(m=>`<label class="card" data-tone="${m==='Hard'?'gold':'blue'}"><input type="radio" name="${name}" value="${m}" ${current===m?'checked':''}><strong>${m}</strong><span>${MODE_HELP[m]}</span></label>`).join('');
-// Pool chips. A selection smaller than the first size shows its own count in that
-// slot (gold) and a note at the right; sizes larger than the selection are disabled.
-// empty: the note at the right when nothing is available (Setup: no unit selected).
-export const NO_UNITS=`You must select at least 1 ${LABEL.section}.`;
-// The pool size chips (radio buttons) for a form field `name`; n is how many questions are available, `empty` the note when none are.
-export const poolSeg=(name,current,n=Infinity,empty='')=>{
-  const short=n<POOL_SIZES[0], shown=current!=='all'&&current>n?(short?POOL_SIZES[0]:'all'):current;
-  // One pool size chip: gold with the available count when the selection is smaller than the first size, disabled when larger than the selection.
-  const chip=size=>{const fit=short&&size===POOL_SIZES[0], over=!fit&&size!=='all'&&size>n;
-    return `<label class="${fit?'pool-fit':''}"><input type="radio" name="${name}" value="${size}" ${shown===size?'checked':''} ${over?'disabled':''}>${size==='all'?'All':fit?n:size}</label>`;};
-  return `<div class="pool-row"><div class="seg">${[...POOL_SIZES,'all'].map(chip).join('')}</div>${short&&n&&shown!=='all'?`<p class="pool-note">${poolShortfall(n,POOL_SIZES[0])}</p>`:!n&&empty?`<p class="pool-note">${escape(empty)}</p>`:''}</div>`;
-};
 
 // ---- Welcome and Blocks ----
 // The Welcome screen: title, a nickname field and the Start button (a continue button too when a session is open).
@@ -96,72 +72,6 @@ export function blocksHtml({bank, nickname, open, understanding, missedReview, s
     ${forReview}`;
 }
 
-// ---- Study hub and setups ----
-// Study hub: three tiles (Questions, Flash cards, Glossary; on phones Glossary takes the full second row), then the
-// Scholar entry and the Exam entry, each after an "Or" divider. Scholar is term study. scholar: the
-// block has Scholar content (a block without it shows no Scholar entry).
-const TILES=[['questions','Questions','Answer, score and retry.'],['cards','Flash cards','Terms and definitions.'],['glossary','Glossary','Course terms with their sources.']];
-// The Mode screen. scholar: the block has Scholar; scholarDone: {done, total} terms once its Scholar file is loaded.
-export function studyHubHtml({block, scholar = false, scholarDone = null}) {
-  // One study-type tile (a button with its title and one line of help).
-  const tile = ([v,t,d]) => `<button type="button" class="card" data-study="${v}"><strong>${t}</strong><span>${d}</span></button>`;
-  const divider = '<div class="exam-divider" aria-hidden="true"><span>Or</span></div>';
-  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · ${escape(block.title)}</p><h1>Mode</h1></div>
-    <div class="type-grid study-tiles" role="group" aria-label="Study type">${TILES.filter(([v])=>v!=='cards'||FEATURES.cardCatalog).map(tile).join('')}</div>
-    ${scholar ? `${divider}<section class="card exam-entry scholar-entry" data-tone="scholar" aria-labelledby="scholar-entry-title"><div class="exam-entry-text"><h2 id="scholar-entry-title">Scholar</h2><p class="exam-entry-sub">Go deeper with interactive lessons.</p>${scholarDone ? `<p class="exam-entry-sub scholar-entry-done">${scholarDone.done} of ${plural(scholarDone.total, 'term')} done</p>` : ''}</div><button id="scholar-open" class="primary" data-tone="scholar">${nextLabel('Open Scholar')}</button></section>` : ''}
-    ${divider}
-    <section class="card exam-entry" data-tone="violet" aria-labelledby="exam-entry-title"><div class="exam-entry-text"><h2 id="exam-entry-title">Exam</h2><p class="exam-entry-sub">Prove your mastery of the material.</p></div><button id="exam-open" class="primary" data-tone="violet">${nextLabel('Take exam')}</button></section>`;
-}
-
-// One note on every path that starts a new Questions session over a paused one.
-export const REPLACING_NOTE = '<p class="muted replacing-note">Starting replaces your paused study session; understanding choices and notes are kept.</p>';
-// Questions setup: help level, units, question pool (Random / Smart and size), Dynamic Flash Cards.
-// counts: {all: 'label', units: {unitId: n}}; pool: {kind, size, n, empty}.
-export function questionsSetupHtml({block, mode, units, counts, pool, dynamic, replacing = false}) {
-  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Questions</p><h1>Questions</h1></div>
-    <fieldset class="modes mode-options"><legend class="sr-only">Help level</legend>${modeCards('mode',mode)}</fieldset>
-    <section class="panel unit-panel"><div class="step-head"><span class="num">${LABEL.Group} ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">${LABEL.Sections}</legend>${unitChoices(block,units,'unit',counts)}</fieldset></section>
-    <section class="panel pool-panel" aria-labelledby="pool-title"><div class="step-head"><span class="num">Pool</span><h2 id="pool-title">Questions</h2></div>${poolKindControl({kind:pool.kind})}<fieldset id="pool-size" class="pool-size"><legend class="sr-only">Number of questions</legend>${poolSeg('pool-size',pool.size,pool.n,pool.empty||'')}</fieldset></section>
-    ${FEATURES.cardCatalog?dynamicControl(dynamic):''}<p id="mode-availability" class="status" role="status"></p>${replacing ? REPLACING_NOTE : ''}
-    <div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary"${mode==='Hard'?' data-tone="gold"':''} id="mode-next">${nextLabel('Study')}</button></div>`;
-}
-
-// Flash card setup: saved sets and units; with no saved card in any block the sets panel is one line.
-// setsBlock: the saved sets' block filter (this block by default, or ALL_BLOCKS); blocks: every block, for the filter.
-export function cardsSetupHtml({block, blocks = [block], library, pickSetId, catalog, units, counts, setsBlock = block.id}) {
-  const setRows = library.sets.map(set => { const n = cardsInSet(set,catalog,setsBlock).length; return `<label class="card row"><input type="radio" name="card-set" value="${escape(set.id)}" ${set.id===pickSetId?'checked':''} ${n?'':'disabled'}><span><strong>${escape(set.name)}</strong>${set.id===MISSED_ID?' <span class="tag">Auto</span>':''}</span><span class="set-pick-count mono">${plural(n,'card')}</span></label>`; }).join('');
-  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Flash cards</p><h1>Flash cards</h1></div>
-      ${library.sets.every(set => !cardsInSet(set, catalog, ALL_BLOCKS).length) ? `<section class="panel card-set-pick card-set-none"><p class="muted">No saved cards yet. Missed questions and cards you SAVE show up here.</p><button class="small" id="manage-sets">Manage sets</button></section>` : `<section class="panel card-set-pick"><div class="step-head"><span class="num">Saved</span><h2>Card sets</h2><button class="small" id="manage-sets">Manage sets</button></div>${setsBlockHtml(blocks, setsBlock, 'setup-sets-block')}<div class="setlist" role="radiogroup" aria-label="Saved card sets">${setRows}</div></section>`}
-      <section class="panel unit-panel${pickSetId?' is-dimmed':''}"><div class="step-head"><span class="num">${LABEL.Group} ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">${LABEL.Sections}</legend>${unitChoices(block,pickSetId?[]:units,'unit',counts)}</fieldset><p id="eligible-count" class="status count" role="status"></p></section>
-      <div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary" id="units-next">${nextLabel('Study')}</button></div>`;
-}
-
-// Status line under the units: the card count or the saved set in use.
-export function cardCountText({pickName, n}) {
-  return pickName ? `Using saved set “${pickName}”. Choose a ${LABEL.section} to switch back.` : n ? `${plural(n,'card')} in this selection.` : `No cards match these ${LABEL.sections}.`;
-}
-
-// Exam setup (from the hub's Take exam): the Exam panel, Back to study, Start exam.
-export function examSetupScreenHtml({blockId, examSetup}) {
-  return `<div class="page-head"><p class="label">${LABEL.Group} ${blockId} · Exam</p><h1>Take exam</h1></div>${examSetup}<p id="mode-availability" class="status" role="status"></p><div class="navrow actions"><button id="back">${backLabel('Mode')}</button><button class="primary" data-tone="violet" id="mode-next">${nextLabel('Start exam')}</button></div>`;
-}
-
-// The line under the mode cards: only Hard can lack questions for these units.
-export function modeAvailability({mode, count, poolSize, hardPending}) {
-  if (mode !== 'Hard') return '';
-  return count ? poolShortfall(count,poolSize) : hardPending ? 'Hard questions are awaiting review.' : `No Hard questions match these ${LABEL.sections}.`;
-}
-
-// counts (optional): {all, units: {unitId: n}} marked questions available per unit for this mode, shown in red (bad tone).
-export function practiceSetupHtml({block, quizScope, units, mode, poolKind = 'random', poolSize, available, replacing, counts = null}) {
-  return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · Marked for review${quizScope === 'all' ? ` · All ${block.units.length} ${LABEL.sections}` : ''}</p><h1>${quizScope === 'all' ? `Practice all ${LABEL.sections}` : `Choose practice ${LABEL.sections}`}</h1></div>
-    ${quizScope === 'units' ? `<section class="panel unit-panel"><div class="step-head"><span class="num">${LABEL.Group} ${block.id}</span><h2>${escape(block.title)}</h2></div><fieldset><legend class="sr-only">${LABEL.Sections}</legend>${unitChoices(block,units,'review-unit',counts,'bad')}</fieldset></section>` : ''}
-    <fieldset class="modes mode-options" id="practice-mode"><legend class="sr-only">Study mode</legend>${modeCards('practice-mode',mode)}</fieldset>
-    <section class="panel pool-panel"><div class="step-head"><span class="num">Pool</span><h2>Questions</h2></div>${poolKindControl({kind:poolKind==='smart'?'smart':'random'})}<fieldset id="practice-pool-size"><legend class="sr-only">Number of questions</legend>${poolSeg('practice-pool',poolSize,available)}</fieldset><p id="practice-count" class="status" role="status"></p></section>
-    ${replacing ? REPLACING_NOTE : ''}
-    <div class="navrow actions"><button id="practice-cancel">${backLabel('Blocks')}</button><button class="primary"${mode==='Hard'?' data-tone="gold"':''} id="practice-confirm">${nextLabel('Study')}</button></div>`;
-}
-
 // ---- Question screen ----
 // The appearance on screen: a history entry while reviewing, otherwise the live one.
 export const viewedAppearance = session => session.viewIndex != null ? session.history[session.viewIndex] : session.current;
@@ -183,49 +93,6 @@ function trackHtml(c, mode) {
   return `<div class="track" id="track"><span class="mono clock" id="clock" aria-hidden="true">${duration(ms)}</span><div class="track-body"><div class="track-bar"><div class="track-fill" id="track-fill" style="width:${fill}%"></div>${TRACK_MARKS.map(([at])=>`<i class="tick" style="left:${at/500}%"></i>`).join('')}</div><div class="marks" aria-hidden="true">${TRACK_MARKS.map(([at,kind,text])=>`<span class="${kind}${ms>=at?' hit':''}" style="left:${at/500}%">${text}</span>`).join('')}</div></div>${c.resolved?'':`<span id="countdown" class="countdown sr-only" role="timer" aria-live="off">${assistanceTimer(c,mode)}</span>`}</div>`;
 }
 
-// ---- Glossary in questions ----
-// A term link inside running text (stem, answers, rationales) is an inline span with role="button": a <button>
-// is always an atomic box, so a long term broke the sentence into centred lines on phones. Enter and Space open it
-// (one keydown listener in app.mjs). Lists of terms (Key terms, Related) keep real buttons.
-const TERM_SPAN = ref => `<span role="button" tabindex="0" class="term-link" data-term="${escape(ref)}" aria-haspopup="dialog">`;
-/**
- * Stem with key-term marks and glossary links. A link that partly overlaps a key-term mark is split at the mark's edge
- * into two spans with the same term, so the markup always nests and the term still opens. Each link is an inline span
- * (dotted underline, no colour change).
- * @param {object} q the question.
- * @param {object} [options] marks (show the key-term marks) and links (the spans from glossary.stemLinks()).
- * @returns {string} the HTML.
- */
-export function linkedStem(q, {marks = false, links = []} = {}) {
-  const kw = marks ? [...q.keywords].sort((a, b) => a.start - b.start) : [];
-  let ok = links;
-  for (const k of kw) ok = ok.flatMap(l => l.start < k.start && l.end > k.start && l.end < k.end ? [{...l, end: k.start}, {...l, start: k.start}]
-    : l.start > k.start && l.start < k.end && l.end > k.end ? [{...l, end: k.end}, {...l, start: k.end}] : [l]);
-  const open = [], events = [];
-  for (const k of kw) events.push([k.start, 1, 'm', k], [k.end, 0, 'm', k]);
-  for (const l of ok) events.push([l.start, 1, 'l', l], [l.end, 0, 'l', l]);
-  // At one position: closes first; on opens, the longer span opens first (outer).
-  events.sort((a, b) => a[0] - b[0] || a[1] - b[1] || (a[1] ? (b[3].end - b[3].start) - (a[3].end - a[3].start) : (a[3].end - a[3].start) - (b[3].end - b[3].start)));
-  let out = '', at = 0;
-  for (const [pos, isOpen, kind, x] of events) {
-    out += escape(q.stem.slice(at, pos)); at = pos;
-    if (isOpen) { out += kind === 'm' ? '<mark>' : TERM_SPAN(x.ref); open.push(kind); }
-    else out += kind === 'm' ? '</mark>' : '</span>';
-  }
-  return out + escape(q.stem.slice(at));
-}
-// Any text block with its precomputed glossary spans ([start, end, ref]); used where everything is resolved.
-export function linkedText(text, spans = []) {
-  let out = '', at = 0;
-  for (const [start, end, ref] of [...spans].sort((a, b) => a[0] - b[0])) { if (start < at) continue; out += escape(text.slice(at, start)) + `${TERM_SPAN(ref)}${escape(text.slice(start, end))}</span>`; at = end; }
-  return out + escape(text.slice(at));
-}
-// Key terms drop-down for the answer tools row, once the answer is known: one term per line. terms: [{id, term}].
-export const keyTermsHtml = terms => terms.length ? dropHtml('terms', 'Key terms', terms.length, terms.length === 1 ? 'term' : 'terms',
-  `<ul class="term-list">${terms.map(t => `<li><button type="button" class="term-link" data-term="${escape(t.id)}" aria-haspopup="dialog">${escape(t.term)}</button></li>`).join('')}</ul>`) : '';
-// Course excerpts of an entry, verbatim, each with its document and page.
-// Layout comes from the build (blocks: paragraphs and real lists); the words are the course text.
-const excerptsHtml = (entry, docs) => entry.excerpts.length ? `<ul class="term-excerpts">${entry.excerpts.map(x => `<li><blockquote>${excerptBody(x)}</blockquote><span class="label">${escape(docs[x.doc] || x.doc)} · p. ${x.page}</span></li>`).join('')}</ul>` : '';
 /**
  * The study question screen: the stem, the answer tiles, the tools row and the buttons for the viewed appearance.
  * @param {object} args session, bank, box (the SAVE button state {key, saved} once the answer is known, or null),
@@ -247,88 +114,6 @@ export function studyHtml({session, bank, box, source, isFlagged, gloss = null})
   const sourceCell=sourceVisible(c)?source(q):c.resolved?'<p class="excerpt-held"><span class="label">Source · held<span class="held-more"> until review</span></span></p>':'';
   const answers=answersHtml(q,c,{assisted,reviewing,neutralUnpicked:true});  // red marks only the wrong answers you picked
   return `<h1 class="sr-only">Question ${number} of ${p.pool}</h1>${studyToolbar({mode:session.nextMode||c.mode||session.mode,modes:locked?[session.mode]:['Assisted','Unassisted'],locked:reviewing||locked,status,statusTone:tone})}${ledgerHtml(session)}<article class="panel q-sheet"><section class="question-focus" aria-label="Current question"><div class="question-heading qhead"><p class="qnum">#${number} <small>of ${p.pool}${repeat?' · Repeat':''}</small><span class="sr-only">Question ${number} of ${p.pool}</span></p><span class="unit-label${box?.missed?' with-tag':''}">${box?.missed?`${IN_MISSED}<span class="unit-text">${escape(questionUnitLabel(q,bank.blocks))}</span>`:escape(questionUnitLabel(q,bank.blocks))}</span></div><h2 id="stem" class="stem" tabindex="-1">${stem}</h2>${assisted&&!reviewing&&!hard?trackHtml(c,session.mode):''}</section><div class="answers">${answers}</div>${sourceRow(sourceCell,sourceCell?flagButton({id:'flag-question',question:q.id,flagged:isFlagged(q.id)}):'',revealed&&gloss?.keyTerms?keyTermsHtml(gloss.keyTerms):'',box?saveButton({id:'save-question',key:box.key,saved:box.saved}):'')}</article><div class="navrow actions question-actions"><button id="previous" ${!session.history?.length||session.viewIndex===0?'disabled':''}>${backLabel('Back')}</button><button id="next" class="primary" ${!reviewing&&!revealed?'disabled':''}>${nextLabel('Next')}</button></div><div class="tool-row">${!reviewing&&!assisted&&!locked?`<button id="hint" aria-controls="stem" ${c.hintUsed||c.resolved?'disabled':''}>${c.hintUsed?'Hint shown':'Hint'}</button>`:''}${!reviewing&&!locked?`<button id="show-answer" ${c.resolved?'disabled':''}>Show Answer</button>`:''}</div>`.replace('<div class="tool-row"></div>','');
-}
-
-// ---- Glossary screen ----
-// list: entries to show (search + unit filter); entry: the open entry or null; questionCount(e): {standard, hard} questions
-// with the term (one button per pool; the Hard one in the Hard gold; a pool with none shows no button).
-// Key terms of a glossary entry (card back and Glossary entry): the terms linked in its definition, then its related terms.
-export function entryTerms(entry, g) {
-  // The name to show for a link reference: an acronym's text, or the entry's term, else the reference itself.
-  const termName = ref => { const p = ref.startsWith('acr:') ? ref.slice(4) : g.byId.get(ref)?.term; return p || ref; };
-  const refs = [...(entry.defLinks || []).map(([, , ref]) => ref), ...entry.related.filter(id => g.byId.has(id))];
-  return [...new Set(refs)].map(ref => ({id: ref, term: termName(ref)}));
-}
-// Source drop-down of a glossary entry: its course excerpts, verbatim, each with document and page (as the question Source).
-const entrySource = (entry, docs) => entry.excerpts.length ? dropHtml('source', 'Source', entry.excerpts.length, entry.excerpts.length === 1 ? 'excerpt' : 'excerpts',
-  `<div class="excerpt">${entry.excerpts.map(x => `<figure><blockquote>${excerptBody(x)}</blockquote><figcaption>${escape(docs[x.doc] || x.doc)} · p. ${x.page}</figcaption></figure>`).join('')}</div>`) : '';
-// The Missed set tag: the card is in Missed Questions (SAVE shows Manual only). Bad tone = missed, as on Results.
-export const IN_MISSED = '<span class="tag in-missed" data-tone="bad">Missed set</span>';
-/**
- * The Glossary screen: the open entry, or the term list with search, unit chips and the grouping choice.
- * @param {object} args block, g (the glossary), list (entries to show), query, unit (the unit filter), entry (the open
- * entry or null), questionCount(e) ({standard, hard} questions with the term: one button per pool, the Hard one in
- * gold; a pool with none shows no button), save (the Save button for the entry's card or ''), flag (the entry
- * card's Flag button), toCard ('Card N' when the entry was opened from a flash card, giving the back button to
- * that card, else ''), group ('unit': Unit 1 ... Unit 8 headings with A-Z inside each; or 'az': one A-Z list with the
- * letter bar), replacing (show the note about replacing the pool) and scholar (the entry has a Scholar item: an Open
- * in Scholar button under the entry).
- * @returns {string} the HTML.
- */
-export function glossaryHtml({block, g, list, query, unit, entry, questionCount, save = '', flag = '', toCard = '', group = 'unit', replacing = false, scholar = false}) {
-  // The first letter of a term, capitalised, or # when it has no letter.
-  const letter = e => (e.term.match(/[A-Za-z]/)?.[0] || '#').toUpperCase();
-  const letters = [...new Set(list.map(letter))];
-  const head = `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · ${plural(g.entries.filter(e => e.block === block.id).length,'term')} from the course</p><h1>Glossary</h1></div>`;
-  if (entry) {
-    const n = questionCount(entry);
-    // A button that opens the questions with this term; nothing when the count is 0.
-    const poolButton = (id, label, count, tone = '') => count ? `<button id="${id}" class="primary"${tone ? ` data-tone="${tone}"` : ''}>${label} questions with this term (${count})</button>` : '';
-    const pools = poolButton('gloss-questions', 'Standard', n.standard) + poolButton('gloss-hard-questions', 'Hard', n.hard, 'gold');
-    return `${head}
-      <article class="panel gloss-entry" aria-labelledby="gloss-term"><div class="step-head"><span class="num">${LABEL.Section} ${entry.unit} · ${escape(block.units.find(u => u.id === entry.unit)?.title || '')}</span><h2 id="gloss-term">${escape(entry.term)}</h2></div>
-      ${entry.aliases.length ? `<p class="label">${entry.aliases.map(escape).join(' · ')}</p>` : ''}<p class="gloss-short">${escape(entry.short)}</p>
-      ${sourceRow(entrySource(entry, g.docs), flag, keyTermsHtml(entryTerms(entry, g)), save)}
-      ${pools ? `<div class="actions gloss-pools">${pools}</div>${replacing ? REPLACING_NOTE : ''}` : ''}
-      ${scholar ? `<div class="actions gloss-scholar"><button id="gloss-open-scholar" data-tone="scholar">${nextLabel('Open in Scholar')}</button></div>` : ''}</article>
-      <div class="navrow actions">${toCard ? `<button id="gloss-card">${backLabel(toCard)}</button><button id="gloss-back">All terms</button>` : `<button id="gloss-back">${backLabel('All terms')}</button>`}</div>`;
-  }
-  // One entry of the term list: a card button with the term and its short definition.
-  const item = e => `<li><button type="button" class="card" data-entry="${escape(e.id)}"><strong>${escape(e.term)}</strong><span>${escape(e.short)}</span></button></li>`;
-  // Compare two entries by term, ignoring case, for sorting.
-  const byTerm = (a, b) => a.term.toLowerCase() < b.term.toLowerCase() ? -1 : 1;
-  const units = block.units.filter(u => list.some(e => e.unit === u.id));
-  const sections = group === 'az'
-    ? letters.map(l => `<section id="gloss-${l}" class="gloss-letter"><h2>${l}</h2><ul>${list.filter(e => letter(e) === l).map(item).join('')}</ul></section>`).join('')
-    : units.map(u => `<section id="gloss-u${u.id}" class="gloss-letter gloss-unit"><h2><span class="unit-number">U${u.id}</span>${escape(u.title)}</h2><ul>${list.filter(e => e.unit === u.id).sort(byTerm).map(item).join('')}</ul></section>`).join('');
-  // The Unit chips filter the list, so By unit has no jump row; A–Z keeps the letter row.
-  const jump = group === 'az' ? `<nav class="az" aria-label="Jump to letter">${letters.map(l => `<a href="#gloss-${l}">${l}</a>`).join('')}</nav>` : '';
-  return `${head}<div class="panel gloss-tools"><label class="field" for="gloss-search">Search<input id="gloss-search" type="search" value="${escape(query)}" placeholder="Term, acronym or words" autocomplete="off"></label>
-    <fieldset class="unit-chips"><legend class="field">${LABEL.Section}</legend><div class="chips">${[{id: 0, title: `All ${LABEL.sections}`}, ...block.units].map(u => `<label title="${escape(u.title)}"><input type="radio" name="gloss-unit" value="${u.id}" ${u.id===unit?'checked':''}>${u.id ? `U${u.id}<span class="sr-only"> · ${escape(u.title)}</span>` : 'All'}</label>`).join('')}</div></fieldset>
-    <fieldset class="gloss-group"><legend class="sr-only">Group terms</legend><div class="seg">${[['unit',`By ${LABEL.section}`],['az','A–Z']].map(([v,t]) => `<label><input type="radio" name="gloss-group" value="${v}" ${group===v?'checked':''}>${t}</label>`).join('')}</div></fieldset>
-    ${jump}</div>
-    <p class="status count" role="status">${plural(list.length,'term')}</p>
-    <div class="gloss-list">${sections || `<p class="muted gloss-empty">No terms match. Try a shorter word${unit ? `, or choose All ${LABEL.sections}` : ''}.</p>`}</div>
-    <div class="navrow actions">${toCard ? `<button id="gloss-card">${backLabel(toCard)}</button>` : `<button id="back">${backLabel('Mode')}</button>`}</div>`;
-}
-
-// A definition's first sentence and the rest ('' when it has one sentence). A dot after a capital letter (U.S.) does not end it.
-export function splitSummary(text) {
-  const m = /^(.*?[a-z0-9)\]][.!?])\s+(?=[A-Z0-9"(])/s.exec(text);
-  return m ? [m[1], text.slice(m[0].length)] : [text, ''];
-}
-// Term popover (desktop) / bottom sheet (phone). content: glossary.popover(). It opens on a short summary, the first sentence
-// of the definition; More expands the rest and the excerpts. save: the Save button for the term's
-// flash card, beside the close button, or ''.
-// scholar: the term has a Scholar item, so "Study in Scholar" opens it (one tap from a
-// missed question's key term to its explanation).
-export function termPopoverHtml(content, {more = false, docs = {}, save = '', scholar = false} = {}) {
-  const e = content.entry, [summary, rest] = e ? splitSummary(e.short) : ['', ''];
-  return `<div class="pop-head"><h2 id="term-pop-title">${escape(content.title)}</h2>${save}<button type="button" class="small" id="term-pop-close" aria-label="Close">✕</button></div>
-    ${content.expansion ? `<p class="pop-expansion">${escape(content.expansion)}</p>` : ''}
-    ${e ? `${content.expansion ? `<p class="label">${escape(e.term)}</p>` : ''}<p class="pop-summary">${escape(more ? e.short : summary)}</p>${more ? excerptsHtml(e, docs) : rest || e.excerpts.length ? '<button type="button" class="link-button" id="term-pop-more">More</button>' : ''}` : ''}
-    ${content.see.length ? `<p class="pop-see"><span class="label">See</span> ${content.see.map(x => `<button type="button" class="link-button" data-term="${escape(x.id)}">${escape(x.term)}</button>`).join(' · ')}</p>` : ''}
-    ${scholar ? '<p class="pop-scholar"><button type="button" class="link-button" id="term-pop-scholar" data-tone="scholar">Study in Scholar</button></p>' : ''}`;
 }
 
 // Screen-reader line after an answer: only accepted grading is announced, never another option or rationale.
@@ -455,7 +240,7 @@ export function centredScroll({top, bottom, scrollY, coverTop, viewHeight, maxSc
 // the old answer's scroll position, then put the question under the header and reset every answer scroller.
 // Returns true when it moved the page.
 export function positionQuestion({main, win, headerHeight}) {
-  if (!win.matchMedia?.('(max-width: 760px), (max-height: 500px)').matches) return false;
+  if (!win.matchMedia?.(NARROW_OR_SHORT_QUERY).matches) return false;
   const question = main.querySelector('.question-focus'), answers = main.querySelector('.answers');
   if (!question || !answers) return false;
   win.scrollTo({top:0,behavior:'instant'});

@@ -1,44 +1,34 @@
-/* ICF Companion. Layers: tokens, base, components, screens, utilities. Each selector is written once;
-   phone rules (max-width:640px) nest inside their selector.
-   --paper page  --sheet card/panel  --ink text  --muted secondary text  --rule dividers/tracks  --control borders of controls (>=3:1 on sheet and paper)  --focus focus ring
-   --shadow: floating menu, dialog, term popover and SAVE toast only (no other shadows; every fill is flat)
-   --blue nav current + primary action + selected choice   --violet Exam only   --gold Hard only   --scholar (teal) Scholar only
-   --good / --bad answer states (+ -soft fills)   --warn status and storage notices (text only; the bad hue)
-   --tone/--tone-soft/--tone-ink: blue by default; [data-tone="blue|violet|gold|scholar|good|bad|warn"] on a card, panel, tag,
-   button, seg or dialog retints it and everything inside   --blue-ink: text on any tone fill
-   --t1..--t8 type scale .75/.875/1/1.125/1.25/1.5/2/3 rem (body --t4 500)   --r1 4 --r2 8 --r3 12 --rp 999 radii
-   --f Barlow Condensed 500/600/700 (+500 italic), the only face; body sets tabular-nums, and every font: shorthand resets it, so a ticking timer restates it
-   --header-height measured by app.mjs   --header-cover visible header (sticky offsets)   --top-row phone top bar height   --col 46rem work column */
 @layer tokens,base,components,screens,utilities;
 @font-face{font-family:"Barlow Condensed";font-weight:500;font-display:swap;src:url("./font-display-500.woff2") format("woff2")}
 @font-face{font-family:"Barlow Condensed";font-weight:600;font-display:swap;src:url("./font-display-600.woff2") format("woff2")}
 @font-face{font-family:"Barlow Condensed";font-weight:700;font-display:swap;src:url("./font-display-700.woff2") format("woff2")}
 @font-face{font-family:"Barlow Condensed";font-style:italic;font-weight:500;font-display:swap;src:url("./font-display-italic-500.woff2") format("woff2")}
 @layer tokens{
-:root{--paper:#EDF1F5;--sheet:#FFF;--ink:#0E1A2B;--muted:#4A586B;--rule:#C9D2DD;--blue:#0B3D91;--blue-ink:#FFF;--blue-soft:#DCE6F7;--violet:#5B3FB8;--violet-soft:#E9E3FA;--good:#11683A;--good-soft:#E0F2E7;--bad:#A3201B;--bad-soft:#FBE4E2;--gold:#8A5A00;--gold-soft:#FFF1CC;--scholar:#0E6470;--scholar-soft:#DCF1F2;--good-quiet:#F1F8F3;--good-quiet-line:#7FB896;--bad-quiet:#FDF3F2;--bad-quiet-line:#DA9F9B;--good-mark:#3E8A5E;--bad-mark:#C25A54;--focus:#A21CAF;--control:#7D8A9C;--shadow:0 16px 36px -16px rgba(14,26,43,.45);
-  --warn:var(--bad);--tone:var(--blue);--tone-soft:var(--blue-soft);--tone-ink:var(--blue-ink);
+:root{--paper:#EDF1F5;--sheet:#FFF;--ink:#0E1A2B;--muted:#4A586B;--rule:#C9D2DD;--blue:#00539F;--blue-ink:#FFF;--blue-soft:#DCE6F7;--violet:#5B3FB8;--violet-soft:#E9E3FA;--good:#11683A;--good-soft:#E0F2E7;--bad:#A3201B;--bad-soft:#FBE4E2;--gold:#8A5A00;--gold-soft:#FFF1CC;--scholar:#0E6470;--scholar-soft:#DCF1F2;--good-quiet:#F1F8F3;--good-quiet-line:#2E7D52;--bad-quiet:#FDF3F2;--bad-quiet-line:#B33A34;--good-mark:#1D7344;--bad-mark:#A3201B;--focus:#A21CAF;--control:#6C7B8E;--shadow:0 16px 36px -16px rgba(14,26,43,.45);
+  --warn:var(--gold);--tone:var(--blue);--tone-soft:var(--blue-soft);--tone-ink:var(--blue-ink);
   --t1:.8125rem;--t2:.875rem;--t3:1rem;--t4:1.125rem;--t5:1.25rem;--t6:1.5rem;--t7:2rem;--t8:3rem;--r1:4px;--r2:8px;--r3:12px;--rp:999px;--review-gap:8px;
-  --f:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--header-height:64px;--header-cover:var(--header-height);--col:46rem;--gutter:max(16px,calc((100% - var(--col))/2));@media (max-width:640px){--gutter:max(11px,env(safe-area-inset-left,0px))}color-scheme:light}
-:root[data-theme="dark"]{--paper:#0A111C;--sheet:#121C2B;--ink:#E6ECF4;--muted:#9AA8BA;--rule:#2A384C;--blue:#7FA8F0;--blue-ink:#07101C;--blue-soft:#1A2B47;--violet:#B39DFF;--violet-soft:#2A2147;--good:#5FD08E;--good-soft:#123222;--bad:#FF8A80;--bad-soft:#3A1715;--gold:#F2C14E;--gold-soft:#3A2D0E;--scholar:#5CC8D0;--scholar-soft:#123338;--good-quiet:#16271F;--good-quiet-line:#3F8C62;--bad-quiet:#2A1B1F;--bad-quiet-line:#A0605B;--good-mark:#4FA374;--bad-mark:#C46A63;--focus:#F0ABFC;--control:#64758E;--shadow:0 16px 36px -16px rgba(0,0,0,.7);color-scheme:dark}
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--f-body:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--header-height:64px;--header-cover:var(--header-height);--col:46rem;--gutter:max(16px,calc((100% - var(--col))/2));@media (max-width:640px){--gutter:max(11px,env(safe-area-inset-left,0px))}color-scheme:light}
+:root[data-theme="dark"]{--paper:#0A111C;--sheet:#121C2B;--ink:#E6ECF4;--muted:#9AA8BA;--rule:#2A384C;--blue:#7FA8F0;--blue-ink:#07101C;--blue-soft:#1A2B47;--violet:#B39DFF;--violet-soft:#2A2147;--good:#5FD08E;--good-soft:#123222;--bad:#FF8A80;--bad-soft:#3A1715;--gold:#F2C14E;--gold-soft:#3A2D0E;--scholar:#5CC8D0;--scholar-soft:#123338;--good-quiet:#16271F;--good-quiet-line:#48A170;--bad-quiet:#2A1B1F;--bad-quiet-line:#D96B64;--good-mark:#5FD08E;--bad-mark:#F07167;--focus:#F0ABFC;--control:#64758E;--shadow:0 16px 36px -16px rgba(0,0,0,.7);color-scheme:dark}
+@media (prefers-color-scheme:dark){:root:not([data-theme]){--paper:#0A111C;--sheet:#121C2B;--ink:#E6ECF4;--muted:#9AA8BA;--rule:#2A384C;--blue:#7FA8F0;--blue-ink:#07101C;--blue-soft:#1A2B47;--violet:#B39DFF;--violet-soft:#2A2147;--good:#5FD08E;--good-soft:#123222;--bad:#FF8A80;--bad-soft:#3A1715;--gold:#F2C14E;--gold-soft:#3A2D0E;--scholar:#5CC8D0;--scholar-soft:#123338;--good-quiet:#16271F;--good-quiet-line:#48A170;--bad-quiet:#2A1B1F;--bad-quiet-line:#D96B64;--good-mark:#5FD08E;--bad-mark:#F07167;--focus:#F0ABFC;--control:#64758E;--shadow:0 16px 36px -16px rgba(0,0,0,.7);color-scheme:dark}}
 [data-tone="blue"]{--tone:var(--blue);--tone-soft:var(--blue-soft)}
 [data-tone="violet"]{--tone:var(--violet);--tone-soft:var(--violet-soft)}
 [data-tone="gold"]{--tone:var(--gold);--tone-soft:var(--gold-soft)}
 [data-tone="scholar"]{--tone:var(--scholar);--tone-soft:var(--scholar-soft)}
 [data-tone="good"]{--tone:var(--good);--tone-soft:var(--good-soft)}
 [data-tone="bad"]{--tone:var(--bad);--tone-soft:var(--bad-soft)}
-[data-tone="warn"]{--tone:var(--warn);--tone-soft:var(--bad-soft)}
+[data-tone="warn"]{--tone:var(--warn);--tone-soft:var(--gold-soft)}
 }
-/* body stays outside the layers: an unlayered host style (an embedding page may wrap the app in
-   a body rule with a white background, black text and a 14px font) beats every layered rule and turned the page white with black text. */
-body{margin:0;padding:0;min-height:100vh;background:var(--paper);color:var(--ink);font:500 var(--t4)/1.4 var(--f);font-variant-numeric:tabular-nums;overflow-anchor:none;-webkit-text-size-adjust:100%}
+body{margin:0;padding:0;min-height:100vh;background:var(--paper);color:var(--ink);font:400 var(--t4)/1.55 var(--f-body);overflow-anchor:none;-webkit-text-size-adjust:100%}
 @layer base{
 *{box-sizing:border-box}
 html{scroll-padding-top:calc(var(--header-cover) + 12px);scrollbar-gutter:stable}
-:is(h1,h2,h3){font-weight:700;line-height:1.05;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance;margin:0}
+:is(h1,h2,h3){font-family:var(--f-display);font-weight:700;line-height:1.05;letter-spacing:.01em;text-transform:uppercase;text-wrap:balance;margin:0}
 h1{font-size:var(--t8);@media (max-width:640px){font-size:var(--t7)}}
 h2{font-size:var(--t6)}
 h3{font-size:var(--t5)}
 p,dl,figure,blockquote{margin:0}
+p{max-width:65ch}
+:is(dt,dd,legend,.label,.unit-label,header strong,.card>strong,.stat strong,.first-title){font-family:var(--f-display)}
 dt{font-weight:600;font-size:var(--t1);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 dd{margin:0;font-weight:700;line-height:1;& small{font-size:var(--t2);color:var(--muted);font-weight:600}}
 a{color:var(--blue)}
@@ -53,14 +43,10 @@ main:focus-visible{outline:none}
 .muted{color:var(--muted)}
 .mono{font-size:var(--t2);font-weight:500;letter-spacing:.03em}
 .label{font-weight:600;font-size:var(--t2);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);& .tag{margin-left:8px}}
-/* A tag inside an uppercase label line (Stats "Latest session results", question head unit line): vertical-align:middle
-   centres it on the x-height, 1.1 px below the capitals' midpoint; lift it onto the cap-height midpoint. */
 :is(.label,.unit-label)>.tag{translate:0 -.09em}
 .correct-label{color:var(--good)}
 .incorrect-label{color:var(--bad)}
 .status{font-size:var(--t3);font-weight:600;color:var(--warn);&:empty{display:none}&.count:not(.warn){color:var(--muted)}}
-/* Top bar. Phones: logo · theme · gear on the first row, the screen links on a second row that always shows;
-   the first row slides away on scroll down (header.nav-only, app.mjs). */
 header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;min-height:64px;padding:env(safe-area-inset-top,0px) var(--gutter) 0;background:var(--sheet);border-bottom:1px solid var(--rule);
   @media (max-width:640px){flex-wrap:wrap;row-gap:0;min-height:0;padding-top:calc(env(safe-area-inset-top,0px) + 6px);transition:transform .2s ease-out;&.nav-only{transform:translateY(calc(-1 * var(--top-row,56px)))}html[data-exam="live"] &{padding-bottom:6px}}}
 html:has(header.nav-only){--header-cover:calc(var(--header-height) - var(--top-row,56px))}
@@ -68,8 +54,6 @@ html:has(header.nav-only){--header-cover:calc(var(--header-height) - var(--top-r
 #home{display:flex;align-items:center;gap:10px;margin-right:auto;min-height:44px;text-decoration:none;color:inherit;
   & strong{font-weight:700;font-size:var(--t5);letter-spacing:.04em;& span{color:var(--muted);font-weight:500}}
   html[data-exam="live"] &{pointer-events:none}}
-/* Header mark: the Epsilon logo with its phrase at the bottom, same geometry in both themes:
-   Fulcrum colours in the light theme, USAF colours in the dark theme. */
 .mark{--mark-disc:#15171D;--mark-light:#F3EEE4;--mark-accent:#E4572E;--mark-dots:#5A5E6A;--mark-dots-opacity:1;--mark-phrase:#D4AF37;display:block;width:44px;height:44px;flex:0 0 44px;@media (max-width:640px){width:38px;height:38px;flex-basis:38px}}
 :root[data-theme="dark"] .mark{--mark-disc:#00308F;--mark-light:#FFFFFF;--mark-accent:#FFCD00;--mark-dots:#FFFFFF;--mark-dots-opacity:.75;--mark-phrase:#FFCD00}
 .mark-disc{fill:var(--mark-disc)}
@@ -86,7 +70,7 @@ html:has(header.nav-only){--header-cover:calc(var(--header-height) - var(--top-r
   @media (max-width:640px){order:9;flex:1 0 100%;margin-top:6px;border-top:1px solid var(--rule);html[data-exam="live"] &{display:none}}
   & button{flex:none;min-height:44px;padding:0 10px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:var(--muted);font-size:var(--t3);
     @media (max-width:640px){flex:1 1 0;min-width:0;padding:0 4px;font-size:var(--t2)}
-    &:hover:not([aria-disabled="true"]){color:var(--ink);border-bottom-color:var(--rule)}}}
+    &:hover:not([aria-disabled="true"]){color:var(--ink);border-bottom-color:var(--control)}}}
 [data-screen-link]{&[aria-current="page"]{color:var(--blue);border-color:var(--blue)}&[aria-disabled="true"]{opacity:.4}html[data-exam="live"] &{display:none}}
 .track-sw{position:relative;display:block;width:42px;height:22px;flex:0 0 42px;border-radius:var(--rp);border:2px solid var(--muted);background:var(--paper);transition:background .2s,border-color .2s}
 .knob{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--muted);display:grid;place-items:center;transition:transform .2s,background .2s;& svg{width:10px;height:10px;fill:none;stroke:var(--sheet);stroke-width:2;stroke-linecap:round}}
@@ -96,40 +80,34 @@ html:has(header.nav-only){--header-cover:calc(var(--header-height) - var(--top-r
 .tools-toggle{flex:none;width:44px;min-height:44px;padding:0;&[aria-expanded="true"]{border-color:var(--blue);color:var(--blue)}}
 .gear{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
 .tools-menu{position:absolute;top:calc(100% - 4px);right:var(--gutter);z-index:6;display:grid;gap:6px;min-width:13rem;padding:8px;background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r3);box-shadow:var(--shadow);& button{width:100%;justify-content:flex-start;min-height:44px;font-size:var(--t3)}}
-.menu-toggle{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 4px 4px 6px;border-bottom:1px solid var(--rule);margin-bottom:2px;font:700 var(--t3)/1.2 var(--f);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
-/* Work column and panels */
+.menu-toggle{position:relative;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 4px 4px 6px;border-bottom:1px solid var(--rule);margin-bottom:2px;font:700 var(--t3)/1.2 var(--f-display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
 main{display:flex;flex-direction:column;gap:20px;max-width:calc(var(--col) + 32px);margin:0 auto;padding:28px max(16px,env(safe-area-inset-right,0px)) 64px max(16px,env(safe-area-inset-left,0px));min-height:60vh;& >*{margin:0}
   @media (max-width:640px){padding:16px max(11px,env(safe-area-inset-right,0px)) 40px max(11px,env(safe-area-inset-left,0px));gap:12px}}
 .panel{background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r3);padding:18px 20px;display:grid;gap:12px;align-content:start;& >*{margin:0}&[data-tone]{border-left:4px solid var(--tone)}@media (max-width:640px){padding:14px 13px}}
 .page-head{display:grid;gap:4px}
 .step-head{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 12px;& .num{grid-column:1/-1;font-weight:600;font-size:var(--t2);letter-spacing:.12em;color:var(--tone);text-transform:uppercase;line-height:1.2}& h2{grid-column:1}& >button{grid-column:2;grid-row:2}}
-/* Buttons: all-caps display face; cards, answers and link buttons opt out. */
-button{font:700 var(--t4)/1 var(--f);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;min-height:48px;padding:0 16px;border-radius:var(--r2);border:2px solid var(--control);background:var(--sheet);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;max-width:100%;touch-action:manipulation;
+button{font:700 var(--t4)/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;min-height:48px;padding:0 16px;border-radius:var(--r2);border:2px solid var(--control);background:var(--sheet);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;max-width:100%;touch-action:manipulation;
   @media (hover:hover){&:hover:not(:disabled):not([aria-disabled="true"]){border-color:var(--tone)}}
   &[data-tone]{border-color:var(--tone);color:var(--tone)}
   &.primary{background:var(--tone);border-color:var(--tone);color:var(--tone-ink);&:hover:not(:disabled){filter:brightness(1.08)}}
   &.small{min-height:44px;padding:0 12px;font-size:var(--t3)}
   &.danger{border-color:var(--bad);color:var(--bad);&.fill{background:var(--bad);color:var(--sheet)}}
   &:disabled,&[aria-disabled="true"]{opacity:.45;cursor:not-allowed;&.primary{background:var(--sheet);border-color:var(--control);color:var(--ink)}}}
-.link-button{font:600 var(--t3)/1.2 var(--f);letter-spacing:0;text-transform:none;background:none;border:0;padding:0;min-height:44px;color:var(--blue);text-decoration:underline;text-underline-offset:3px}
+.link-button{font:600 var(--t3)/1.2 var(--f-display);letter-spacing:0;text-transform:none;background:none;border:0;padding:0;min-height:44px;color:var(--blue);text-decoration:underline;text-underline-offset:3px}
 .lbl{display:inline-block;white-space:nowrap;& >.ico:first-child{margin-right:.4em}& >.ico:last-child{margin-left:.4em}}
 .ico{display:inline-block;height:1cap;width:auto;aspect-ratio:1;vertical-align:baseline;overflow:visible}
 .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-/* glossary entry pools, Standard then Hard (gold), side by side when they fit, else stacked full width. */
 .gloss-pools{display:grid;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));margin-top:12px}
 .navrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;& >button{width:100%}}
 .tool-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;& >button{min-width:calc((100% - 10px)/6);min-height:44px;padding:0 14px;font-size:var(--t3);&:only-child{margin-left:auto}}}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-/* Inputs. Selects sit in a .selwrap, which draws the disclosure chevron. */
 :is(input,select,textarea){font:inherit;font-weight:500;color:var(--ink)}
 :is(input:not([type=checkbox]):not([type=radio]),textarea){min-height:48px;padding:0 12px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);width:100%;max-width:100%}
 textarea{padding:10px 12px;min-height:120px;resize:vertical;display:block}
 input[type=checkbox],input[type=radio]{width:20px;height:20px;flex:0 0 20px;margin:0;accent-color:var(--blue)}
-select{-webkit-appearance:none;appearance:none;width:100%;min-height:44px;font:600 var(--t3)/1.2 var(--f);padding:0 36px 0 12px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);cursor:pointer;text-overflow:ellipsis;&:hover{border-color:var(--blue)}}
+select{-webkit-appearance:none;appearance:none;width:100%;min-height:44px;font:600 var(--t3)/1.2 var(--f-display);padding:0 36px 0 12px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);cursor:pointer;text-overflow:ellipsis;&:hover{border-color:var(--blue)}}
 .selwrap{position:relative;display:block;min-width:0;&::after{content:"";position:absolute;right:14px;top:50%;width:9px;height:9px;margin-top:-7px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);pointer-events:none}}
 .field{display:grid;gap:6px;font-weight:600;& small{color:var(--muted);font-weight:500}}
-/* Card: one selectable / pressable surface (units, modes, study tiles, glossary rows, flag choices, exam entry).
-   Selected = tone border and tone-soft fill; [data-tone] adds the 4 px mode rule; .row = checkbox row. */
 .card{position:relative;display:grid;gap:2px;align-content:start;justify-content:stretch;justify-items:start;text-align:left;width:100%;min-height:48px;padding:12px 16px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);color:var(--ink);cursor:pointer;font:inherit;letter-spacing:0;text-transform:none;white-space:normal;
   & >input{position:absolute;opacity:0;pointer-events:none}
   & >strong{font-weight:700;font-size:var(--t5);letter-spacing:.02em;text-transform:uppercase;line-height:1.1}
@@ -152,42 +130,32 @@ select{-webkit-appearance:none;appearance:none;width:100%;min-height:44px;font:6
 .unit-number{font-size:var(--t2);font-weight:500;color:var(--muted);margin-right:8px;letter-spacing:.03em}
 .is-dimmed :is(.units,.all-row){opacity:.55}
 .setlist{display:grid;gap:6px}
-/* Segmented choice (pool size, Random / Smart, glossary grouping, review filter) */
 .seg{display:flex;border:2px solid var(--tone);border-radius:var(--r2);overflow:hidden;width:max-content;max-width:100%;& input{position:absolute;opacity:0;pointer-events:none}
-  & label{min-height:44px;min-width:64px;display:grid;place-items:center;padding:0 12px;font:700 var(--t4)/1 var(--f);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:var(--tone);border-left:1px solid var(--tone);white-space:nowrap;
+  & label{min-height:44px;min-width:64px;display:grid;place-items:center;padding:0 12px;font:700 var(--t4)/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;color:var(--tone);border-left:1px solid var(--tone);white-space:nowrap;
     &:first-child{border-left:0}&:has(input:checked){background:var(--tone-soft);color:var(--tone);outline:2px solid var(--tone);outline-offset:-2px}&:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:-3px}&:has(input:disabled){opacity:.35;cursor:not-allowed}
     &.pool-fit{color:var(--warn);&:has(input:checked){background:var(--sheet);box-shadow:inset 0 0 0 2px var(--warn)}}
     @media (max-width:640px){min-width:0;padding:0 8px;font-size:var(--t3)}}}
-/* the pool warning always sits under the size toggle. */
 .pool-row{display:flex;flex-direction:column;align-items:flex-start;gap:8px}
 .pool-note{font-size:var(--t3);font-weight:600;color:var(--warn)}
 .pool-kind{display:grid;gap:8px;@media (max-width:640px){& .seg{width:100%}& .seg label{flex:1 1 0}}}
 .pool-help{color:var(--muted);font-size:var(--t3);font-style:normal}
-/* Tag: one small label for status, mode and counts. Untoned = ink on a rule border; [data-tone] = tone on tone-soft. */
-.tag{display:inline-block;max-width:100%;font:600 var(--t1)/1.3 var(--f);letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:var(--rp);border:1px solid var(--rule);color:var(--ink);background:var(--sheet);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:normal;vertical-align:middle;
+.tag{display:inline-block;max-width:100%;font:600 var(--t1)/1.3 var(--f-display);letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:var(--rp);border:1px solid var(--rule);color:var(--ink);background:var(--sheet);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:normal;vertical-align:middle;
   &[data-tone]{color:var(--tone);border-color:var(--tone);background:var(--tone-soft)}&:empty{visibility:hidden}}
 button.tag{min-height:36px;padding:0 12px;font-size:var(--t2);&:hover{border-color:var(--blue);color:var(--blue)}}
-/* Disclosure: one chevron for drop-down toggles and details summaries; it turns when open. */
 .drop-toggle::after,details>summary::after{content:"";flex:none;width:9px;height:9px;border-right:2px solid var(--tone);border-bottom:2px solid var(--tone);transform:rotate(45deg) translateY(-3px);transition:transform .2s}
 .drop-toggle[aria-expanded="true"]::after,details[open]>summary::after{transform:rotate(225deg) translate(-2px,-2px)}
 details>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:pointer;list-style:none;&::-webkit-details-marker{display:none}}
 .drop{display:grid;gap:8px}
 .drop-toggle{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;padding:0 12px 0 14px;border:2px solid var(--control);border-left:4px solid var(--tone);border-radius:var(--r2);background:var(--sheet);color:var(--ink);text-align:left;
   & .label{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}&[aria-expanded="true"]{background:var(--tone-soft)}
-  @media (max-width:640px){gap:4px;padding:0 12px 0 8px;& .label{font-size:.75rem;letter-spacing:.03em}}}  /* 12 px: 13 px clips the label at 375 px */
-.drop-count{color:var(--tone);@media (max-width:359px){display:none}}
+  @media (max-width:640px){gap:4px;padding:0 12px 0 8px;& .label{font-size:.75rem;letter-spacing:.03em}}}  .drop-count{color:var(--tone);@media (max-width:359px){display:none}}
 .drop-panel{grid-column:1/-1;min-width:0;padding:12px 16px 14px;border:1px solid var(--rule);border-left:4px solid var(--tone);border-radius:var(--r2);background:var(--sheet)}
 .term-list{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:var(--t3);line-height:1.4;& .term-link{text-align:left}}
-/* Answer tools row: KEY TERMS · SOURCE · FLAG on one line; an open panel takes the full row under them. */
 .source-row{--a:2;--b:4;position:relative;display:grid;grid-template-columns:48px minmax(0,1fr) minmax(0,1fr) 48px;gap:8px;@media (max-width:640px){gap:4px}align-items:stretch;& >.drop{display:contents}&.no-save{--a:1}&.no-flag{--b:5}
   & >.drop>.drop-toggle,& >:not(.drop):not(.flag-btn){grid-row:1;grid-column:3/var(--b);min-width:0}& >.drop-terms>.drop-toggle{grid-column:var(--a)/3}
   &.no-terms>.drop>.drop-toggle,&.no-terms>:not(.drop):not(.flag-btn),&.no-source>.drop-terms>.drop-toggle{grid-column:var(--a)/var(--b)}
   & >.flag-btn{grid-row:1;grid-column:4}& >.save-btn{grid-column:1;margin:0}}
-/* a row with SAVE and no FLAG (glossary entry, highlight card) splits the rest equally: no empty Flag column. */
 .source-row.no-flag:not(.no-save){grid-template-columns:48px minmax(0,1fr) minmax(0,1fr);--b:4}
-/* SAVE note: a short tag above the row after a press (aria-hidden; the status line speaks). Absolutely placed: nothing moves. */
-/* SAVE toast: fixed, centred near the bottom of the viewport, above the safe area; it sits over the
-   bottom of the scroll view only, never over content in flow beside the button. Reduced motion drops the fade. */
 .save-toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 16px);z-index:6;width:max-content;max-width:min(var(--col),calc(100vw - 32px));pointer-events:none;animation:reveal .2s ease-out;
   & .tag{display:block;white-space:normal;text-align:center;font-size:var(--t2);padding:8px 14px;box-shadow:var(--shadow);border-color:var(--ink)}
   &.at-top{bottom:auto;top:calc(var(--header-cover) + 12px)}}
@@ -196,37 +164,26 @@ details>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:p
 [aria-pressed="true"] .flag-cloth{fill:currentColor}
 [aria-pressed="true"] .save-slot{stroke:var(--sheet)}
 .excerpt-held{display:flex;align-items:center;min-height:48px;padding:6px 14px;border:2px dashed var(--rule);border-left:4px solid var(--rule);border-radius:var(--r2);@media (max-width:640px){padding:6px 8px;& .label{font-size:var(--t1);letter-spacing:.03em}& .held-more{display:none}}}
-/* Item: one answer card for the quiz (live, correct, wrong, eliminated), the exam (picked) and reviews (correct / wrong). */
 .answers{display:grid;gap:8px}
-/* Answer hold: tiles that reveal a why are equal on every width, sized by the tallest answered tile. */
 .answers:has(.back){grid-auto-rows:1fr}
-/* Floor: one tile height from question to question; room for the answer line and 2 why lines on wide
-   screens (all 1,445 questions), 3 on phones (1,367 of 1,369 at 390 px); a longer tile grows and 1fr keeps the four equal. Line units scale with zoom.
-   The px part is the .item border and padding plus the row gap (keep in step with .item): wide 4 + 20 + 1, plus 1px so the
-   floor rounds to the full 2-line height (93px, not 92.6); phones 4 + 16. */
 .answers:has(.back)>.item{--why-lines:2;min-height:calc(26px + 1.75rem + var(--why-lines) * var(--t2) * 1.38);
   @media (max-width:640px){--why-lines:3;min-height:calc(20px + 1.75rem + var(--why-lines) * var(--t2) * 1.38)}}
 .item{width:100%;text-align:left;font:inherit;letter-spacing:0;text-transform:none;white-space:normal;color:var(--ink);border:2px solid var(--control);border-radius:var(--r2);padding:10px 12px;background:var(--sheet);min-height:64px;display:grid;grid-template-columns:1.75rem minmax(0,1fr);gap:1px 10px;align-content:start;align-items:start;justify-content:stretch;cursor:pointer;
   & .letter{grid-row:1/span 3;font-size:var(--t2);font-weight:500;width:1.75rem;height:1.75rem;display:grid;place-items:center;border:1px solid var(--rule);border-radius:var(--r1);color:var(--muted)}
   & .answer-body{display:contents}
-  /* One inner span: a flex box would drop the space before a mid-label term link. */
-  & .answer-text{grid-column:2;font-weight:600;align-self:center;min-height:1.75rem;line-height:1.25;display:flex;align-items:center}
+    & .answer-text{grid-column:2;font-weight:600;align-self:center;min-height:1.75rem;line-height:1.25;display:flex;align-items:center}
   & .feedback-label{grid-column:2;font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:var(--t1);line-height:1.2;&:empty{display:none}&:not(:empty){animation:reveal .25s ease-out}}
   & :is(.back,.review-explanation){grid-column:2;display:block;font-style:italic;font-size:var(--t2);line-height:1.38;color:var(--muted);animation:reveal .25s ease-out;& em{font-style:inherit}}
   & .back.pending{visibility:hidden;animation:none}
   @media (hover:hover){&:hover:not([aria-disabled="true"]):not(:disabled):not(.correct,.wrong,.picked){border-color:var(--blue)}}
-  /* Quiet right / wrong in every mode (as in Scholar): a light fill and a soft border;
-     the ✓ / ✕ marker in the letter box keeps the strong colour (4.5:1 or more), so shape and colour, not the border, carry the state. */
-  &.correct{border-color:var(--good-quiet-line);background:var(--good-quiet);& :is(.feedback-label,.letter){color:var(--good);border-color:var(--good)}}
+    &.correct{border-color:var(--good-quiet-line);background:var(--good-quiet);& :is(.feedback-label,.letter){color:var(--good);border-color:var(--good)}}
   &.wrong{border-color:var(--bad-quiet-line);background:var(--bad-quiet);& :is(.feedback-label,.letter){color:var(--bad);border-color:var(--bad)}}
   &.picked{border-color:var(--blue);background:var(--blue-soft);& .letter{background:var(--blue);border-color:var(--blue);color:var(--blue-ink)}& .feedback-label{color:var(--blue)}}
-  /* Exam tiles always hold the "Your answer" row, hidden until picked, so picking does not grow the tile. */
-  &[data-exam-answer]:not(.picked) .feedback-label{visibility:hidden}
+    &[data-exam-answer]:not(.picked) .feedback-label{visibility:hidden}
   &.eliminated,&:disabled{opacity:.5;border-style:dashed}&[aria-disabled="true"]{cursor:default;opacity:1}&:not(button){cursor:default;min-height:0}
   @media (max-width:640px){padding:8px 10px;gap:0 8px;& .answer-text{font-size:var(--t3)}}}
 @keyframes reveal{from{opacity:0}}
 .answer-marker{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
-/* Ledger (pool progress, exam navigator) */
 .ledger{padding:14px 16px;gap:8px;@media (max-width:640px){padding:10px 12px;gap:6px;& .legend{display:none}}}
 .track-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
 .ledger-figures{justify-content:flex-start;gap:4px 0;& >div{display:flex;align-items:baseline;gap:6px;padding:0 12px;border-left:1px solid var(--rule);&:first-child{padding-left:0;border-left:0}}
@@ -236,7 +193,6 @@ details>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:p
   &.now{position:relative;z-index:1;box-shadow:0 0 0 2px var(--sheet),0 0 0 4px var(--blue);&:not(.ok):not(.miss):not(.retry){background:var(--blue)}}}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:var(--t1);color:var(--muted);& i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
   & .ok{background:var(--good)}& .miss{background:var(--bad)}& .retry{background:var(--bad);opacity:.45}& .now{background:var(--blue)}}
-/* Stat tiles and unit bars (Results, Previous Attempts, Exam results) */
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r3);overflow:hidden;@media (max-width:640px){grid-template-columns:repeat(2,minmax(0,1fr))}}
 .stat{background:var(--sheet);padding:16px;display:grid;gap:4px;align-content:start;& strong{font-size:var(--t7);line-height:1}& small{color:var(--muted);font-size:var(--t2)}}
 .stat-sep{color:var(--muted);font-weight:500}
@@ -250,20 +206,17 @@ details>summary{display:flex;align-items:center;gap:8px;min-height:44px;cursor:p
 .bar-title{min-width:0;overflow-wrap:anywhere}
 .bar-tag{min-width:0;display:flex;justify-content:flex-start}
 .score-list{display:grid;& >div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--rule);&:last-child{border-bottom:0}}}
-/* Review items (Quiz review, Exam review): a compact row that opens to the full item. */
 .answer-review{display:grid;gap:12px}
 .review-item{background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r3);padding:16px 18px;display:grid;gap:10px;& >*{margin:0}& >button{justify-self:start}
   & h3{text-wrap:pretty;font-size:var(--t4);font-weight:600;text-transform:none;letter-spacing:0;line-height:1.4}
-  /* Quiz review header: number · mark · stem, the compact rows' 8 px; number and mark sit on the stem's first line. */
-  & .review-head{display:grid;grid-template-columns:auto auto minmax(0,1fr);column-gap:var(--review-gap);align-items:first baseline}
+    & .review-head{display:grid;grid-template-columns:auto auto minmax(0,1fr);column-gap:var(--review-gap);align-items:first baseline}
   &.review-compact{padding:0;gap:0;& >summary{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;gap:var(--review-gap);align-items:center;min-height:48px;padding:0 18px}& >:not(summary){margin:10px 18px 0;width:auto;min-width:0}& >summary+*{margin-top:16px}
     &[open]{padding-bottom:16px;gap:0;& >summary{border-bottom:1px solid var(--rule)}& .review-compact-stem{white-space:normal}}}}
 .review-compact-stem{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;font-size:var(--t3)}
-.review-number{font-weight:700;font-variant-numeric:tabular-nums}
+.review-number{font-weight:700}
 .review-explanation{display:block;color:var(--muted);font-size:var(--t3)}
 .answer-attempts{display:grid;gap:6px}
 .review-question{text-wrap:pretty;font-size:var(--t5);font-weight:600;text-transform:none;letter-spacing:0;line-height:1.4}
-/* Dialog, term popover, diagnostics */
 dialog{border:1px solid var(--rule);border-radius:var(--r3);background:var(--sheet);box-shadow:var(--shadow);color:var(--ink);padding:22px;width:min(34rem,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;&::backdrop{background:rgba(10,17,28,.6)}& >*+*{margin-top:12px}& h2{font-size:var(--t6)}
   & .actions{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule);flex-wrap:nowrap;& >button{flex:1 1 0;min-width:0;padding:0 8px;font-size:var(--t3)}}& .dialog-close{margin-left:auto}
   & label:not(.card){display:grid;gap:6px;font-weight:600;& >:is(input,select,textarea){margin-top:0}}}
@@ -277,20 +230,20 @@ dialog{border:1px solid var(--rule);border-radius:var(--r3);background:var(--she
 .diag-note{font-weight:600}
 .diag-empty{padding:14px;border:1px dashed var(--rule);border-radius:var(--r2);color:var(--muted)}
 .term-pop{position:absolute;z-index:30;display:grid;gap:8px;padding:14px 16px;background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r3);box-shadow:var(--shadow);max-height:70vh;overflow:auto;
-  &.sheet{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto!important;border-radius:var(--r3) var(--r3) 0 0;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}}
+  &.sheet{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;border-radius:var(--r3) var(--r3) 0 0;padding-bottom:max(16px,env(safe-area-inset-bottom,0px))}}
 .pop-head{display:flex;align-items:flex-start;gap:8px;& h2{flex:1;font-size:var(--t5)}& .small,& .save-btn{min-height:44px;width:44px;height:44px;padding:0;margin:0;flex:0 0 44px}}
 .pop-expansion{font-weight:700}
 .pop-see .link-button{display:inline;min-height:0;padding:2px 0;font-size:var(--t3)}
 .term-link{display:inline;min-height:0;padding:0;border:0;border-radius:2px;background:none;font:inherit;letter-spacing:inherit;text-transform:none;white-space:normal;color:inherit;cursor:pointer;text-decoration:underline dotted;text-decoration-thickness:1px;text-underline-offset:3px;&:hover{border:0;text-decoration-style:solid}}
-/* A list excerpt's short first line is its heading. */
 .excerpt-head{font-weight:700;letter-spacing:.02em}
 .term-excerpts{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:8px;& >li{display:grid;gap:2px;padding-left:12px;border-left:3px solid var(--rule)}
   & blockquote{font-size:var(--t3);line-height:1.4;display:grid;gap:4px;& ul{margin:0;padding-left:1.15em;display:grid;gap:2px;& ul{margin-top:2px;list-style:circle}}}& .label{font-size:var(--t1)}}
+:is(.status:not(.count),.status.count.warn,.pool-note,#storage-notice,.noscript-notice):not(:empty)::before{content:"\26A0\FE0E";content:"\26A0\FE0E" / "";margin-right:.35em}
+.noscript-notice{max-width:var(--col);margin:16px auto;padding:0 16px;color:var(--warn);font-size:var(--t3);font-weight:600}
 #storage-notice{max-width:var(--col);margin:0 auto;padding:0 16px;color:var(--warn);font-size:var(--t3);font-weight:600;&:empty{display:none}}
 footer{text-align:center;color:var(--muted);font-size:var(--t1);padding:0 16px max(32px,env(safe-area-inset-bottom,0px))}
 }
 @layer screens{
-/* Welcome and Blocks */
 .hero{display:grid;gap:14px;padding-top:8px;& h1 em{font-style:normal;color:var(--blue)}}
 .comm-badge{display:block;width:300px;max-width:100%;aspect-ratio:1817/866;background:var(--blue);-webkit-mask:url("./usaf-comm-badge.webp") center/contain no-repeat;mask:url("./usaf-comm-badge.webp") center/contain no-repeat;@media (max-width:640px){width:240px}}
 .lede{font-size:var(--t5);color:var(--muted)}
@@ -306,45 +259,35 @@ footer{text-align:center;color:var(--muted);font-size:var(--t1);padding:0 16px m
 .block-figures{display:flex;flex-wrap:wrap;margin:2px 0 4px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);& div{padding:8px 16px 8px 0;margin-right:16px;border-right:1px solid var(--rule);&:last-child{border-right:0;margin-right:0}}
   & dd{font-size:var(--t7);line-height:1.05;& small{font-size:var(--t3)}}
   & [data-tone] :is(dt,dd){color:var(--tone)}}
-/* Exam setup figures (Questions · Time limit · Pass) and block figures (Units · Standard · Hard · Exams) on phones: one row
-   from 360 px (no wrapped cell, no empty border). */
 :is(.exam-figures,.block-figures){@media (max-width:640px){flex-wrap:nowrap;& div{flex:0 1 auto;min-width:0;padding-right:10px;margin-right:10px}& dd{font-size:var(--t6);white-space:nowrap;& small{font-size:var(--t2)}}}}
-/* Single-action rule (both layouts): a button that stands alone in a box takes the right column of a
-   two-column grid, the width and place of Next in .navrow (Blocks Mode, Resume, Take exam). */
 .block-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;& >button{grid-column:2;width:100%}}
 .block-actions >[data-weak-block]{grid-column:1;white-space:normal;line-height:1.15}
-/* Phones: the row's halves are too narrow for "Study weak units" on one line, so that button takes the width of its label and Mode the rest; on a screen under 360 px the label can wrap. */
 @media (max-width:640px){.block-actions:has(>[data-weak-block]){grid-template-columns:minmax(0,max-content) minmax(96px,1fr)}}
 .readiness{display:grid;gap:8px;& p{margin:0}}
 .readiness-figures{margin:0;border-top:0}
 .readiness-next .label{margin-right:8px}
 .practice-section{border-style:dashed}
 .resume-panel{grid-template-columns:1fr 1fr;column-gap:10px;align-items:center;& >#resume{grid-column:2;width:100%}@media (max-width:640px){& >div{grid-column:1/-1}}}
-/* For Review: labelled groups, two columns on desktop and two rows on phones; equal buttons,
-   two per row on phones. */
 .review-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;@media (max-width:640px){grid-template-columns:1fr}}
 .review-group{display:grid;gap:10px;align-content:start;& >.label{margin:0}& >button{width:100%}
   @media (max-width:640px){grid-template-columns:repeat(2,minmax(0,1fr));& >.label{grid-column:1/-1}}}
-/* Mode hub: three tiles, then the Exam entry (violet). */
 .type-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:1fr;gap:10px;& .card{min-height:112px;padding:14px 16px;gap:4px}
   @media (max-width:640px){grid-template-columns:repeat(2,minmax(0,1fr));& [data-study="glossary"]{grid-column:1/-1}& .card{min-height:96px;padding:12px}}}
-.exam-divider{display:flex;align-items:center;gap:12px;color:var(--muted);font:600 var(--t2)/1 var(--f);letter-spacing:.12em;text-transform:uppercase;&::before,&::after{content:"";flex:1;border-top:1px solid var(--rule)}}
+.exam-divider{display:flex;align-items:center;gap:12px;color:var(--muted);font:600 var(--t2)/1 var(--f-display);letter-spacing:.12em;text-transform:uppercase;&::before,&::after{content:"";flex:1;border-top:1px solid var(--rule)}}
 .exam-entry{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:12px 10px;padding:16px 18px;cursor:default;& h2{color:var(--violet);font-size:var(--t5);letter-spacing:.02em}& >button{grid-column:2;width:100%}@media (max-width:640px){padding:14px;& >.exam-entry-text{grid-column:1/-1}}}
 .exam-entry-text{display:grid;gap:4px;min-width:0}
 .exam-entry-sub{color:var(--muted);font-size:var(--t3)}
-/* Study top row: End Session | status tag | mode control */
 .study-top{display:grid;grid-template-columns:minmax(max-content,1fr) minmax(0,auto) minmax(max-content,1fr);align-items:center;gap:8px;& >.study-end{justify-self:start}& .meta{justify-self:end;display:flex;gap:8px}& .tag{justify-self:center}
   @media (max-width:640px){& button{min-height:44px;font-size:var(--t3)}}}
 .study-mode:disabled{opacity:1;cursor:default}
-/* Question sheet */
 .q-sheet{gap:16px}
 .question-focus{display:grid;gap:12px;background:var(--sheet);border-bottom:1px solid var(--rule);margin:-18px -20px 0;padding:14px 20px;border-radius:var(--r3) var(--r3) 0 0;@media (max-width:640px){gap:8px;margin:-14px -13px 0;padding:10px 13px 12px}}
-/* Only a question sheet pins its header; the Scholar guided question never does (its task label covered the controls). */
-html[data-pin-question="true"]:not([data-exam="live"]) .q-sheet > .question-focus{position:sticky;top:var(--header-cover);z-index:3}
+html[data-pin-question="true"]:not([data-exam="live"]) .q-sheet > .question-focus{position:sticky;top:var(--header-cover);z-index:3;max-height:28vh;overflow-y:auto;overscroll-behavior:contain;
+  @media (max-height:560px){position:static;max-height:none;overflow-y:visible}}
 .question-heading{display:flex;gap:12px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;@media (max-width:640px){flex-wrap:nowrap;align-items:center}}
 .qnum{font-size:var(--t7);font-weight:700;line-height:1;& small{font-size:var(--t3);color:var(--muted);font-weight:500}@media (max-width:640px){font-size:var(--t6)}}
 .unit-label,.flash-unit{font-weight:600;font-size:var(--t2);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.stem{text-wrap:pretty;font-size:var(--t5);line-height:1.4;font-weight:600;text-transform:none;letter-spacing:0;scroll-margin-top:calc(var(--header-cover) + 12px);@media (max-width:640px){font-size:var(--t4);line-height:1.35}}
+.stem{font-family:var(--f-body);text-wrap:pretty;font-size:var(--t5);line-height:1.4;font-weight:600;text-transform:none;letter-spacing:0;scroll-margin-top:calc(var(--header-cover) + 12px);@media (max-width:640px){font-size:var(--t4);line-height:1.35}}
 .track{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;& .clock{font-size:var(--t2);line-height:1;min-width:2.6em}}
 .track-body{display:grid;gap:4px;padding-top:3px}
 .track-bar{position:relative;height:6px;border-radius:3px;background:var(--rule)}
@@ -355,19 +298,13 @@ html[data-pin-question="true"]:not([data-exam="live"]) .q-sheet > .question-focu
 .excerpt{display:grid;gap:14px;overflow-wrap:anywhere;& figure{display:grid;gap:6px;&+figure{padding-top:14px;border-top:1px solid var(--rule)}}& blockquote{line-height:1.4;display:grid;gap:4px;& ul{margin:0;padding-left:1.15em;display:grid;gap:2px;& ul{margin-top:2px;list-style:circle}}}& figcaption{font-size:var(--t2);color:var(--muted);letter-spacing:.03em}}
 .correction-note{font-size:var(--t2);color:var(--muted)}
 section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid var(--rule);border-radius:var(--r2);padding:12px 14px}
-/* Flash cards */
 .flash-study{display:grid;gap:16px}
 .flash-card{position:relative;width:100%;min-height:15rem;display:grid;grid-template-rows:auto 1fr auto;align-content:stretch;justify-content:stretch;gap:12px;text-align:left;padding:24px;border:2px solid var(--control);border-radius:var(--r3);background:var(--sheet);font:inherit;letter-spacing:0;text-transform:none;white-space:normal;color:var(--ink);transform:perspective(1200px) rotateY(0);transition:transform .18s ease-out;
   &.flip-out{transform:perspective(1200px) rotateY(90deg);transition-timing-function:ease-in}&.flip-in{transform:perspective(1200px) rotateY(-90deg);transition:none}
   &[data-side="definition"] .flash-content{font-weight:500;font-size:var(--t5);line-height:1.4;text-transform:none}}
 .flash-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;min-width:0}
-/* In Missed: the card is in Missed Questions. Beside the unit on the card and the question heading. */
 .flash-meta{display:flex;flex-wrap:wrap;justify-content:end;align-items:center;gap:6px 10px;min-width:0}
 .unit-label.with-tag{display:inline-flex;align-items:center;gap:10px}
-/* The unit text and the tag are trimmed to their
-   capitals (text-box), so centring the two boxes puts the pill midpoint on the unit capitals' midpoint, and equal 6 px
-   padding centres the tag's capitals in its pill. The label-line lift (translate -.09em) does not apply here.
-   Browsers without text-box (Firefox) keep box centring, within about 1 px. */
 .unit-label>.in-missed{flex:none;padding:6px 9px;translate:none;text-box:trim-both cap alphabetic}
 .unit-label.with-tag>.unit-text{text-box:trim-both cap alphabetic}
 .flash-content{align-self:center;font-weight:700;font-size:var(--t8);line-height:1.05;text-transform:uppercase;overflow-wrap:anywhere;@media (max-width:640px){font-size:var(--t7)}}
@@ -375,36 +312,28 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 .flash-cue{&:empty{display:none}&:not(:empty){padding:12px 14px;border-radius:var(--r2);background:var(--paper);border-left:4px solid var(--ink)}& p{margin:2px 0 0}}
 .flash-message:empty{display:none}
 .card-back{display:grid;gap:10px}
-/* Card sets head: Manage sets spans the label and title rows (a 44 px button in the title row pushed the label
-   11 px away); other step-heads keep their layout. */
 .card-set-pick .step-head>button{grid-row:1/span 2;align-self:center}
-/* Saved sets by block: the block filter and one heading per block in a set's card list. */
 .sets-block{margin-bottom:12px}.sets-filter .sets-block{margin:0}
 .set-block{margin:12px 0 4px}
 .set-cards{& summary{color:var(--blue);font-weight:600}& ul{list-style:none;margin:0;padding:0;max-height:300px;overflow:auto}& li{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;border-top:1px solid var(--rule);& >span{min-width:0;overflow-wrap:anywhere}}}
-/* Results */
 .results-nav,.review-toolbar{margin-top:4px;@media (max-width:640px){flex-wrap:nowrap;& >button{min-width:0;padding:0 10px;font-size:var(--t3)}}}
-/* Blocks is now the only exit, and the
-   tool-row rule moves a lone button right; here it stays left, where it sat beside Latest session results. */
 .review-exit{margin-top:-8px;& >button:only-child{margin-left:0}}
-/* Glossary screen */
 .gloss-tools{display:grid;grid-template-columns:1fr;gap:10px 14px;align-items:start;& :is(input,select){min-height:48px}}
 .unit-chips{border:0;margin:0;padding:0;min-width:0;& legend{padding:0;margin-bottom:6px}& .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px}
-  & label{position:relative;min-height:44px;display:grid;place-items:center;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);font:700 var(--t3)/1 var(--f);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
+  & label{position:relative;min-height:44px;display:grid;place-items:center;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);font:700 var(--t3)/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;
     &:has(input:checked){border-color:var(--tone);background:var(--tone-soft);color:var(--tone)}&:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}}
   & input{position:absolute;opacity:0;pointer-events:none}}
-.az{display:flex;flex-wrap:wrap;gap:2px 6px;& a{font:700 var(--t3)/1 var(--f);min-width:38px;min-height:44px;display:inline-grid;place-items:center;text-decoration:none}}
+.az{display:flex;flex-wrap:wrap;gap:2px 6px;& a{font:700 var(--t3)/1 var(--f-display);min-width:38px;min-height:44px;display:inline-grid;place-items:center;text-decoration:none}}
 .gloss-list{display:grid;gap:14px}
 .gloss-letter{& h2{font-size:var(--t5);color:var(--muted);margin-bottom:6px;scroll-margin-top:calc(var(--header-cover) + 12px)}& ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}& .card{padding:10px 14px;& >strong{font-size:var(--t4);text-transform:none;letter-spacing:0}& >span{font-size:var(--t2)}}}
 .gloss-unit h2{display:flex;align-items:center;gap:8px;color:var(--ink)}
 .gloss-short{font-size:var(--t4)}
-/* Exam: setup, live screen, submit check, results. Violet is the exam's tone; blue stays "your answer". */
 .exam-form{display:grid;gap:8px}
 .form-status{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px;& li{display:flex;align-items:center;gap:8px;font-size:var(--t3)}}
 .exam-rules{margin:0;padding-left:1.2em;display:grid;gap:4px;font-size:var(--t3)}
 .exam-last,.exam-note{font-size:var(--t3)}
 .exam-top{position:sticky;top:var(--header-height);z-index:4;padding:8px 10px;border-radius:var(--r3);border:1px solid var(--rule);border-left:4px solid var(--violet);background:var(--sheet);& .exam-clock-cell{justify-self:start}& >button{justify-self:end}@media (max-width:640px){padding:6px 8px}}
-.exam-clock{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:2px solid transparent;border-radius:var(--r2);background:var(--violet-soft);color:var(--violet);font:600 var(--t4)/1 var(--f);font-variant-numeric:tabular-nums;letter-spacing:.04em;&.low{background:var(--bad-soft);color:var(--bad)}}
+.exam-clock{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:2px solid transparent;border-radius:var(--r2);background:var(--violet-soft);color:var(--violet);font:600 var(--t4)/1 var(--f-display);letter-spacing:.04em;&.low{background:var(--bad-soft);color:var(--bad)}}
 .exam-ledger{gap:10px;& .legend{& .answered{background:var(--violet)}& .blank{background:var(--sheet);border:1px solid var(--rule)}& .now{background:transparent;box-shadow:inset 0 0 0 2px var(--violet)}
   & .flagged{position:relative;width:0;height:0;border-style:solid;border-width:0 10px 10px 0;border-color:transparent var(--ink) transparent transparent;border-radius:0;background:none}}@media (max-width:640px){& .legend{display:flex;gap:10px}}}
 .exam-time{height:6px;border-radius:3px;background:var(--violet-soft);overflow:hidden;& i{display:block;height:100%;background:var(--violet);transition:width .2s linear}}
@@ -417,7 +346,7 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 .submit-figures{margin-top:4px}
 .jump-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .jump-list{display:flex;flex-wrap:wrap;gap:8px}
-.exam-jump{display:inline-grid;place-items:center;min-height:44px;min-width:44px;padding:0 6px;border:2px solid var(--control);border-radius:var(--r2);text-decoration:none;font:700 var(--t3)/1 var(--f);color:var(--violet);&:hover{border-color:var(--violet)}}
+.exam-jump{display:inline-grid;place-items:center;min-height:44px;min-width:44px;padding:0 6px;border:2px solid var(--control);border-radius:var(--r2);text-decoration:none;font:700 var(--t3)/1 var(--f-display);color:var(--violet);&:hover{border-color:var(--violet)}}
 .exam-verdict{gap:8px}
 .verdict-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .verdict-score{font-weight:700;font-size:var(--t8);line-height:1}
@@ -432,29 +361,23 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 .exam-chart{display:grid;gap:4px}
 .exam-plot{position:relative;height:140px;display:flex;align-items:flex-end;gap:6px;border-bottom:1px solid var(--rule);padding-right:36px}
 .exam-col{flex:1 1 0;max-width:40px;border-radius:var(--r1) var(--r1) 0 0;min-height:2px;&.pass{background:var(--good)}&.fail{background:var(--bad)}&.current{box-shadow:0 0 0 2px var(--sheet),0 0 0 4px var(--violet)}}
-.pass-line{position:absolute;left:0;right:0;border-top:2px dashed var(--muted);pointer-events:none;& span{position:absolute;right:0;top:-.75rem;font:600 var(--t1)/1 var(--f);color:var(--muted);background:var(--sheet);padding:2px 0 2px 4px}}
-.exam-axis{display:flex;gap:6px;padding-right:36px;& span{flex:1 1 0;max-width:40px;text-align:center;font:600 var(--t1)/1 var(--f);color:var(--muted)}}
+.pass-line{position:absolute;left:0;right:0;border-top:2px dashed var(--muted);pointer-events:none;& span{position:absolute;right:0;top:-.75rem;font:600 var(--t1)/1 var(--f-display);color:var(--muted);background:var(--sheet);padding:2px 0 2px 4px}}
+.exam-axis{display:flex;gap:6px;padding-right:36px;& span{flex:1 1 0;max-width:40px;text-align:center;font:600 var(--t1)/1 var(--f-display);color:var(--muted)}}
 .exam-history-list>div{font-size:var(--t3)}
 .review-filter .seg{max-width:100%;overflow-x:auto;& label{min-width:0;padding:0 10px;font-size:var(--t3)}@media (max-width:640px){width:100%;& label{flex:1 1 auto;padding:0 4px;font-size:var(--t2);letter-spacing:.02em}}}
 .review-status{display:none}
 .exam-item[open] .review-compact-stem{display:none}
 .exam-item[open] .review-status{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0}
-/* An open exam row matches a Quiz review item: 16 px under the header, 10 px between blocks, question at the review-item size.
-   Margins, not gap: a details element's content does not take the grid gap. */
 .exam-item .review-question{font-size:var(--t4);line-height:1.4}
 }
 @layer utilities{
+:where(*,*::before,*::after){font-variant-numeric:tabular-nums}
 [hidden]{display:none!important}
 .skip{position:absolute;left:-999px;top:0;&:focus{left:16px;top:8px;z-index:20;background:var(--sheet);padding:10px 14px}}
 .sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:-1px;padding:0;border:0}
-/* Forced colors (Windows contrast themes): the OS replaces every color and drops shadows, so states that were a
-   fill, tint or shadow get system colors and a shape. One meaning per color: Highlight = selected or current;
-   CanvasText solid = done, correct, passed or elapsed; thick CanvasText outline, hollow = missed or failed;
-   GrayText = not yet, queued for retry, or a track outline; Mark = warning; a corner notch = flagged. */
 @media (forced-colors:active){
 .mark-disc,.mark-keyline,.mark-eps-edge{fill:CanvasText}.mark-keyline,.mark-keyline-line,.mark-eps-edge{stroke:CanvasText}.mark-ring,.mark-eps,.mark-accent-line{stroke:Canvas}.mark-dots,.mark-accent,.mark-eps,.mark-phrase{fill:Canvas}
 .comm-badge{background:CanvasText}
-/* Text on a system-color fill: no backplate (the OS paints Canvas behind text otherwise). */
 :is(.seg label:has(input:checked),.item.picked .letter,.exam-cell.answered,.exam-clock.low){forced-color-adjust:none}
 [data-screen-link]{border-color:Canvas;&[aria-current="page"]{color:Highlight;border-color:Highlight}}
 .knob{background:GrayText;& svg{stroke:Canvas}}
@@ -481,55 +404,35 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 .exam-col.current{outline:2px solid Highlight;outline-offset:2px}
 .stats{background:CanvasText;border-color:CanvasText}
 .context-link{border-color:Highlight}
-/* Chromium does not force SVG fill and stroke: every picture paint is a system color here. Shape bodies take Canvas, so
-   their inner lines show; label halos take the color behind them. */
 .pic{& :is(.pic-shape,.pic-line,.pic-link line){stroke:CanvasText}& .pic-shape{fill:Canvas}& .pic-port{fill:CanvasText}& .pic-trunk .pic-trunk-core{stroke:Canvas}
   & :is(.pic-label,.pic-mono,.pic-group-label){fill:CanvasText;stroke:Canvas}& .is-on .pic-port{fill:Highlight}& .is-on .pic-mono{stroke:Highlight}
   & .pic-group rect{fill:Canvas;stroke:CanvasText}& .pic-packet rect{fill:Highlight}& .pic-packet-text{fill:HighlightText;stroke:none}
   & .is-on :is(.pic-shape,line,rect){stroke:Highlight}& .is-on .pic-row-bg{fill:Highlight}& .is-on .pic-mono{fill:HighlightText}}
 .pic-parts [aria-pressed="true"]{border-color:Highlight;color:Highlight}
-/* Tap board: the key solid in Highlight, a wrong pick short dashes with gaps three times as long (butt caps, so the gaps
-   stay open at any width), so the result is a shape as well as a hue. Rest dashes have shorter gaps: 4 3 and 6 3, and
-   2 3 on the third VLAN group, where the wrong mark also differs by its wider stroke. */
 .scholar-tap{& [data-tap-state="right"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:Highlight;stroke-dasharray:none}
   & [data-tap-state="wrong"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:CanvasText;stroke-dasharray:2 6;stroke-linecap:butt}
   @media (hover:hover){&:not(.is-done) [data-tap]:not([data-tap-state]):hover :is(.pic-shape,line:not(.pic-hit),rect){stroke:Highlight}}}
 }
 }
-/* Block list: each block is a details row; open shows figures and actions. Margins, not gap, inside
-   details. */
 details.block-card{gap:0;& >summary{min-height:48px;justify-content:space-between;& .step-head{flex:1;min-width:0}}& >.block-figures{margin-top:12px}& >.block-actions{margin-top:12px}}
 
-/* Small-screen and spacing fixes: */
 @layer screens{
-/* L8: dialog titles 1.75rem (28 px), as the screen-head rule specifies. */
 dialog .dialog-head h2{font-size:1.75rem}
-/* Hint at the left of the card row, also alone on the card front. */
 .tool-row>.card-hint:only-child{margin-left:0}
-/* Below 375 px the drop-down labels take 11 px, so "KEY TERMS 6" fits at 360 px. */
 .source-row .drop-toggle .label{@media (max-width:374.98px){font-size:.6875rem;letter-spacing:.02em}}
-/* L13: Key terms list entries get a full-row hit area; inline term links in prose stay inline. */
 .term-list .term-link{display:flex;align-items:center;min-height:44px;width:100%}
-/* M6/M7: headings focused by script show no ring (the main region rule). */
 :is(h1,h2)[tabindex="-1"]:focus{outline:none}
-/* L3: exam cells reach 44 px high on desktop. */
 .exam-cell{@media (min-width:641px){min-height:44px}}
-/* M9: on phones the exam navigator folds under its figures row. */
-.exam-nav-box{& .legend{margin-top:10px}&>summary{display:none}@media (max-width:640px){&>summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 12px;border:2px solid var(--control);border-radius:var(--r2);font:700 var(--t3)/1 var(--f);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;list-style:none;&::-webkit-details-marker{display:none}&::after{content:"";width:8px;height:8px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg) translateY(-2px)}}&[open]>summary{margin-bottom:8px;&::after{transform:rotate(-135deg) translateY(-2px)}}}}
+.exam-nav-box{& .legend{margin-top:10px}&>summary{display:none}@media (max-width:640px){&>summary{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 12px;border:2px solid var(--control);border-radius:var(--r2);font:700 var(--t3)/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;list-style:none;&::-webkit-details-marker{display:none}&::after{content:"";width:8px;height:8px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg) translateY(-2px)}}&[open]>summary{margin-bottom:8px;&::after{transform:rotate(-135deg) translateY(-2px)}}}}
 }
-/* Scholar: teal tone; hub entry after the tiles, term list, term page, guided questions. */
 @layer screens{
 .scholar-entry h2{color:var(--scholar)}
-/* Scholar list: each unit button shows its done/total under the unit number; a done unit offers the next one. */
-.scholar-unit-seg label{gap:2px;padding-block:4px}.scholar-unit-done{font:600 var(--t1)/1 var(--f);letter-spacing:.02em}
+.scholar-unit-seg label{gap:2px;padding-block:4px}.scholar-unit-done{font:600 var(--t1)/1 var(--f-display);letter-spacing:.02em}
 .scholar-find{margin-top:12px}.scholar-unit-complete,.scholar-empty{margin:8px 0}
 .context-link{&[data-tone]{color:var(--tone);border-bottom-color:transparent}& .ctx-arrow{margin-right:1px}html[data-exam="live"] &{display:none}}
 .scholar-units{& .seg{flex-wrap:wrap}}
 .scholar-list{list-style:none;margin:0;padding:0;display:grid;gap:6px;& .card{padding:10px 14px;grid-template-columns:minmax(0,1fr) auto;gap:0 10px;& >*{grid-column:1/-1}
-  /* one entry height on every unit and width: term on one line (a long term
-     shows its glossary short form); three body lines below (the glossary definition, or "Also" + 2 lines of it), cut with an
-     ellipsis, with the progress tag at their right; the full texts stay on the term page. */
-  & >strong{max-width:100%;margin-bottom:2px;font-size:var(--t4);text-transform:none;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    & >strong{max-width:100%;margin-bottom:2px;font-size:var(--t4);text-transform:none;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   & >span{font-size:var(--t2)}
   & >span:not(.tag){display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden;min-height:3lh}
   & >span.scholar-also{-webkit-line-clamp:1;line-clamp:1;min-height:1lh}
@@ -538,31 +441,22 @@ dialog .dialog-head h2{font-size:1.75rem}
   & >.tag{grid-column:2;grid-row:2/span 3;justify-self:end;align-self:center}
   &:has(>.tag) >span:not(.tag){grid-column:1}}}
 .scholar-item{gap:14px;& .scholar-summary{font-size:var(--t5);font-weight:600;line-height:1.3}}
-/* Term-page sections: each one a collapsible with the Source / Key terms pill and panel. */
-.scholar-accordion{border:1px solid var(--rule);border-left:4px solid var(--scholar);border-radius:var(--r2);background:var(--sheet)}
+.scholar-accordion{border:1px solid var(--control);border-left:4px solid var(--scholar);border-radius:var(--r2);background:var(--sheet)}
 .scholar-drop{& + .scholar-drop{border-top:1px solid var(--rule)}
   & >summary{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 14px;list-style:none;cursor:pointer;&:focus-visible{outline-offset:-3px}&::-webkit-details-marker{display:none}& >.label{color:var(--scholar)}}
   & >.scholar-drop-body{display:grid;gap:10px;padding:2px 14px 16px;& >p{line-height:1.45}@media (max-width:640px){padding:2px 12px 14px}}
-  /* The guided question takes a panel's padding, so the question screen's header (question-focus) fits as it does there. */
-  &[data-section="questions"]>.scholar-drop-body{padding:18px 20px;@media (max-width:640px){padding:12px 8px}}}
+    &[data-section="questions"]>.scholar-drop-body{padding:18px 20px;@media (max-width:640px){padding:12px 8px}}}
 .scholar-q{display:grid;gap:16px;& .question-focus{position:static}& .stem:focus{outline:none}}
 .scholar-hint,.scholar-see,.scholar-takeaway{line-height:1.45;& >.label{color:var(--scholar);margin-right:6px}}
 .scholar-takeaway{padding:10px 12px;border-left:4px solid var(--scholar);border-radius:var(--r1);background:var(--scholar-soft)}
-/* Term nav : Previous term left, Next term right, All terms under Previous. */
-/* Term nav and question nav (Next is always on the right; All terms takes
-   Previous term's place on the first term). */
 .scholar-nav{& #scholar-next{grid-column:2;grid-row:1}& >:first-child{grid-column:1;grid-row:1}}
 .scholar-q-nav{grid-template-columns:repeat(2,minmax(0,1fr));& >button{width:100%;min-width:0;white-space:normal;line-height:1.15;padding:6px 10px}& .lbl{white-space:normal;text-wrap:balance}& #scholar-next-q{grid-column:2}& #scholar-prev-q{grid-column:1}&:empty{display:none}}
-/* No inner box around the guided question; answer heights as in quizzes (the
-   .answers:has(.back) hold); Hint at the left of the tool row as on the question screen, Check at the right. */
 .scholar-q{& .scholar-task{color:var(--scholar);margin:0 0 4px}& .stem{margin:0}}
 .scholar-revealed{margin:0;color:var(--scholar)}
 .scholar-row.is-revealed{border-color:var(--scholar);background:var(--sheet)}
 .scholar-reset{margin:0;text-align:center;& .link-button{color:var(--muted);font-size:var(--t2)}}
 .scholar-tools{justify-content:space-between;& >#scholar-hint:only-child{margin-left:0}& >#scholar-check{margin-left:auto}}
-/* Hands-on rows (order, sort): a row per step or item; a check marks each row right or wrong. */
 .scholar-rows{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-/* min-height: the row hold (every row the tallest answered row on every width), set by app.mjs holdScholarHeights. */
 .scholar-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;align-content:start;min-height:var(--row-hold,0px);padding:8px 10px;border:2px solid var(--control);border-radius:var(--r2);background:var(--sheet);
   &.is-right{border-color:var(--good-quiet-line);background:var(--good-quiet);& .feedback-label{color:var(--good)}}
   &.is-wrong{border-color:var(--bad-quiet-line);background:var(--bad-quiet);& .feedback-label{color:var(--bad)}}
@@ -572,9 +466,7 @@ dialog .dialog-head h2{font-size:1.75rem}
 .scholar-pos{width:1.75rem;height:1.75rem;display:grid;place-items:center;border:1px solid var(--rule);border-radius:var(--r1);font-size:var(--t2);color:var(--muted)}
 .scholar-move{display:flex;gap:6px;& button{min-width:44px;min-height:44px;padding:0;display:grid;place-items:center}@media (max-width:640px){flex-direction:column;gap:4px;& button{min-height:40px}}}
 .scholar-sort-seg{--tone:var(--scholar);width:100%;& label{flex:1 1 0;min-width:0;min-height:44px;display:grid;place-items:center;text-align:center;padding:6px 6px;font-size:var(--t2);line-height:1.2;letter-spacing:.03em;white-space:normal;overflow-wrap:anywhere}}
-/* Branch: decisions one under another; a finished one keeps its tiles and whys. */
 .scholar-decision{display:grid;gap:8px;& .scholar-prompt{margin:0;font-weight:600;line-height:1.35;& >.label{display:block;color:var(--scholar);margin-bottom:2px}}}
-/* Tap board: the targets of the answers take a pointer; after a pick, wrong targets go red and the key green. */
 .scholar-tap{& [data-tap]{cursor:pointer}&.is-done [data-tap]{cursor:default}
   & [data-tap-state="wrong"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--bad-mark);stroke-width:3}& [data-tap-state="right"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--good-mark);stroke-width:3}
   @media (hover:hover){&:not(.is-done) [data-tap]:not([data-tap-state]):hover :is(.pic-shape,line:not(.pic-hit),rect){stroke:var(--scholar);stroke-width:3}
@@ -584,15 +476,11 @@ dialog .dialog-head h2{font-size:1.75rem}
   & .pic-cable[data-tap] line:not(.pic-hit):not(.pic-plug){stroke-width:5}& .pic-cable[data-tap] .pic-plug{stroke-width:10}}
 .scholar-tap-help{margin:-8px 0 0;font-size:var(--t2)}
 }
-/* A wide invisible line over each link, so a thin link can be tapped (tap board). Outside the layers on purpose: it
-   must win over every layered link stroke, forced colours included. */
 :is(.pic,.scholar-tap) .pic-link .pic-hit{stroke:transparent;stroke-width:18;fill:none;stroke-dasharray:none}
-/* Scholar pictures: drawn from tokens only. Lit parts take the teal; with any part lit, the
-   others fade to 70% (a dimmed line keeps 3:1 contrast; 40% gave 1.8:1). Captions share one grid cell, so the box keeps the tallest caption's height. */
 @layer screens{
 .pic-body{display:grid;gap:8px}
 .pic-frame{border:1px solid var(--rule);border-radius:var(--r2);background:var(--paper);padding:6px}
-.pic{display:block;width:100%;height:auto;font-family:var(--f);
+.pic{display:block;width:100%;height:auto;font-family:var(--f-display);
   & .pic-shape{fill:var(--sheet);stroke:var(--ink);stroke-width:1.5}
   & .pic-line{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-linecap:round}
   & .pic-port{fill:var(--muted)}
@@ -617,23 +505,17 @@ dialog .dialog-head h2{font-size:1.75rem}
   & .is-on.pic-cable line{stroke-width:5}& .is-on.pic-cable .pic-plug{stroke-width:10}& .is-on.pic-trunk line{stroke-width:6}
   &.has-light :is(.pic-node,.pic-link,.pic-group,.pic-row,.pic-seg,.pic-band,.pic-mark):not(.is-on):not(:has(.is-on)){opacity:.7}
   & .is-off{display:none}
-  /* Animation: parts lit by this step fade in; the global reduced-motion rule stops it. */
-  & .is-new{animation:pic-in .25s ease-out}
+    & .is-new{animation:pic-in .25s ease-out}
   & [data-pic-id]{cursor:pointer}
-  /* Phones draw the 400-unit picture at about 360 px: larger labels keep them at 11-13 px on screen. */
-  @media (max-width:640px){& .pic-label{font-size:13.5px}& .pic-small{font-size:12px}& .pic-mono{font-size:11.5px}}}
-/* Picture controls: rewind and forward icon buttons on the left, the play/pause at the right, all
-   Flag-sized. Part buttons (equal widths on phones): an equal-width grid on a line of
-   its own under the play/pause, 2 columns on phones and up to 4 on wider screens; a label may wrap, a row shares one height. */
+    @media (max-width:640px){& .pic-label{font-size:13.5px}& .pic-small{font-size:12px}& .pic-mono{font-size:11.5px}}}
 .pic-controls{display:flex;align-items:center;gap:8px;& .pic-nav{margin-left:0}& .pic-play{margin-left:auto}& .flag-btn:disabled{opacity:.4}
   &:has(.pic-parts){flex-wrap:wrap;& .pic-parts{flex:1 0 100%}}}
 .pic-step{color:var(--tone);margin-right:4px}
 .pic-parts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;
   & .pic-part{text-transform:none;letter-spacing:0;font-weight:600;width:100%;height:100%;padding:6px 8px;line-height:1.2;white-space:normal;text-align:center}
   & [aria-pressed="true"]{border-color:var(--scholar);background:var(--scholar-soft);color:var(--ink)}}
-@media (min-width:561px){.pic-parts{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
+@media (min-width:641px){.pic-parts{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}}
 .scholar-also{margin:0;color:var(--muted);& .label{color:var(--scholar);margin-right:4px}& .link-button{font-weight:600}}
-/* Related terms, Study in Scholar, next term, unit review */
 .scholar-related{margin:0;color:var(--muted);& .label{color:var(--scholar);margin-right:4px}& .link-button{font-weight:600;min-height:24px;padding:2px 0}}
 .pop-scholar{margin:8px 0 0;& .link-button{color:var(--scholar);font-weight:700;min-height:44px}}
 .scholar-todo,.scholar-review-start{margin:0 0 8px;display:flex;& button{flex:1 1 auto;max-width:100%;white-space:normal;line-height:1.2;min-height:48px}}

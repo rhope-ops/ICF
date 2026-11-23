@@ -28,3 +28,8 @@ export const EXAM_FORMAT = Object.freeze({ size: 30, limitMs: 60 * 60 * 1000, pa
 // carried over by the save migrations file; off, such a save is not restored.
 export const FEATURES = Object.freeze({ hard: true, sourceExcerpts: true, sourceFilter: true, examForms: true,
   cardCatalog: true, legacyMigrations: true });
+// The three layout breakpoints, the same as the media queries of the stylesheet: small phones are narrower than
+// small, phones are at most phone wide, and wide screens are at least wide.
+export const BREAKPOINTS = Object.freeze({small: 375, phone: 640, wide: 960});
+// The media query of a phone-width window, and of a phone-width or short window (the sheet is not centred there).
+export const PHONE_QUERY = `(max-width: ${BREAKPOINTS.phone}px)`, NARROW_OR_SHORT_QUERY = `${PHONE_QUERY}, (max-height: 500px)`;

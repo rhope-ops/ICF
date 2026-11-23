@@ -5,18 +5,29 @@
 // Writes: none (no cookie, no local storage; study data never leaves the device)
 // Credentials: none (the site token is public: it is in the page source of every site that uses the service)
 
-// The only place that is counted: the public Site. A preview copy, a local copy and any other host
-// load nothing.
-export const SITE_HOST = 'rhope-ops.github.io', SITE_PATH = '/icf/';
-// The beacon script and the Site's token, both from the Cloudflare dashboard (Web Analytics, "Manage site").
-export const BEACON_URL = 'https://static.cloudflareinsights.com/beacon.min.js';
-export const BEACON_TOKEN = '50a810e6b0e140449fe53828062f1353';
+/**
+ * The page-count settings: the one place to change them (a new Site address, or a new token after a token
+ * rotation in the Cloudflare dashboard). Only the public Site is counted; a preview copy, a local copy and any other
+ * host load nothing.
+ * - siteHost: the exact host name of the public Site.
+ * - sitePath: the Site's folder on that host, with a slash at each end.
+ * - beaconUrl: the Cloudflare beacon script.
+ * - beaconToken: the Site's token (32 hex characters), from the Cloudflare dashboard (Web Analytics, "Manage site").
+ */
+export const PAGECOUNT_CONFIG = Object.freeze({
+  siteHost: 'rhope-ops.github.io',
+  sitePath: '/icf/',
+  beaconUrl: 'https://static.cloudflareinsights.com/beacon.min.js',
+  beaconToken: '50a810e6b0e140449fe53828062f1353',
+});
 
 // True when this address is the public Site (the exact host, and the Site's folder or a page in it).
-export const countsHere = ({hostname, pathname}) => hostname === SITE_HOST && (pathname + '/').startsWith(SITE_PATH);
+export const countsHere = ({hostname, pathname}) =>
+  hostname === PAGECOUNT_CONFIG.siteHost && (pathname + '/').startsWith(PAGECOUNT_CONFIG.sitePath);
 
 // The attributes of the beacon's script element, as the Cloudflare dashboard gives them.
-export const beaconAttributes = () => ({type: 'module', src: BEACON_URL, 'data-cf-beacon': JSON.stringify({token: BEACON_TOKEN})});
+export const beaconAttributes = () => ({type: 'module', src: PAGECOUNT_CONFIG.beaconUrl,
+  'data-cf-beacon': JSON.stringify({token: PAGECOUNT_CONFIG.beaconToken})});
 
 /**
  * Adds the beacon to the page when the address is the public Site. The beacon loads after the app's own

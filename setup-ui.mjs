@@ -12,7 +12,7 @@ import { beginExam, examSetupMarkup } from './exam-ui.mjs';
 import { EXAM, formStatus, formsFor, standardPool } from './exam.mjs';
 import { cardsInSet, startCards } from './flashcards.mjs';
 import { notUnderstoodQuestions } from './learning.mjs';
-import { available, navigate, render } from './nav.mjs';
+import { announce, available, navigate, renderWithFocus } from './nav.mjs';
 import { poolShortfall } from './presentation.mjs';
 import { WEAK_SESSION_SIZE, bindWeakButtons, readiness, readinessHtml, weakButtonHtml } from './readiness.mjs';
 import { openScholar } from './scholar-ui.mjs';
@@ -146,7 +146,7 @@ export function renderCardsSetup() {
     $('#eligible-count').classList.toggle('warn',!n); $('#units-next').disabled = !n;
   };
   bindSectionChoices('unit',count);
-  main.querySelectorAll('[name="card-set"]').forEach(r => r.onchange = () => { shared.pickSetId = r.value; shared.sections = []; render(); main.querySelector(`[name="card-set"][value="${CSS.escape(shared.pickSetId)}"]`)?.focus(); });
+  main.querySelectorAll('[name="card-set"]').forEach(r => r.onchange = () => { shared.pickSetId = r.value; shared.sections = []; renderWithFocus(); });
   $('#manage-sets').onclick = () => { shared.setsReturn = 'units'; navigate('saved-card-sets'); };
   $('#units-next').onclick = () => { const pool = cardPool(); if (!pool.length) return; shared.flashSetId = shared.pickSetId; shared.flashPreview = startCards(pool); shared.flashMessage = ''; noteGroup(shared.groupId); navigate('flash-card'); };
   $('#back').onclick = () => navigate('units');
@@ -179,7 +179,7 @@ export function renderNotUnderstoodSetup() {
   };
   if (shared.quizScope === 'units') bindSectionChoices('review-unit',count); else count();
   // Marked practice uses the same Random / Smart choice as the Mode screen.
-  main.querySelectorAll('[name="pool-kind"]').forEach(r=>r.onchange=()=>{shared.poolKind=toPoolKind(r.value);persist('poolKind',shared.poolKind);main.querySelector('#pool-help').textContent=screens.POOL_HELP[shared.poolKind];});
+  main.querySelectorAll('[name="pool-kind"]').forEach(r=>r.onchange=()=>{shared.poolKind=toPoolKind(r.value);persist('poolKind',shared.poolKind);main.querySelector('#pool-help').textContent=screens.POOL_HELP[shared.poolKind];announce(screens.POOL_HELP[shared.poolKind]);});
   // Hard: the Study button takes the gold tone, as on the Questions setup.
   main.querySelectorAll('[name="practice-mode"]').forEach(r => r.onchange = () => { shared.mode = r.value; if (shared.mode === 'Hard') $('#practice-confirm').dataset.tone = 'gold'; else delete $('#practice-confirm').dataset.tone; count(); });
   $('#practice-cancel').onclick = () => navigate('blocks');

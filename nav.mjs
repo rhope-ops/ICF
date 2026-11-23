@@ -5,6 +5,7 @@
 // Network: none.
 // Writes: the page DOM and the shared state; the profile name in browser storage through persist(); no other storage.
 // Credentials: none.
+import { NARROW_OR_SHORT_QUERY, PHONE_QUERY } from './settings.mjs';
 import { shared } from './app-state.mjs';
 import { $, dialog, main, persist, tools } from './app.mjs';
 import { renderFlashCards, renderSavedCardSets } from './cards-ui.mjs';
@@ -21,8 +22,8 @@ import { allSections, resumeStudy, selectQuestions, send, sessionDone, sessionOp
 import { renderGroups, renderCardsSetup, renderExamSetup, renderHub, renderMode, renderNotUnderstoodSetup } from './setup-ui.mjs';
 import { positionStudyQuestion, renderMissedReview, renderPreviousAttempts, renderResults, renderStudy } from './study-ui.mjs';
 
-// True on a phone-width window (760 px or narrower).
-const mobileNavigation = () => window.matchMedia('(max-width: 760px)').matches;
+// True on a phone-width window.
+const mobileNavigation = () => window.matchMedia(PHONE_QUERY).matches;
 // On phones, moves focus and scroll to the top of the new screen, or to the question on the study screen.
 export function resetNavigationView() {
   if (!mobileNavigation()) return;
@@ -42,7 +43,7 @@ function mountNavigationBar() {
 // windows use resetNavigationView and positionQuestion instead.
 // instant: no smooth scroll (entering a quiz replaces the whole screen, so there is nothing to follow).
 export function centreSheet(first, last, {cover = headerHeight(), instant = false} = {}) {
-  if (window.matchMedia('(max-width: 760px), (max-height: 500px)').matches) return;
+  if (window.matchMedia(NARROW_OR_SHORT_QUERY).matches) return;
   const a = main.querySelector(first), b = main.querySelector(last) || a; if (!a) return;
   const top = screens.centredScroll({top:a.getBoundingClientRect().top, bottom:b.getBoundingClientRect().bottom, scrollY:window.scrollY, coverTop:cover, viewHeight:window.innerHeight, maxScroll:document.documentElement.scrollHeight-window.innerHeight});
   window.scrollTo({top, behavior:instant||window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
@@ -73,7 +74,36 @@ export function showDialog(title, body, bind = () => {}, {label = '', closeFirst
   row.insertAdjacentHTML(closeFirst ? 'afterbegin' : 'beforeend', '<button id="close-dialog" class="dialog-close">Close</button>');
   $('#close-dialog').onclick = () => dialog.close(); bind();
   // A content swap in an open dialog (Diagnostics -> Edit) moves focus to its first field; a fresh dialog lets showModal choose.
-  if (!dialog.open) dialog.showModal(); else (dialog.querySelector('input,textarea,select') || $('#close-dialog')).focus();
+  if (!dialog.open) { opener = document.activeElement; dialog.showModal(); } else (dialog.querySelector('input,textarea,select') || $('#close-dialog')).focus();
+}
+// The control that had focus when the dialog opened; focus goes back to it when the dialog closes.
+let opener = null;
+// After the dialog closes, when focus is not already on a control outside the dialog: focus the control that opened it. When that control is gone (the screen changed) or in the
+// closed gear menu (Help, Diagnostics, Delete local data), focus the gear button, else the screen heading.
+export function returnDialogFocus() {
+  const from = opener; opener = null;
+  // A dialog action that already moved focus (for example an exam jump to the question) keeps it there.
+  const now = document.activeElement;
+  if (now && now !== document.body && now.isConnected && !dialog.contains(now)) return;
+  const inClosedMenu = from?.closest?.('#tools-panel')?.hidden;
+  const target = inClosedMenu ? $('#tools-toggle') : from?.isConnected && from !== document.body ? from : main.querySelector('h1');
+  if (target) { if (target === main.querySelector('h1')) focusHeading(target); else target.focus({preventScroll:true}); }
+}
+// Says a short line to screen readers in #answer-status (polite). The line is cleared first, so the same text is read again.
+export function announce(text) {
+  const status = $('#answer-status'); if (!status) return;
+  status.textContent = ''; requestAnimationFrame(() => { status.textContent = text; });
+}
+// Draws the current screen again and keeps keyboard focus on the same control: the one with the same id, or the radio
+// or checkbox with the same name and value. When that control is gone, focus goes to the screen heading.
+export function renderWithFocus() {
+  const from = document.activeElement, inMain = Boolean(from) && main.contains(from);
+  const key = !inMain ? null : from.id ? `#${CSS.escape(from.id)}`
+    : from.name ? `[name="${CSS.escape(from.name)}"][value="${CSS.escape(from.value ?? '')}"]` : null;
+  render();
+  if (!inMain) return;
+  const back = key && main.querySelector(key);
+  if (back) back.focus({preventScroll:true}); else if (!focusHeading(main.querySelector('h1'))) main.focus({preventScroll:true});
 }
 // In-app confirmation (replaces the browser confirm box): one red action, then Close.
 // Focus starts on Close, never on the red action: one stray Enter must not delete anything.
@@ -121,8 +151,8 @@ export function syncScreens() {
 // the bottom of the page are not intent. The first row also shows at the top of the page, with the gear menu or a term
 // sheet open, and during a live exam (the clock bar must stay in view). Sticky offsets read --header-cover (styles.css).
 export const TOP_REVEAL = 48, INTENT_MS = 1000;
-// True on a phone-width window (640 px or narrower).
-export const phoneBars = () => window.matchMedia('(max-width: 640px)').matches;
+// True on a phone-width window: the phone top and bottom bars show.
+export const phoneBars = () => window.matchMedia(PHONE_QUERY).matches;
 // Notes that the reader scrolled up on purpose (up is true) or clears that note.
 export const intent = up => { shared.intentUpAt = up ? Date.now() : 0; if (!up) shared.upRun = 0; };
 // How far the header's first row reaches: the offset of the screen row on phones, 0 elsewhere.

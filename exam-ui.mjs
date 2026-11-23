@@ -5,6 +5,7 @@
 // Network: none.
 // Writes: browser storage through persist() ('exam', 'stats', 'examHistory', 'examCycle'), the page DOM, and shared state.
 // Credentials: none.
+import { NARROW_OR_SHORT_QUERY } from './settings.mjs';
 import { shared } from './app-state.mjs';
 import { recordSession, studyScores } from './analytics.mjs';
 import { $, dialog, main, persist } from './app.mjs';
@@ -16,7 +17,7 @@ import { cardForQuestion, cardKey, manualHas } from './flashcards.mjs';
 import { openTermPop, reviewGloss } from './glossary-ui.mjs';
 import { keyTerms } from './glossary.mjs';
 import { understandingRecord } from './learning.mjs';
-import { centreSheet, headerHeight, navigate, render, showDialog, syncScreens } from './nav.mjs';
+import { centreSheet, headerHeight, navigate, phoneBars, render, showDialog, syncScreens } from './nav.mjs';
 import { saveButton } from './presentation.mjs';
 import * as screens from './screens.mjs';
 import { allSections, currentGroup, noteGroup, sessionOpen } from './session.mjs';
@@ -101,7 +102,7 @@ export function showExamQuestion(){
   const sheet=main.querySelector('.exam-sheet');if(!sheet)return;
   // The clock bar is sticky under the top bar, so both cover the page.
   const bar=$('.exam-top'),head=headerHeight()+(bar?bar.getBoundingClientRect().height:0),top=sheet.getBoundingClientRect().top;
-  if(!window.matchMedia('(max-width: 760px), (max-height: 500px)').matches){centreSheet('.exam-sheet','.question-actions',{cover:head});return;}
+  if(!window.matchMedia(NARROW_OR_SHORT_QUERY).matches){centreSheet('.exam-sheet','.question-actions',{cover:head});return;}
   if(top<head||top>window.innerHeight*0.5)window.scrollTo({top:Math.max(0,top+window.scrollY-head-8),behavior:'instant'});
 }
 // Open the submit check dialog: answered count, jump links to blank questions and the confirm button.
@@ -121,8 +122,8 @@ export function renderExam(){
   // Keep focus on the control that was used (an answer, a navigator cell, Flag) across the redraw.
   const active=document.activeElement,sameQuestion=main.dataset.examIndex===String(shared.exam.index)&&main.dataset.examId===shared.exam.id;
   const keep={id:active?.id,answer:active?.dataset?.examAnswer,go:active?.dataset?.examGo};
-  main.innerHTML=screens.examHtml({exam:shared.exam,bank:shared.bank,now:Date.now(),navOpen:shared.examNavOpen||!window.matchMedia('(max-width: 640px)').matches});
-  main.querySelector('.exam-nav-box')?.addEventListener('toggle',e=>{if(window.matchMedia('(max-width: 640px)').matches)shared.examNavOpen=e.target.open;});
+  main.innerHTML=screens.examHtml({exam:shared.exam,bank:shared.bank,now:Date.now(),navOpen:shared.examNavOpen||!phoneBars()});
+  main.querySelector('.exam-nav-box')?.addEventListener('toggle',e=>{if(phoneBars())shared.examNavOpen=e.target.open;});
   main.dataset.examIndex=String(shared.exam.index);main.dataset.examId=shared.exam.id;
   main.querySelectorAll('[data-exam-answer]').forEach(b=>b.onclick=()=>sendExam({type:'answer',id:b.dataset.examAnswer}));
   main.querySelectorAll('[data-exam-go]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.examGo);if(i===shared.exam.index)return;sendExam({type:'goto',index:i});$('#exam-stem')?.focus({preventScroll:true});showExamQuestion();});

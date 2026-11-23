@@ -20,7 +20,7 @@ import { diagnostics, download, flagCard, flagQuestion, resetLocalData, writeFla
 import { restoreCardSets } from './flashcards.mjs';
 import { closeTermPop, placeTermPop } from './glossary-ui.mjs';
 import { markMissed, restoreReview, restoreUnderstanding, sessionMissedIds, understandingRecord } from './learning.mjs';
-import { INTENT_MS, MAIN_SCREEN, TOP_REVEAL, confirmDialog, dropKey, intent, keepTopBar, navOnly, navigate, openDrops, phoneBars, render, screenAvailable, setDrop, showDialog, studyTarget, topRow, updateTopRow } from './nav.mjs';
+import { INTENT_MS, MAIN_SCREEN, TOP_REVEAL, confirmDialog, dropKey, returnDialogFocus, intent, keepTopBar, navOnly, navigate, openDrops, phoneBars, render, screenAvailable, setDrop, showDialog, studyTarget, topRow, updateTopRow } from './nav.mjs';
 import { toolsMenu } from './presentation.mjs';
 import { openScholar } from './scholar-ui.mjs';
 import { itemById } from './scholar.mjs';
@@ -159,7 +159,7 @@ export const cardStore={library:()=>shared.cardSets,commit:next=>persistCardSets
 // SAVE: the button toggles the card in Manual. The polite status line announces the change; a short
 // viewport toast shows it (aria-hidden, fixed near the bottom, so it covers no content beside the button) and hides after 2 s.
 shared.saveNoteTimer=0;
-dialog.addEventListener('close', () => { if (shared.modalWasRunning && shared.step === 'study' && !shared.session.ended) send({type:'resume'}); shared.modalWasRunning = false; });
+dialog.addEventListener('close', () => { returnDialogFocus(); if (shared.modalWasRunning && shared.step === 'study' && !shared.session.ended) send({type:'resume'}); shared.modalWasRunning = false; });
 $('#help').onclick = () => showDialog('How to use', screens.helpHtml());
 $('#reviews').onclick = () => {
   if (!shared.bank) { notice('Diagnostics needs the study content. Reload the page.'); return; }
@@ -252,13 +252,13 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('pagehide',()=>{if(shared.session){shared.session=transition(shared.session,{type:'pause'});save();}});
 try {
-  // Offline copy: not awaited, never blocks or fails the start. Where workers are unavailable (an embedding
-  // page, private modes) the app runs from the network as before.
+  // Offline copy: not awaited, never blocks or fails the start; without workers (an embedding page, private modes) the app runs from the network.
   // A page that started without the worker (first visit, after the recovery page, a reload past the worker) tells
   // it which build runs here. When the network returns or the tab is shown again, the page asks the worker to
   // complete or repair its copy.
   try { const fresh=!navigator.serviceWorker.controller,tell=message=>navigator.serviceWorker.ready.then(r=>r.active?.postMessage(message)).catch(()=>{});
-    navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(()=>{if(fresh)tell({type:'stage',files:releaseFiles});}).catch(()=>{});
+    // A new worker waits (sw.js rule 5): a page start is the safe point for it to take over (now, or once it is installed).
+    const activate=worker=>{const go=()=>worker.state==='installed'&&(worker.postMessage({type:'activate'}),true);if(worker&&!go())worker.addEventListener('statechange',go);};navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(r=>{activate(r.waiting||r.installing);if(fresh)tell({type:'stage',files:releaseFiles,build:Number(document.querySelector('meta[name="icf-build"]')?.content)||0});}).catch(()=>{});
     window.addEventListener('online',()=>tell({type:'fill'}));document.addEventListener('visibilitychange',()=>{if(!document.hidden)tell({type:'fill'});}); } catch {}
   shared.bank=validateBank(withFeatures(await fetchJson('./questions.json')));
   // Only blocks with questions show anywhere in the app.
@@ -286,7 +286,7 @@ try {
     if(shared.exam.submitted){finalizeExam();shared.resultsKind=sessionDone()&&!wasLive?'study':'exam';if(wasLive){shared.step='exam-results';shared.examFilter='missed';shared.groupId=shared.exam.block;shared.sections=allSections();}}
     else{shared.step='exam';shared.groupId=shared.exam.block;shared.sections=allSections();}
   }
-  $('#app-version').textContent=`${APP.name} v${APP_VERSION} · 20 Nov 2026`;
+  $('#app-version').textContent=`${APP.name} v${APP_VERSION} · 23 Nov 2026`;
   render();loadExtras().catch(()=>{});  // optional data never stops the app
 } catch (error) {
   // Offline is the likely cause only when the browser reports it; Diagnostics needs a bank.

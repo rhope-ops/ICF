@@ -11,8 +11,8 @@ export const POOL_KINDS = Object.freeze(['random', 'smart']);
 export const POOL_LABEL = Object.freeze({ random: 'Random', smart: 'Smart' });
 // Return the pool kind to use: the stored kind when valid, else Smart for an old boolean true, else Random.
 export const toPoolKind = (stored, legacySmart) => POOL_KINDS.includes(stored) ? stored : legacySmart === true ? 'smart' : 'random';
-// Fields that only Scholar used (help-free, confidence and confused-pair counts; the old Scholar is gone).
-// They are dropped on load; every other count of the question stays as it was.
+// Fields that only the removed Scholar question mode used (help-free, confidence and confused-pair counts); the
+// Scholar term study of today keeps no stats here. They are dropped on load; every other count stays as it was.
 const SCHOLAR_KEYS=['freeAsked','freeCorrect','confSure','confUnsure','confGuess','guessCorrect','sureWrong'];
 /**
  * Check a saved stats record and keep what is valid. A damaged record is dropped on its own and the other

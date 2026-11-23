@@ -14,7 +14,7 @@ import { examLive } from './exam.mjs';
 import { flagCard } from './flags.mjs';
 import { cardForQuestion, cardKey, manualHas } from './flashcards.mjs';
 import { keyTerms, popover, searchEntries } from './glossary.mjs';
-import { focusHeading, navigate, render } from './nav.mjs';
+import { focusHeading, navigate, phoneBars, render } from './nav.mjs';
 import { flagButton, saveButton } from './presentation.mjs';
 import { openScholar } from './scholar-ui.mjs';
 import { itemForEntry } from './scholar.mjs';
@@ -122,7 +122,7 @@ export function openTermPop(button,{phase,ref:seeRef=null,block=shared.groupId})
   draw();document.body.append(el);shared.termPop={el,from:button};
   if(!shared.termWasRunning&&shared.step==='study'&&shared.session&&!shared.session.paused&&!shared.session.ended){shared.termWasRunning=true;send({type:'pause'},false);}
   el.addEventListener('focusout',e=>{if(shared.termPop?.el===el&&e.relatedTarget&&!el.contains(e.relatedTarget))closeTermPop();});
-  if(window.matchMedia('(max-width: 640px)').matches)el.classList.add('sheet');
+  if(phoneBars())el.classList.add('sheet');
   else placeTermPop();
   el.querySelector('#term-pop-close').focus({preventScroll:true});
 }

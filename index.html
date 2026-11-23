@@ -18,40 +18,48 @@ const apply=()=>{const resolved=choice==='system'?(media.matches?'dark':'light')
 window.icfTheme={defaultChoice,get choice(){return choice;},set(value){choice=choices.includes(value)?value:defaultChoice;apply();}};
 apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})();
 </script>
-<script type="application/json" id="release-files">{"analytics.mjs":"4141d3593e76","app-state.mjs":"d5e59ac7ae2e","app.mjs":"0ad30dc606a9","cards-ui.mjs":"0c153c1745c6","cards.json":"fb3bead263ed","data-load.mjs":"1cc48224ff1d","diagnostics.mjs":"9ceb587396bf","engine.mjs":"28a151caed7c","exam-ui.mjs":"e6bd93ed508c","exam.mjs":"432c6b6cc7bf","faststart.mjs":"81bb4b3750ca","features.mjs":"3d537ab79af3","flags.mjs":"c040d130e471","flashcards.mjs":"ad0cd91d0d47","font-display-500.woff2":"460f141ec8f6","font-display-600.woff2":"215a93c696f4","font-display-700.woff2":"3787a5a41917","font-display-italic-500.woff2":"ff26c7788041","glossary-ui.mjs":"73c88b17e386","glossary.json":"1c22859d98fe","glossary.mjs":"ef62b2afbc8a","learning.mjs":"42409216783c","migrations.json":"dc9f7beb09be","nav.mjs":"bdb60bd7bd46","pagecount.mjs":"5ca6c0c64cb0","pictures.mjs":"4e9015c20354","presentation.mjs":"789c9a92dc7d","questions.json":"4c098e664cdb","reader.mjs":"6d48b1f37d9e","readiness.mjs":"02bfeb394cdb","scholar-B1.json":"148ac2058f8b","scholar-B2.json":"0184b889bc48","scholar-B3.json":"2c0360bf2b63","scholar-B4.json":"cccf98d872f3","scholar-B5.json":"a55bd53200be","scholar-ui.mjs":"1af9876c1298","scholar.json":"b5fd834acba6","scholar.mjs":"9876ad6e25a0","screens-exam.mjs":"1756ecaeb905","screens-scholar.mjs":"94cc7d817ba9","screens.mjs":"49d52718a664","session.mjs":"26bf8fed611b","settings.mjs":"d3afc3df8323","setup-ui.mjs":"1bef6b25f341","source-links.json":"9184f0a91a6d","sources.mjs":"08a3cd482896","storage.mjs":"5178125e75ed","study-ui.mjs":"b7774545ea43","styles.css":"0d546c3cdaec","usaf-comm-badge.webp":"98f0f038021a"}</script>
-<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=4141d3593e76","./app-state.mjs":"./app-state.mjs?v=d5e59ac7ae2e","./app.mjs":"./app.mjs?v=0ad30dc606a9","./cards-ui.mjs":"./cards-ui.mjs?v=0c153c1745c6","./data-load.mjs":"./data-load.mjs?v=1cc48224ff1d","./diagnostics.mjs":"./diagnostics.mjs?v=9ceb587396bf","./engine.mjs":"./engine.mjs?v=28a151caed7c","./exam-ui.mjs":"./exam-ui.mjs?v=e6bd93ed508c","./exam.mjs":"./exam.mjs?v=432c6b6cc7bf","./faststart.mjs":"./faststart.mjs?v=81bb4b3750ca","./features.mjs":"./features.mjs?v=3d537ab79af3","./flags.mjs":"./flags.mjs?v=c040d130e471","./flashcards.mjs":"./flashcards.mjs?v=ad0cd91d0d47","./glossary-ui.mjs":"./glossary-ui.mjs?v=73c88b17e386","./glossary.mjs":"./glossary.mjs?v=ef62b2afbc8a","./learning.mjs":"./learning.mjs?v=42409216783c","./nav.mjs":"./nav.mjs?v=bdb60bd7bd46","./pagecount.mjs":"./pagecount.mjs?v=5ca6c0c64cb0","./pictures.mjs":"./pictures.mjs?v=4e9015c20354","./presentation.mjs":"./presentation.mjs?v=789c9a92dc7d","./reader.mjs":"./reader.mjs?v=6d48b1f37d9e","./readiness.mjs":"./readiness.mjs?v=02bfeb394cdb","./scholar-ui.mjs":"./scholar-ui.mjs?v=1af9876c1298","./scholar.mjs":"./scholar.mjs?v=9876ad6e25a0","./screens-exam.mjs":"./screens-exam.mjs?v=1756ecaeb905","./screens-scholar.mjs":"./screens-scholar.mjs?v=94cc7d817ba9","./screens.mjs":"./screens.mjs?v=49d52718a664","./session.mjs":"./session.mjs?v=26bf8fed611b","./settings.mjs":"./settings.mjs?v=d3afc3df8323","./setup-ui.mjs":"./setup-ui.mjs?v=1bef6b25f341","./sources.mjs":"./sources.mjs?v=08a3cd482896","./storage.mjs":"./storage.mjs?v=5178125e75ed","./study-ui.mjs":"./study-ui.mjs?v=b7774545ea43"}}</script>
+<meta name="icf-build" content="2012002">
+<script type="application/json" id="release-files">{"analytics.mjs":"5ac7ff0cffd9","app-state.mjs":"d5e59ac7ae2e","app.mjs":"aaa30a8bce8d","cards-ui.mjs":"0c153c1745c6","cards.json":"fb3bead263ed","data-load.mjs":"1cc48224ff1d","diagnostics.mjs":"92c54eda763a","engine.mjs":"28a151caed7c","exam-draw.mjs":"f57f752f4808","exam-ui.mjs":"8c0b500121a4","exam.mjs":"3f8cc6b382b3","faststart.mjs":"81bb4b3750ca","features.mjs":"3d537ab79af3","flags.mjs":"c040d130e471","flashcards-sets.mjs":"c0352fbbbbd3","flashcards.mjs":"514216449a0b","font-display-500.woff2":"460f141ec8f6","font-display-600.woff2":"215a93c696f4","font-display-700.woff2":"3787a5a41917","font-display-italic-500.woff2":"ff26c7788041","glossary-ui.mjs":"77b9f12f7a0c","glossary.json":"1c22859d98fe","glossary.mjs":"ef62b2afbc8a","learning.mjs":"42409216783c","migrations.json":"dc9f7beb09be","nav.mjs":"20c9468eb1ce","pagecount.mjs":"e955ff34fa41","pictures-svg.mjs":"375f13fc7a89","pictures.mjs":"50a1c80a1a67","presentation.mjs":"789c9a92dc7d","questions.json":"4c098e664cdb","reader.mjs":"6d48b1f37d9e","readiness.mjs":"02bfeb394cdb","scholar-B1.json":"148ac2058f8b","scholar-B2.json":"0184b889bc48","scholar-B3.json":"2c0360bf2b63","scholar-B4.json":"cccf98d872f3","scholar-B5.json":"a55bd53200be","scholar-data.mjs":"a0f3ad5b46bc","scholar-ui.mjs":"1af9876c1298","scholar.json":"b5fd834acba6","scholar.mjs":"e27fc4fb8649","screens-exam.mjs":"1756ecaeb905","screens-glossary.mjs":"1c4a4385cd10","screens-scholar.mjs":"94cc7d817ba9","screens-setup.mjs":"1752c89a6a45","screens.mjs":"9a82ad889144","session.mjs":"26bf8fed611b","settings.mjs":"9adc0c75a9d7","setup-ui.mjs":"3c4c42137677","source-links.json":"9184f0a91a6d","sources.mjs":"08a3cd482896","storage-migrate.mjs":"815ba174fee1","storage.mjs":"fbcca9a9d875","study-ui.mjs":"b7774545ea43","styles.css":"d6fffb3bbf9a","usaf-comm-badge.webp":"98f0f038021a"}</script>
+<script type="importmap">{"imports":{"./analytics.mjs":"./analytics.mjs?v=5ac7ff0cffd9","./app-state.mjs":"./app-state.mjs?v=d5e59ac7ae2e","./app.mjs":"./app.mjs?v=aaa30a8bce8d","./cards-ui.mjs":"./cards-ui.mjs?v=0c153c1745c6","./data-load.mjs":"./data-load.mjs?v=1cc48224ff1d","./diagnostics.mjs":"./diagnostics.mjs?v=92c54eda763a","./engine.mjs":"./engine.mjs?v=28a151caed7c","./exam-draw.mjs":"./exam-draw.mjs?v=f57f752f4808","./exam-ui.mjs":"./exam-ui.mjs?v=8c0b500121a4","./exam.mjs":"./exam.mjs?v=3f8cc6b382b3","./faststart.mjs":"./faststart.mjs?v=81bb4b3750ca","./features.mjs":"./features.mjs?v=3d537ab79af3","./flags.mjs":"./flags.mjs?v=c040d130e471","./flashcards-sets.mjs":"./flashcards-sets.mjs?v=c0352fbbbbd3","./flashcards.mjs":"./flashcards.mjs?v=514216449a0b","./glossary-ui.mjs":"./glossary-ui.mjs?v=77b9f12f7a0c","./glossary.mjs":"./glossary.mjs?v=ef62b2afbc8a","./learning.mjs":"./learning.mjs?v=42409216783c","./nav.mjs":"./nav.mjs?v=20c9468eb1ce","./pagecount.mjs":"./pagecount.mjs?v=e955ff34fa41","./pictures-svg.mjs":"./pictures-svg.mjs?v=375f13fc7a89","./pictures.mjs":"./pictures.mjs?v=50a1c80a1a67","./presentation.mjs":"./presentation.mjs?v=789c9a92dc7d","./reader.mjs":"./reader.mjs?v=6d48b1f37d9e","./readiness.mjs":"./readiness.mjs?v=02bfeb394cdb","./scholar-data.mjs":"./scholar-data.mjs?v=a0f3ad5b46bc","./scholar-ui.mjs":"./scholar-ui.mjs?v=1af9876c1298","./scholar.mjs":"./scholar.mjs?v=e27fc4fb8649","./screens-exam.mjs":"./screens-exam.mjs?v=1756ecaeb905","./screens-glossary.mjs":"./screens-glossary.mjs?v=1c4a4385cd10","./screens-scholar.mjs":"./screens-scholar.mjs?v=94cc7d817ba9","./screens-setup.mjs":"./screens-setup.mjs?v=1752c89a6a45","./screens.mjs":"./screens.mjs?v=9a82ad889144","./session.mjs":"./session.mjs?v=26bf8fed611b","./settings.mjs":"./settings.mjs?v=9adc0c75a9d7","./setup-ui.mjs":"./setup-ui.mjs?v=3c4c42137677","./sources.mjs":"./sources.mjs?v=08a3cd482896","./storage-migrate.mjs":"./storage-migrate.mjs?v=815ba174fee1","./storage.mjs":"./storage.mjs?v=fbcca9a9d875","./study-ui.mjs":"./study-ui.mjs?v=b7774545ea43"}}</script>
 <link rel="preload" href="./font-display-500.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="./font-display-700.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="./styles.css?v=0d546c3cdaec">
-<link rel="modulepreload" href="./app.mjs?v=0ad30dc606a9">
+<link rel="stylesheet" href="./styles.css?v=d6fffb3bbf9a">
+<link rel="modulepreload" href="./app.mjs?v=aaa30a8bce8d">
 <link rel="modulepreload" href="./features.mjs?v=3d537ab79af3">
-<link rel="modulepreload" href="./settings.mjs?v=d3afc3df8323">
+<link rel="modulepreload" href="./settings.mjs?v=9adc0c75a9d7">
 <link rel="modulepreload" href="./app-state.mjs?v=d5e59ac7ae2e">
 <link rel="modulepreload" href="./session.mjs?v=26bf8fed611b">
-<link rel="modulepreload" href="./nav.mjs?v=bdb60bd7bd46">
+<link rel="modulepreload" href="./nav.mjs?v=20c9468eb1ce">
 <link rel="modulepreload" href="./cards-ui.mjs?v=0c153c1745c6">
 <link rel="modulepreload" href="./flags.mjs?v=c040d130e471">
-<link rel="modulepreload" href="./setup-ui.mjs?v=1bef6b25f341">
+<link rel="modulepreload" href="./setup-ui.mjs?v=3c4c42137677">
 <link rel="modulepreload" href="./study-ui.mjs?v=b7774545ea43">
 <link rel="modulepreload" href="./scholar-ui.mjs?v=1af9876c1298">
-<link rel="modulepreload" href="./glossary-ui.mjs?v=73c88b17e386">
-<link rel="modulepreload" href="./exam-ui.mjs?v=e6bd93ed508c">
+<link rel="modulepreload" href="./glossary-ui.mjs?v=77b9f12f7a0c">
+<link rel="modulepreload" href="./exam-ui.mjs?v=8c0b500121a4">
 <link rel="modulepreload" href="./data-load.mjs?v=1cc48224ff1d">
 <link rel="modulepreload" href="./engine.mjs?v=28a151caed7c">
-<link rel="modulepreload" href="./storage.mjs?v=5178125e75ed">
+<link rel="modulepreload" href="./storage.mjs?v=fbcca9a9d875">
+<link rel="modulepreload" href="./storage-migrate.mjs?v=815ba174fee1">
 <link rel="modulepreload" href="./presentation.mjs?v=789c9a92dc7d">
-<link rel="modulepreload" href="./screens.mjs?v=49d52718a664">
+<link rel="modulepreload" href="./screens.mjs?v=9a82ad889144">
+<link rel="modulepreload" href="./screens-glossary.mjs?v=1c4a4385cd10">
+<link rel="modulepreload" href="./screens-setup.mjs?v=1752c89a6a45">
 <link rel="modulepreload" href="./screens-scholar.mjs?v=94cc7d817ba9">
 <link rel="modulepreload" href="./screens-exam.mjs?v=1756ecaeb905">
-<link rel="modulepreload" href="./flashcards.mjs?v=ad0cd91d0d47">
-<link rel="modulepreload" href="./analytics.mjs?v=4141d3593e76">
+<link rel="modulepreload" href="./flashcards.mjs?v=514216449a0b">
+<link rel="modulepreload" href="./flashcards-sets.mjs?v=c0352fbbbbd3">
+<link rel="modulepreload" href="./analytics.mjs?v=5ac7ff0cffd9">
 <link rel="modulepreload" href="./glossary.mjs?v=ef62b2afbc8a">
-<link rel="modulepreload" href="./scholar.mjs?v=9876ad6e25a0">
-<link rel="modulepreload" href="./pictures.mjs?v=4e9015c20354">
+<link rel="modulepreload" href="./scholar.mjs?v=e27fc4fb8649">
+<link rel="modulepreload" href="./scholar-data.mjs?v=a0f3ad5b46bc">
+<link rel="modulepreload" href="./pictures.mjs?v=50a1c80a1a67">
+<link rel="modulepreload" href="./pictures-svg.mjs?v=375f13fc7a89">
 <link rel="modulepreload" href="./learning.mjs?v=42409216783c">
-<link rel="modulepreload" href="./exam.mjs?v=432c6b6cc7bf">
-<link rel="modulepreload" href="./diagnostics.mjs?v=9ceb587396bf">
+<link rel="modulepreload" href="./exam.mjs?v=3f8cc6b382b3">
+<link rel="modulepreload" href="./exam-draw.mjs?v=f57f752f4808">
+<link rel="modulepreload" href="./diagnostics.mjs?v=92c54eda763a">
 <link rel="modulepreload" href="./readiness.mjs?v=02bfeb394cdb">
 <link rel="modulepreload" href="./faststart.mjs?v=81bb4b3750ca">
 </head>
@@ -74,16 +82,17 @@ apply();media.addEventListener('change',()=>{if(choice==='system')apply();});})(
 <button id="reset" type="button" class="danger">Delete Local Data</button>
 </nav>
 </header>
+<noscript><p class="noscript-notice">Turn on JavaScript in your browser to use ICF Companion.</p></noscript>
 <main id="main" tabindex="-1">
 <p role="status">Opening your study space…</p>
 </main>
 <p id="answer-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
 <p id="storage-notice" role="status"></p>
 <footer>
-<span id="app-version">ICF Companion v2.10.2 · 20 Nov 2026</span>
+<span id="app-version">ICF Companion v2.12.2 · 23 Nov 2026</span>
 </footer>
 <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
-<script type="module" src="./app.mjs?v=0ad30dc606a9"></script>
-<script type="module" src="./pagecount.mjs?v=5ca6c0c64cb0"></script>
+<script type="module" src="./app.mjs?v=aaa30a8bce8d"></script>
+<script type="module" src="./pagecount.mjs?v=e955ff34fa41"></script>
 </body>
 </html>
