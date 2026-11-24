@@ -1,7 +1,8 @@
 // Offline copy worker (caching that an update cannot break).
 // Rule 1: a file enters the cache only when the SHA-256 of its bytes matches the hash in its URL (?v=) or in the
 //   build's file list (index.html, #release-files). While a host serves a stale file, the page gets that file,
-//   as without a worker, but it is never stored.
+//   as without a worker, but it is never stored: not in the copy, and not in the browser's own cache (no-store),
+//   so the first load after the host is healed gets the right file.
 // Rule 2: the page (index.html) always comes from the network when the network gives one, so a refresh loads the
 //   newest build. Every request of the page is its own network request; the worker only adds a stored answer.
 // Rule 3: the worker starts the app from the copy only when the page request fails, and only with the one build
@@ -134,9 +135,13 @@ async function storeVerified(name, hash, response) {
   if (!response.ok) return false;
   const body = await response.arrayBuffer();
   if (!(await digest(body)).startsWith(hash)) return false;
+  await storeBody(name, hash, body, response);
+  return true;
+}
+// Store bytes whose hash was already checked, with the content type of the response they came from.
+async function storeBody(name, hash, body, response) {
   const type = response.headers.get('content-type');
   await (await caches.open(ASSETS)).put(keyUrl(name, hash), new Response(body, { headers: type ? { 'content-type': type } : {} }));
-  return true;
 }
 // True when the file with this hash is already stored.
 const isStored = async (name, hash) => !!(await (await caches.open(ASSETS)).match(keyUrl(name, hash)));
@@ -244,8 +249,18 @@ async function asset(event, settle, name, tag) {
   if (!found.value?.hash) { settle(); return fetch(event.request); }
   let response;
   try { response = await fetch(event.request.url, { cache: 'no-cache' }); } catch (failure) { settle(); throw failure; }
-  settle(storeVerified(name, found.value.hash, response.clone()).catch(() => false));
-  return response;
+  if (!response.ok) { settle(); return response; }
+  let body;
+  try { body = await response.clone().arrayBuffer(); } catch { settle(); return response; } // The page gets the same failure.
+  let match = false;
+  try { match = (await digest(body)).startsWith(found.value.hash); } catch { /* not checked: handled as stale */ }
+  if (match) { settle(storeBody(name, found.value.hash, body, response).catch(() => false)); return response; }
+  settle();
+  // A stale file (rule 1): the page gets it once, marked no-store, so the browser does not keep it under the new hash.
+  // Header names come in lower case. The body is already decoded, so its old encoding and length do not apply.
+  const { 'content-encoding': _encoding, 'content-length': _length, ...kept } = Object.fromEntries(response.headers);
+  const empty = response.status === 204 || response.status === 205; // These statuses cannot carry a body.
+  return new Response(empty ? null : body, { status: response.status, statusText: response.statusText, headers: { ...kept, 'cache-control': 'no-store' } });
 }
 
 // No skipWaiting on install: a new worker waits until a page starts and sends 'activate' (rule 5).
