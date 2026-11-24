@@ -286,7 +286,7 @@ try {
     if(shared.exam.submitted){finalizeExam();shared.resultsKind=sessionDone()&&!wasLive?'study':'exam';if(wasLive){shared.step='exam-results';shared.examFilter='missed';shared.groupId=shared.exam.block;shared.sections=allSections();}}
     else{shared.step='exam';shared.groupId=shared.exam.block;shared.sections=allSections();}
   }
-  $('#app-version').textContent=`${APP.name} v${APP_VERSION} · 23 Nov 2026`;
+  $('#app-version').textContent=`${APP.name} v${APP_VERSION} · 24 Nov 2026`;
   render();loadExtras().catch(()=>{});  // optional data never stops the app
 } catch (error) {
   // Offline is the likely cause only when the browser reports it; Diagnostics needs a bank.

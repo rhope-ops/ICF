@@ -64,9 +64,9 @@ export function draftOf(qn, tries = [], drafts = new Map()) {
 }
 
 // ---- Picture timing, progress, next unit and term search (pure helpers of the Scholar screens) ----
-// Limits of a picture step's time in ms: reading at about 200 words a minute (0.3 s a word after 1.2 s to look at the drawing).
-const PIC_MS = { min: 4000, max: 10000, base: 1200, perWord: 300 };
-// Time per picture step or part: long enough to read its caption, never under 4 s or over 10 s.
+// Limits of a picture step's time in ms: reading at about 330 words a minute (0.18 s a word after 0.8 s to look at the drawing).
+const PIC_MS = { min: 2500, max: 6000, base: 800, perWord: 180 };
+// Time per picture step or part: long enough to read its caption, never under 2.5 s or over 6 s.
 export const picMs = caption => Math.min(PIC_MS.max, Math.max(PIC_MS.min, PIC_MS.base + PIC_MS.perWord * String(caption || '').split(/\s+/).filter(Boolean).length));
 /**
  * Terms of a block with every guided question right, per unit and in all.

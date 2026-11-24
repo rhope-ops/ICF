@@ -162,13 +162,13 @@ function groupSvg(g, nodes, st, i) {
 
 // from: where the packet was in the previous step (0-1 along the same link), null for no motion, or 'new' when the
 // previous step had no packet on this link: then it fades in at its place, since a glide from the line start crossed
-// labels and icons. The glide is an SVG animateTransform (0.45 s), so it runs once per render and
+// labels and icons. The glide is an SVG animateTransform (0.25 s), so it runs once per render and
 // needs no script; reduced motion passes from = null.
 function packetSvg(k, links, nodes, from = null) {
   const l = links.get(k.on), [x1, y1] = centre(nodes.get(l.from)), [x2, y2] = centre(nodes.get(l.to));
   // The point at fraction t of the way along the link.
   const at = t => [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t], [x, y] = at(k.at), text = k.tag ? `Tag ${k.tag}` : (k.label || 'Frame'), w = 8 + 6 * text.length;
-  const glide = from !== null && from !== 'new' && from !== k.at ? (([fx, fy]) => `<animateTransform attributeName="transform" type="translate" from="${(fx - x).toFixed(1)} ${(fy - y).toFixed(1)}" to="0 0" dur="0.45s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".2 .7 .3 1"/>`)(at(from)) : '';
+  const glide = from !== null && from !== 'new' && from !== k.at ? (([fx, fy]) => `<animateTransform attributeName="transform" type="translate" from="${(fx - x).toFixed(1)} ${(fy - y).toFixed(1)}" to="0 0" dur="0.25s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".2 .7 .3 1"/>`)(at(from)) : '';
   return `<g class="pic-packet${k.tag ? ' is-tagged' : ''}${from === 'new' ? ' is-new' : ''}">${glide}<rect x="${x - w / 2}" y="${y - 9}" width="${w}" height="18" rx="4"/>${label(x, y + 4, text, ' pic-small pic-packet-text')}</g>`;
 }
 
