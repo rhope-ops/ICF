@@ -36,6 +36,23 @@ const centre = n => { const b = box(n); return [b.x + b.w / 2, b.y + b.h / 2]; }
 const cls = (id, st) => `${st.on.has(id) ? ' is-on' : ''}${st.fresh.has(id) ? ' is-new' : ''}${st.off.has(id) ? ' is-off' : ''}`;
 // An SVG text element centred at x, y; an empty string when there is no text.
 export const label = (x, y, text, extra = '') => text ? `<text class="pic-label${extra}" x="${x}" y="${y}" text-anchor="middle">${escape(text)}</text>` : '';
+// Dash patterns [dash, gap] (the earlier CSS 4 3, 6 3, 2 3): a plain line, group boxes pic-group-1 and -2; fitDash fits them.
+const LINE_DASH = [4, 3], GROUP_DASH = [null, [6, 3], [2, 3]];
+// The corner radius of a group box.
+const GROUP_RX = 8;
+/**
+ * A dash pattern stretched so whole dashes fit: a line starts and ends on a dash (it meets both nodes), and a box has
+ * no broken dash at its seam.
+ * @param {number} len the length of the line, or the perimeter of the box.
+ * @param {number[]} pattern the [dash, gap] to keep the shape of.
+ * @param {boolean} [closed] true for a closed outline (n dashes and n gaps), false for a line (n dashes, n - 1 gaps).
+ * @returns {string} the stroke-dasharray value.
+ */
+export function fitDash(len, [dash, gap], closed = false) {
+  const n = Math.max(1, Math.round((closed ? len : len + gap) / (dash + gap)));
+  const k = len / (closed ? n * (dash + gap) : n * dash + (n - 1) * gap);
+  return `${+(dash * k).toFixed(3)} ${+(gap * k).toFixed(3)}`;
+}
 
 /**
  * The SVG of a node's drawn shape (pc, switch, router and so on); an empty string for a type with no icon.
@@ -94,37 +111,91 @@ function nodeSvg(n, st) {
 }
 
 /**
- * The point where a link leaves a node, on the edge of its box and not at its centre: a dimmed box is see-through, so a
- * line drawn to the centre of a frame or panel crossed its label. A link that would cross its own icon's label starts
- * where it leaves the label, so a downward or diagonal line no longer runs through the name under the icon.
+ * Where a link leaves a node: the edge of its shape or box, toward the other centre; past its own name it runs behind
+ * a plate (lineMasks, spec F-19).
  * @param {object} n the node.
  * @param {number[]} from the centre [x, y] of this node.
  * @param {number[]} to the centre [x, y] of the node at the other end.
- * @param {boolean} [clear] true to keep clear of the node's label.
  * @returns {number[]} the point [x, y].
  */
-function edge(n, [x, y], [tx, ty], clear = true) {
-  const b = box(n), dx = tx - x, dy = ty - y;
-  let t = Math.min(1, dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity);
-  if (clear && n.label && ![...BOXES, 'text'].includes(n.type)) {
-    const w = textW(n.label) * 0.62 + 2, top = b.y + b.h, bottom = top + 18;  // labels render up to ~1.2x wider on phones
-    const tx0 = dx ? ((n.x - w) - x) / dx : -Infinity, tx1 = dx ? ((n.x + w) - x) / dx : Infinity;
-    const ty0 = dy ? (top - y) / dy : -Infinity, ty1 = dy ? (bottom - y) / dy : Infinity;
-    const enter = Math.max(Math.min(tx0, tx1), Math.min(ty0, ty1)), leave = Math.min(Math.max(tx0, tx1), Math.max(ty0, ty1));
-    if ((dx || (x >= n.x - w && x <= n.x + w)) && (dy || (y >= top && y <= bottom)) && enter <= leave && leave > 0 && enter < 1) t = Math.min(1, Math.max(t, leave));
-  }
+function edge(n, [x, y], [tx, ty]) {
+  const b = box(n), dx = tx - x, dy = ty - y, t = Math.min(1, dx ? b.w / 2 / Math.abs(dx) : Infinity, dy ? b.h / 2 / Math.abs(dy) : Infinity);
   return [x + dx * t, y + dy * t];
 }
-// The SVG group of one link: its hit line, its drawn line and, for a cable, a plug at each end.
-function linkSvg(l, nodes, st) {
+// Plate room round a name (units), measured at phone size: halo plus 1-2.
+const PLATE_PAD = 4.5, PLATE_TOP = 3.5;
+// The box {x0, y0, x1, y1} of an icon's name at phone size with its halo (names render up to about 1.2 times wider on
+// phones than textW gives), or null for a node with no name under a shape.
+function labelBox(n) {
+  if (!n.label || [...BOXES, 'text'].includes(n.type)) return null;
+  const b = box(n), w = textW(n.label) * 0.62 + PLATE_PAD;
+  return { x0: n.x - w, y0: b.y + b.h - PLATE_TOP, x1: n.x + w, y1: b.y + b.h + LABEL_BAND };
+}
+/**
+ * True when the segment p-q passes through the inside of box r (Liang-Barsky; touching an edge does not count).
+ * @param {number[]} p the start [x, y].
+ * @param {number[]} q the end [x, y].
+ * @param {{x0: number, y0: number, x1: number, y1: number}} r the box.
+ * @returns {boolean} true when the segment crosses the box.
+ */
+function crosses([px, py], [qx, qy], r) {
+  const dx = qx - px, dy = qy - py;
+  let t0 = 0, t1 = 1;
+  for (const [p, q] of [[-dx, px - r.x0], [dx, r.x1 - px], [-dy, py - r.y0], [dy, r.y1 - py]]) {
+    if (p === 0) { if (q <= 0) return false; continue; }
+    const t = q / p;
+    if (p < 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t);
+    if (t0 >= t1) return false;
+  }
+  return true;
+}
+// The two ends [[x1, y1], [x2, y2]] of a link's drawn line: where it leaves each node's shape or box.
+function linkEnds(l, nodes) {
   const a = nodes.get(l.from), z = nodes.get(l.to), ca = centre(a), cz = centre(z);
-  let [x1, y1] = edge(a, ca, cz), [x2, y2] = edge(z, cz, ca);
-  // When clearing the labels would make the two ends meet or cross (a target inside the label band), use the icon edges.
-  if ((x2 - x1) * (cz[0] - ca[0]) + (y2 - y1) * (cz[1] - ca[1]) <= 0) [[x1, y1], [x2, y2]] = [edge(a, ca, cz, false), edge(z, cz, ca, false)];
+  return [edge(a, ca, cz), edge(z, cz, ca)];
+}
+// The name band under an icon reaches this far below its box (units).
+const LABEL_BAND = 17;
+// Corner radius of a plate (units).
+const PLATE_RX = 3;
+// Mask ids are numbered per call: a page can hold two drawings of one picture.
+let maskRun = 0;
+/**
+ * Plates as masks (spec F-19): a line through its own end's name gets a mask that cuts the plate out of that line
+ * only, so nothing else is covered.
+ * @param {object} p the picture.
+ * @param {Map} nodes the scene's nodes by id.
+ * @returns {{defs: string, of: Map<string, string>}} the <defs> markup and each masked link's mask id.
+ */
+function lineMasks(p, nodes) {
+  // Masks span 3 views: a framed view past 0..400 clips no line.
+  const run = ++maskRun, of = new Map();
+  const masks = (p.scene.links || []).map(l => {
+    const ends = linkEnds(l, nodes), cuts = [l.from, l.to].map(id => [id, labelBox(nodes.get(id))]).filter(([, r]) => r && crosses(ends[0], ends[1], r));
+    if (!cuts.length) return '';
+    const id = `pm${run}-${l.id}`.replace(/[^\w-]/g, '_');
+    of.set(l.id, id);
+    return `<mask id="${id}" maskUnits="userSpaceOnUse" x="${-VIEW.w}" y="${-VIEW.h}" width="${3 * VIEW.w}" height="${3 * VIEW.h}"><rect x="${-VIEW.w}" y="${-VIEW.h}" width="${3 * VIEW.w}" height="${3 * VIEW.h}"/>`
+      + cuts.map(([n, r]) => `<rect class="pic-cut" data-plate-for="${escape(n)}" x="${r.x0}" y="${r.y0}" width="${r.x1 - r.x0}" height="${r.y1 - r.y0}" rx="${PLATE_RX}"/>`).join('') + '</mask>';
+  }).join('');
+  return { defs: masks ? `<defs>${masks}</defs>` : '', of };
+}
+/**
+ * The SVG group of one link: its hit line, its drawn line (a plain line with its fitted dash pattern) and, for a cable,
+ * a plug at each end.
+ * @param {object} l the link.
+ * @param {Map} nodes the scene's nodes by id.
+ * @param {{on: Set, off: Set, fresh: Set, carried: Set}} st which ids are lit, hidden, newly lit and carry a packet.
+ * @param {string} [mask] the id of the mask that cuts its end names' plates out of its strokes, not its label (lineMasks).
+ * @returns {string} the SVG markup.
+ */
+function linkSvg(l, nodes, st, mask) {
+  const [[x1, y1], [x2, y2]] = linkEnds(l, nodes);
   // A cable is a thick line with a plug (a short wide bar along the line) at each end.
   const len = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / len * 7, uy = (y2 - y1) / len * 7;
   const plugs = l.kind === 'cable' ? `<line class="pic-plug" x1="${x1}" y1="${y1}" x2="${x1 + ux}" y2="${y1 + uy}"/><line class="pic-plug" x1="${x2}" y1="${y2}" x2="${x2 - ux}" y2="${y2 - uy}"/>` : '';
-  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}" data-from="${escape(l.from)}" data-to="${escape(l.to)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${plugs}${l.label ? linkLabel(l, x1, y1, x2, y2, st.carried?.has(l.id)) : ''}</g>`;
+  const dash = l.kind === 'plain' ? ` stroke-dasharray="${fitDash(Math.hypot(x2 - x1, y2 - y1), LINE_DASH)}"` : '';
+  return `<g class="pic-link pic-${l.kind}${cls(l.id, st)}" data-pic-id="${escape(l.id)}" data-from="${escape(l.from)}" data-to="${escape(l.to)}"><line class="pic-hit" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>${mask ? `<g mask="url(#${mask})">` : ''}<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${dash}/>${l.kind === 'trunk' ? `<line class="pic-trunk-core" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : ''}${plugs}${mask ? '</g>' : ''}${l.label ? linkLabel(l, x1, y1, x2, y2, st.carried?.has(l.id)) : ''}</g>`;
 }
 
 /**
@@ -157,19 +228,60 @@ function groupSvg(g, nodes, st, i) {
   // The box holds each member's icon and its label (textW; 5.5 px per character let a label touch the box).
   const bs = g.members.map(id => nodes.get(id)).filter(Boolean).map(n => { const b = box(n), lw = textW(n.label); return lw > b.w && !BOXES.includes(n.type) ? { ...b, x: n.x - lw / 2, w: lw } : b; });
   const x = Math.min(...bs.map(b => b.x)) - 10, y = Math.min(...bs.map(b => b.y)) - 18, r = Math.max(Math.max(...bs.map(b => b.x + b.w)) + 10, Math.min(...bs.map(b => b.x)) - 4 + textW(g.label) * 1.05 + 4), bt = Math.max(...bs.map(b => b.y + b.h)) + 22;
-  return `<g class="pic-group pic-group-${i % 3}${cls(g.id, st)}" data-pic-id="${escape(g.id)}"><rect x="${x}" y="${y}" width="${r - x}" height="${bt - y}" rx="8"/><text class="pic-label pic-small pic-group-label" x="${x + 6}" y="${y + 11}">${escape(g.label)}</text></g>`;
+  const w = r - x, h = bt - y, pattern = GROUP_DASH[i % 3], dash = pattern ? ` stroke-dasharray="${fitDash(2 * (w + h) - (8 - 2 * Math.PI) * GROUP_RX, pattern, true)}"` : '';
+  return `<g class="pic-group pic-group-${i % 3}${cls(g.id, st)}" data-pic-id="${escape(g.id)}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${GROUP_RX}"${dash}/><text class="pic-label pic-small pic-group-label" x="${x + 6}" y="${y + 11}">${escape(g.label)}</text></g>`;
 }
 
+// The height of a packet's box, in picture units.
+const PACKET_H = 18;
+// A packet's place on its line: at(t) is the point at fraction t of the way from the centre of the line's first node
+// to the centre of its second; text is the packet's label, w the width and h the height of its box.
+function packetPlace(k, links, nodes) {
+  const l = links.get(k.on), [x1, y1] = centre(nodes.get(l.from)), [x2, y2] = centre(nodes.get(l.to)), text = k.tag ? `Tag ${k.tag}` : (k.label || 'Frame');
+  return { at: t => [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t], text, w: 8 + 6 * text.length, h: PACKET_H };
+}
 // from: where the packet was in the previous step (0-1 along the same link), null for no motion, or 'new' when the
 // previous step had no packet on this link: then it fades in at its place, since a glide from the line start crossed
-// labels and icons. The glide is an SVG animateTransform (0.25 s), so it runs once per render and
-// needs no script; reduced motion passes from = null.
+// labels and icons. The glide is an SVG animateTransform (0.25 s): it runs when a new drawing is put on the page, and
+// scholar-ui.mjs starts it again (beginElement) when it moves a drawing on the page to the next step. data-on names the
+// packet's line, so that move knows which old packet a new one takes the place of. Reduced motion passes from = null.
 function packetSvg(k, links, nodes, from = null) {
-  const l = links.get(k.on), [x1, y1] = centre(nodes.get(l.from)), [x2, y2] = centre(nodes.get(l.to));
-  // The point at fraction t of the way along the link.
-  const at = t => [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t], [x, y] = at(k.at), text = k.tag ? `Tag ${k.tag}` : (k.label || 'Frame'), w = 8 + 6 * text.length;
+  const { at, text, w, h } = packetPlace(k, links, nodes), [x, y] = at(k.at);
   const glide = from !== null && from !== 'new' && from !== k.at ? (([fx, fy]) => `<animateTransform attributeName="transform" type="translate" from="${(fx - x).toFixed(1)} ${(fy - y).toFixed(1)}" to="0 0" dur="0.25s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".2 .7 .3 1"/>`)(at(from)) : '';
-  return `<g class="pic-packet${k.tag ? ' is-tagged' : ''}${from === 'new' ? ' is-new' : ''}">${glide}<rect x="${x - w / 2}" y="${y - 9}" width="${w}" height="18" rx="4"/>${label(x, y + 4, text, ' pic-small pic-packet-text')}</g>`;
+  return `<g class="pic-packet${k.tag ? ' is-tagged' : ''}${from === 'new' ? ' is-new' : ''}" data-on="${escape(k.on)}">${glide}<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4"/>${label(x, y + 4, text, ' pic-small pic-packet-text')}</g>`;
+}
+
+/**
+ * The box {x, y, r, b} of every packet of every step, so framing keeps room for packets not on screen.
+ * @param {object} p the picture.
+ * @returns {{x: number, y: number, r: number, b: number}|null} the box, or null when the picture has no packets.
+ */
+export function packetBounds(p) {
+  const nodes = new Map(p.scene.nodes.map(n => [n.id, n])), links = new Map((p.scene.links || []).map(l => [l.id, l]));
+  const boxes = (p.steps || []).flatMap(s => s.packets || []).map(k => {
+    const { at, w, h } = packetPlace(k, links, nodes), [x, y] = at(k.at);
+    return { x: x - w / 2, y: y - h / 2, r: x + w / 2, b: y + h / 2 };
+  });
+  return boxes.length ? boxes.reduce((u, b) => ({ x: Math.min(u.x, b.x), y: Math.min(u.y, b.y), r: Math.max(u.r, b.r), b: Math.max(u.b, b.b) })) : null;
+}
+
+// Framing (fitViewBox): pad, the margin in picture units (halo and a lit line, with room); zoomMax; labelMaxPx, the
+// largest on-screen node label the zoom may give (about body text, so a desktop drawing does not grow).
+export const FIT = { pad: 10, zoomMax: 1.5, labelMaxPx: 15 };
+/**
+ * The viewBox framing a drawing to its content and packets plus FIT.pad, at 5:3, zoomed within the FIT limits.
+ * @param {{x: number, y: number, r: number, b: number}} content the box of every part of every step (no name plates).
+ * @param {{x: number, y: number, r: number, b: number}|null} packets packetBounds of the picture.
+ * @param {number} font the font size of a node label, in picture units (0 when there is none).
+ * @param {number} shown screen px per picture unit at zoom 1.
+ * @returns {{x: number, y: number, w: number, h: number}|null} the viewBox, or null to keep 0 0 400 240.
+ */
+export function fitViewBox(content, packets, font, shown) {
+  const u = packets ? { x: Math.min(content.x, packets.x), y: Math.min(content.y, packets.y), r: Math.max(content.r, packets.r), b: Math.max(content.b, packets.b) } : content;
+  const x = u.x - FIT.pad, y = u.y - FIT.pad, w = u.r + FIT.pad - x, h = u.b + FIT.pad - y;
+  if (!(w > 0 && h > 0 && shown > 0)) return null;
+  const zoom = Math.max(1, Math.min(FIT.zoomMax, font ? FIT.labelMaxPx / (font * shown) : 1, VIEW.w / w, VIEW.h / h)), vw = VIEW.w / zoom, vh = VIEW.h / zoom;
+  return zoom === 1 ? null : { x: +(x + w / 2 - vw / 2).toFixed(1), y: +(y + h / 2 - vh / 2).toFixed(1), w: +vw.toFixed(1), h: +vh.toFixed(1) };
 }
 
 // True when id is hidden: in the hidden set, or a part ("f.h") of a hidden node ("f").
@@ -204,9 +316,10 @@ export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = n
   // Where a packet was in the previous state: 0-1 along the line, 'new' when it was not there, null for no motion.
   const from = k => !before ? null : ((before.packets || []).filter(b => b.on === k.on)[nth(s.packets, k)]?.at ?? 'new');
   const dim = on.size ? ' has-light' : '';
-  return `<svg class="pic${dim}" viewBox="0 0 ${VIEW.w} ${VIEW.h}" role="img" aria-label="${escape(p.alt)}" focusable="false">`
+  const masks = lineMasks(p, nodes);
+  return `<svg class="pic${dim}" viewBox="0 0 ${VIEW.w} ${VIEW.h}" role="img" aria-label="${escape(p.alt)}" focusable="false">${masks.defs}`
     + (p.scene.groups || []).map((g, i) => groupSvg(g, nodes, st, i)).join('')
-    + (p.scene.links || []).map(l => linkSvg(l, nodes, st)).join('')
+    + (p.scene.links || []).map(l => linkSvg(l, nodes, st, masks.of.get(l.id))).join('')
     + p.scene.nodes.map(n => nodeSvg(n, st)).join('')
     + (s.packets || []).filter(k => !off.has(k.on)).map(k => packetSvg(k, links, nodes, from(k))).join('') + '</svg>';
 }

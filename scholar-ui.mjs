@@ -12,7 +12,7 @@ import { fetchJson } from './data-load.mjs';
 import { keepScroll } from './exam-ui.mjs';
 import { openTermPop } from './glossary-ui.mjs';
 import { focusHeading, navigate, render } from './nav.mjs';
-import { moveFrom, pictureHtml, stepKey } from './pictures.mjs';
+import { fitViewBox, moveFrom, packetBounds, pictureHtml, stepKey, VIEW } from './pictures.mjs';
 import { addScholarBlock, blockLoaded, draftOf, itemById, itemForEntry, itemsFor, listModel, moveScholar, neighbours, newScholarState, nextUnit, picMs, pickKey, refitScholarState, resolved, restoreScholarState, reviewDeck, right, scholarStateShape, triesOf, unitsOf } from './scholar.mjs';
 import * as screens from './screens.mjs';
 import { allSections, currentGroup } from './session.mjs';
@@ -104,7 +104,7 @@ export function renderScholar(){
     if(Number.isInteger(part)){shared.scholarPicOpen=b.dataset.scholarItem;shared.scholarPic={item:b.dataset.scholarItem,index:part,prev:null,manual:true};}open(b.dataset.scholarItem);});
   main.querySelectorAll('.scholar-related .term-link').forEach(b=>b.onclick=()=>openTermPop(b,{phase:'review',block:item.block}));
   shared.scholarPic.prev=null;
-  main.querySelectorAll('.scholar-drop').forEach(d=>d.ontoggle=()=>{shared.scholarOpen[d.dataset.section]=d.open;if(d.dataset.section==='picture')picLoop(item);});
+  main.querySelectorAll('.scholar-drop').forEach(d=>d.ontoggle=()=>{shared.scholarOpen[d.dataset.section]=d.open;if(d.dataset.section==='picture'){fitPictures(item);picLoop(item);}});
   // Apply a Scholar event to the saved place, redraw in place and focus the control that focus() returns, else the question stem.
   const move=(event,focus)=>{saveScholar(moveScholar(shared.scholarState,event,shared.scholar));keepScroll(render);(focus?.()||$('#scholar-stem'))?.focus({preventScroll:true});};
   // A pick: a tile (A-D, tap, the current branch decision) or a tap on the picture's target (tap).
@@ -186,7 +186,8 @@ function mountPicture(item){
   const next=document.createElement('div');next.innerHTML=pictureHtml(item.picture,shared.scholarPic.index,picOptions());shared.scholarPic.prev=null;
   // Drawing and captions are replaced; the controls stay and take the new state, so focus and screen readers are not disturbed
   // on each loop tick.
-  { const old=panel.querySelector('.pic-frame'),fresh=next.querySelector('.pic-frame');if(old&&fresh)old.replaceWith(fresh); }
+  // The drawing moves to the new step in place (patchPicture), else it is swapped whole.
+  { const old=panel.querySelector('.pic-frame'),fresh=next.querySelector('.pic-frame');if(old&&fresh&&!patchPicture(old.querySelector('svg.pic'),fresh.querySelector('svg.pic'),picOptions().motion.still))old.replaceWith(fresh); }
   // The caption box is kept and its text changed, so a screen reader hears the new caption from the existing live region.
   // Attributes first: a box that was muted for the loop must be live again before its text changes.
   { const old=panel.querySelector('.pic-captions'),fresh=next.querySelector('.pic-captions');if(old&&fresh){
@@ -197,12 +198,69 @@ function mountPicture(item){
   if(panel.contains(document.activeElement)&&document.activeElement.disabled)panel.querySelector('.pic-controls button:not(:disabled)')?.focus({preventScroll:true});
   bindPicture(item);
 }
+// The fade-out of a leaving packet (ms): the 0.15 s fade of 80-pictures.css.
+const PACKET_LEAVE_MS=150;
+/**
+ * Move the drawing on the page to the state of a fresh drawing, in place: parts take their new classes (CSS fades
+ * them); an old packet whose line gets no new one fades out; new packets enter, a glide started now (SMIL put into a
+ * running drawing starts at its time 0, so is over at once), else fading in unless one stood at the same place.
+ * @param {SVGElement|null} old the drawing on the page
+ * @param {SVGElement|null} fresh the new drawing (pictureHtml), not on the page
+ * @param {boolean} still reduced motion: packets change at once
+ * @returns {boolean} false when the two drawings differ in shape (then the caller swaps the drawing whole)
+ */
+function patchPicture(old,fresh,still){
+  if(!old||!fresh)return false;
+  // Every element of a drawing except its packets, in document order.
+  const parts=svg=>[...svg.querySelectorAll('*')].filter(e=>!e.closest('.pic-packet'));
+  const a=parts(old),b=parts(fresh);
+  if(a.length!==b.length||a.some((e,k)=>e.tagName!==b[k].tagName))return false;
+  a.forEach((e,k)=>{const c=b[k].getAttribute('class');if(c!==e.getAttribute('class'))c===null?e.removeAttribute('class'):e.setAttribute('class',c);});
+  old.setAttribute('class',fresh.getAttribute('class'));
+  const enter=[...fresh.querySelectorAll('.pic-packet')],taken=new Set(enter.map(k=>k.dataset.on));
+  // Where each old packet was, by its line and box, so a new packet at the same place does not fade in again.
+  const was=new Set([...old.querySelectorAll('.pic-packet:not(.is-leaving)')].map(k=>`${k.dataset.on} ${k.querySelector('rect')?.getAttribute('x')} ${k.querySelector('rect')?.getAttribute('y')}`));
+  old.querySelectorAll('.pic-packet').forEach(k=>{if(still||taken.has(k.dataset.on)||k.classList.contains('is-leaving'))k.remove();else{k.querySelector('animateTransform')?.remove();k.classList.add('is-leaving');setTimeout(()=>k.remove(),PACKET_LEAVE_MS);}});
+  for(const k of enter){const glide=k.querySelector('animateTransform');
+    if(!still&&!glide&&!was.has(`${k.dataset.on} ${k.querySelector('rect')?.getAttribute('x')} ${k.querySelector('rect')?.getAttribute('y')}`))k.classList.add('is-new');
+    old.append(k);glide?.beginElement();}
+  return true;
+}
+// A drawing's width on screen, in whole px, as data-fit records it.
+const shownWidth=svg=>String(Math.round(svg.getBoundingClientRect().width));
+// Room round a name in its cut-out (units): halo plus a little.
+const PLATE_ROOM=2;
+// Frame each drawing of the term's picture not yet framed at its present width.
+const fitPictures=item=>main.querySelectorAll('svg.pic').forEach(svg=>{if(svg.dataset.fit!==shownWidth(svg))fitPicture(svg,item.picture);});
+// A resize frames the term page's drawings again (not the review: its boards can be other terms).
+window.addEventListener('resize',()=>{if(shared.step!=='scholar'||shared.scholarReview||!main.querySelector('#scholar-term')||!shared.scholarPic?.item)return;const it=itemById(shared.scholar,shared.scholarPic.item);if(it?.picture)fitPictures(it);});
+/**
+ * Frame a drawing to its content (fitViewBox; hidden parts keep their box); the frame keeps its height.
+ * @param {SVGSVGElement} svg the drawing on the page
+ * @param {object} picture the picture it draws
+ */
+function fitPicture(svg,picture){
+  // A drawing in a closed section has no size yet: it is framed when the section opens.
+  if(!svg.getBoundingClientRect().width)return;
+  svg.dataset.fit=shownWidth(svg);
+  svg.setAttribute('viewBox',`0 0 ${VIEW.w} ${VIEW.h}`);
+  // Each plate cut-out fits its name as drawn now (the build sizes it for the phone font).
+  for(const p of svg.querySelectorAll('.pic-cut')){const t=[...svg.querySelectorAll('.pic-node')].find(n=>n.dataset.picId===p.dataset.plateFor)?.querySelector(':scope>.pic-label');
+    if(t){const b=t.getBBox();for(const [k,v] of [['x',b.x-PLATE_ROOM],['y',b.y-PLATE_ROOM],['width',b.width+2*PLATE_ROOM],['height',b.height+2*PLATE_ROOM]])p.setAttribute(k,+v.toFixed(1));}}
+  // The drawing's box, without the masks (<defs>).
+  const g=[...svg.children].filter(e=>e.tagName!=='defs').map(e=>e.getBBox()).filter(b=>b.width||b.height).reduce((u,b)=>({x:Math.min(u.x,b.x),y:Math.min(u.y,b.y),width:Math.max(u.x+u.width,b.x+b.width)-Math.min(u.x,b.x),height:Math.max(u.y+u.height,b.y+b.height)-Math.min(u.y,b.y)}));
+  // The cap is set by the largest label (a node label; group, line and packet labels are smaller).
+  const label=svg.querySelector('.pic-label:not(.pic-small)')||svg.querySelector('.pic-label');
+  const vb=fitViewBox({x:g.x,y:g.y,r:g.x+g.width,b:g.y+g.height},packetBounds(picture),label?parseFloat(getComputedStyle(label).fontSize):0,svg.getBoundingClientRect().width/VIEW.w);
+  if(vb)svg.setAttribute('viewBox',`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+}
 /**
  * Bind the picture's controls (back, next, part chips, keys, tap on an explore part, play and pause).
  * @param {object} item the Scholar item whose picture is shown
  */
 function bindPicture(item){
   if(!item.picture)return;
+  fitPictures(item);
   // Show picture part or step `index`; manual says the reader chose it, which stops the loop.
   const go=(index,manual=shared.scholarPic.manual)=>{shared.scholarPic={item:item.id,index,prev:moveFrom(shared.scholarPic.index,index),manual};mountPicture(item);};
   // A reader's choice of part: stop the loop timer and go there.
@@ -213,7 +271,8 @@ function bindPicture(item){
   { const body=main.querySelector('[data-section="picture"] .pic-body');if(body)body.onkeydown=e=>{const to=e.target.closest('.pic-controls')?stepKey(item.picture,shared.scholarPic.index,e.key):null;if(to===null)return;e.preventDefault();manual(to);main.querySelector(`[data-pic-part="${to}"]`)?.focus({preventScroll:true});}; }
   main.querySelectorAll('[data-pic-part]').forEach(b=>b.onclick=()=>manual(Number(b.dataset.picPart)));
   // Explore: a tap on a drawn part chooses the first part that lights it (the chips are the keyboard way).
-  if(item.picture.kind==='explore')main.querySelector('.pic')?.addEventListener('click',e=>{const id=e.target.closest('[data-pic-id]')?.dataset.picId;const k=item.picture.parts.findIndex(p=>p.light.includes(id));if(k>=0)manual(k);});
+  // onclick, not addEventListener: the drawing stays from step to step, so added listeners would pile up.
+  if(item.picture.kind==='explore'){const svg=main.querySelector('[data-section="picture"] svg.pic');if(svg)svg.onclick=e=>{const id=e.target.closest('[data-pic-id]')?.dataset.picId;const k=item.picture.parts.findIndex(p=>p.light.includes(id));if(k>=0)manual(k);};}
   // Play / pause: the reader's choice for every term; Play also lifts this term's manual pause.
   if($('#pic-play'))$('#pic-play').onclick=()=>{const on=$('#pic-play').dataset.playing!=='true';shared.scholarPlay=on;shared.scholarPic.manual=false;mountPicture(item);picLoop(item);};
 }

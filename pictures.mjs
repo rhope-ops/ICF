@@ -10,7 +10,7 @@
 // Credentials: none.
 import { escape, ICON } from './presentation.mjs';
 import { VIEW, ICONS, NODE_TYPES, LINK_KINDS, BAND_H, textW, label, isHidden, hiddenIds, pictureSvg } from './pictures-svg.mjs';
-export { VIEW, BAND_H, linkLabel, pictureSvg } from './pictures-svg.mjs';
+export { VIEW, BAND_H, linkLabel, pictureSvg, packetBounds, fitViewBox } from './pictures-svg.mjs';
 
 // Each band of a stack and each mark of a timeline is a target (<node>.<id>), like frame segments and panel lines.
 const subs = n => [...(n.segments || []), ...(n.lines || []), ...(n.layers || []), ...(n.marks || [])];

@@ -494,7 +494,7 @@ dialog .dialog-head h2{font-size:1.75rem}
 @layer screens{
 .pic-body{display:grid;gap:8px}
 .pic-frame{border:1px solid var(--rule);border-radius:var(--r2);background:var(--paper);padding:6px}
-.pic{display:block;width:100%;height:auto;font-family:var(--f-display);
+.pic{display:block;width:100%;height:auto;font-family:var(--f-display);--pic-ease:cubic-bezier(.2,.7,.3,1);
   & .pic-shape{fill:var(--sheet);stroke:var(--ink);stroke-width:1.5}
   & .pic-line{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-linecap:round}
   & .pic-port{fill:var(--muted)}
@@ -504,22 +504,24 @@ dialog .dialog-head h2{font-size:1.75rem}
   & .pic-note{fill:var(--muted);font-weight:600}
   & .pic-mono{fill:var(--ink);font-size:10px;font-weight:500}& .pic-head{fill:var(--muted);font-weight:700}
   & .pic-row-bg{fill:transparent}
+    & mask rect{fill:white}& mask .pic-cut{fill:black}
   & .pic-link line{stroke:var(--muted);stroke-width:2}
   & .pic-trunk line{stroke:var(--ink);stroke-width:6}& .pic-trunk .pic-trunk-core{stroke:var(--paper);stroke-width:2}
-  & .pic-plain line{stroke-dasharray:4 3}
   & .pic-cable line{stroke:var(--ink);stroke-width:4}& .pic-cable .pic-plug{stroke-width:9;stroke-linecap:butt}
   & .pic-band .pic-shape{fill:var(--sheet)}& .pic-band.is-on .pic-shape{fill:var(--scholar-soft)}& .pic-mark.is-on .pic-shape{fill:var(--scholar)}
   & .pic-group rect{fill:var(--scholar-soft);stroke:var(--scholar);stroke-width:1.2}
-  & .pic-group-1 rect{stroke-dasharray:6 3}& .pic-group-2 rect{stroke-dasharray:2 3}
   & .pic-group-label{fill:var(--scholar);stroke:var(--scholar-soft)}
   & .pic-seg-tag .pic-shape,& .pic-seg-header .pic-shape,& .pic-seg-trailer .pic-shape{fill:var(--scholar-soft)}
   & .pic-packet rect{fill:var(--scholar);stroke:none}& .pic-packet-text{fill:var(--blue-ink)}
   & .is-on :is(.pic-shape,line,rect){stroke:var(--scholar);stroke-width:3}& .is-on .pic-row-bg{fill:var(--scholar-soft);stroke:none}
   & .is-on.pic-trunk .pic-trunk-core{stroke:var(--paper);stroke-width:2}
   & .is-on.pic-cable line{stroke-width:5}& .is-on.pic-cable .pic-plug{stroke-width:10}& .is-on.pic-trunk line{stroke-width:6}
-  &.has-light :is(.pic-node,.pic-link,.pic-group,.pic-row,.pic-seg,.pic-band,.pic-mark):not(.is-on):not(:has(.is-on)){opacity:.7}
-  & .is-off{display:none}
-    & .is-new{animation:pic-in .15s ease-out}
+  &.has-light :is(.pic-node,.pic-link,.pic-group,.pic-row,.pic-seg,.pic-band,.pic-mark):not(.is-on):not(.is-off):not(:has(.is-on)){opacity:.7}
+    & .is-off{opacity:0;visibility:hidden;pointer-events:none}
+    & :is(.pic-node,.pic-link,.pic-group,.pic-row,.pic-seg,.pic-band,.pic-mark){transition:opacity .15s var(--pic-ease),visibility .15s}
+  & :is(.pic-shape,.pic-line,line,rect,.pic-row-bg){transition:stroke .15s var(--pic-ease),fill .15s var(--pic-ease),stroke-width .15s var(--pic-ease)}
+  & .pic-packet.is-new{animation:pic-in .15s var(--pic-ease) both;transform-box:fill-box;transform-origin:center}
+  & .pic-packet.is-leaving{opacity:0;transition:opacity .15s var(--pic-ease)}
   & [data-pic-id]{cursor:pointer}
     @media (max-width:640px){& .pic-label{font-size:13.5px}& .pic-small{font-size:12px}& .pic-mono{font-size:11.5px}}}
 .pic-controls{display:flex;align-items:center;gap:8px;& .pic-nav{margin-left:0}& .pic-play{margin-left:auto}& .flag-btn:disabled{opacity:.4}
@@ -537,4 +539,4 @@ dialog .dialog-head h2{font-size:1.75rem}
 .scholar-review-term{margin:0 0 4px;& .link-button{color:var(--scholar);min-height:24px;padding:2px 0;text-transform:none;letter-spacing:0}}
 .pic-captions{display:grid;& >.pic-caption{grid-area:1/1;visibility:hidden;line-height:1.45}& >.is-now{visibility:visible}}
 }
-@keyframes pic-in{from{opacity:.35}}
+@keyframes pic-in{from{opacity:0;transform:scale(.85)}}
