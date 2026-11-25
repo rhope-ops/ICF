@@ -41,14 +41,14 @@ export const poolSeg=(name,current,n=Infinity,empty='')=>{
 // Scholar entry and the Exam entry, each after an "Or" divider. Scholar is term study. scholar: the
 // block has Scholar content (a block without it shows no Scholar entry).
 const TILES=[['questions','Questions','Answer, score and retry.'],['cards','Flash cards','Terms and definitions.'],['glossary','Glossary','Course terms with their sources.']];
-// The Mode screen. scholar: the block has Scholar; scholarDone: {done, total} terms once its Scholar file is loaded.
-export function studyHubHtml({block, scholar = false, scholarDone = null}) {
+// The Mode screen. scholar: the block has Scholar.
+export function studyHubHtml({block, scholar = false}) {
   // One study-type tile (a button with its title and one line of help).
   const tile = ([v,t,d]) => `<button type="button" class="card" data-study="${v}"><strong>${t}</strong><span>${d}</span></button>`;
   const divider = '<div class="exam-divider" aria-hidden="true"><span>Or</span></div>';
   return `<div class="page-head"><p class="label">${LABEL.Group} ${block.id} · ${escape(block.title)}</p><h1>Mode</h1></div>
     <div class="type-grid study-tiles" role="group" aria-label="Study type">${TILES.filter(([v])=>v!=='cards'||FEATURES.cardCatalog).map(tile).join('')}</div>
-    ${scholar ? `${divider}<section class="card exam-entry scholar-entry" data-tone="scholar" aria-labelledby="scholar-entry-title"><div class="exam-entry-text"><h2 id="scholar-entry-title">Scholar</h2><p class="exam-entry-sub">Go deeper with interactive lessons.</p>${scholarDone ? `<p class="exam-entry-sub scholar-entry-done">${scholarDone.done} of ${plural(scholarDone.total, 'term')} done</p>` : ''}</div><button id="scholar-open" class="primary" data-tone="scholar">${nextLabel('Open Scholar')}</button></section>` : ''}
+    ${scholar ? `${divider}<section class="card exam-entry scholar-entry" data-tone="scholar" aria-labelledby="scholar-entry-title"><div class="exam-entry-text"><h2 id="scholar-entry-title">Scholar</h2><p class="exam-entry-sub">Go deeper with interactive lessons.</p></div><button id="scholar-open" class="primary" data-tone="scholar">${nextLabel('Open Scholar')}</button></section>` : ''}
     ${divider}
     <section class="card exam-entry" data-tone="violet" aria-labelledby="exam-entry-title"><div class="exam-entry-text"><h2 id="exam-entry-title">Exam</h2><p class="exam-entry-sub">Prove your mastery of the material.</p></div><button id="exam-open" class="primary" data-tone="violet">${nextLabel('Take exam')}</button></section>`;
 }

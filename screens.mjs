@@ -10,7 +10,7 @@ import { LABEL, NARROW_OR_SHORT_QUERY } from './settings.mjs';
 import { escape, answersHtml, highlightedStem, plural, commBadge, questionUnitLabel, answerReviewHtml, reviewItem, tryLabel, studyToolbar, sourceVisible, backLabel, nextLabel, ICON, flagButton, sourceRow, assistanceTimer, saveButton } from './presentation.mjs';
 import { progress, results, questionsForMode, keywordHighlightEnabled } from './engine.mjs';
 import { understandingRecord, notUnderstoodQuestions, sessionMissedIds, reviewIds } from './learning.mjs';
-import { unitScores, missedUnits, scoreTone } from './analytics.mjs';
+import { unitScores, missedUnits, scoreTone, shine } from './analytics.mjs';
 import { formsFor } from './exam.mjs';
 import { cardHtml, savedSetsHtml, cardKey } from './flashcards.mjs';
 // The Scholar and Exam screens live in their own modules; screens.mjs re-exports their public functions, so callers and
@@ -154,14 +154,14 @@ export const savedSetsScreenHtml = ({library, catalog, back, blocks = [], block}
 // ---- Results, Previous Attempts, Marked review ----
 // Unit accuracy bars (Results and Previous Attempts): one shared name column; tag(row) adds the right-hand note.
 // Columns: name · tag · bar · %. The tag (missed count, or first-answer count) has its own column, empty when none.
-function unitBarsHtml(rows,tag){return `<div class="bars">${rows.map(row=>{const v=row.asked?row.correct/row.asked:null;return `<div class="barrow"><span class="bar-name">${row.id?`<span class="unit-number">U${row.id}</span>`:''}<span class="bar-title">${escape(row.title)}</span></span><span class="bar-tag">${tag(row)}</span><span class="b" aria-hidden="true"><i style="width:${v===null?0:(v*100).toFixed(1)}%"></i></span><span class="mono ${scoreTone(v)}">${v===null?'—':`${Math.round(v*100)}%`}</span><span class="sr-only">${v===null?'Not attempted':`${row.correct} of ${row.asked} first answers correct`}</span></div>`;}).join('')}</div>`;}
+function unitBarsHtml(rows,tag){return `<div class="bars">${rows.map(row=>{const v=row.asked?row.correct/row.asked:null;return `<div class="barrow"><span class="bar-name">${row.id?`<span class="unit-number">U${row.id}</span>`:''}<span class="bar-title">${escape(row.title)}</span></span><span class="bar-tag">${tag(row)}</span><span class="b" aria-hidden="true"><i style="width:${v===null?0:(v*100).toFixed(1)}%"></i></span><span class="mono ${scoreTone(v)}">${v===null?'—':shine(`${Math.round(v*100)}%`)}</span><span class="sr-only">${v===null?'Not attempted':`${row.correct} of ${row.asked} first answers correct`}</span></div>`;}).join('')}</div>`;}
 
 // Retake Quiz: the circular-arrow icon (aria-hidden) and the text label.
 const retakeLabel = `<span class="lbl">${ICON.retry}Retake Quiz</span>`;
 // gloss (optional): the glossary linker for the Quiz review (see answerReviewHtml). Unit bars: only units with a first answer, the rest as one line.
 export function resultsHtml({session, bank, blockId, stats, understanding, source, isFlagged, gloss = null, save = () => '', isOpen = () => false}) {
   const missed=sessionMissedIds(session),toReview=reviewIds(session,understanding);
-  const r=results(session),pct=n=>n===null?'—':`${Math.round(n*100)}%`;
+  const r=results(session),pct=n=>n===null?'—':shine(`${Math.round(n*100)}%`);
   const missedBy=Object.fromEntries(missedUnits(session,bank.blocks).map(row=>[row.id,row.count]));
   const extras=[['Independent',r.independent],['Hints',r.hints],['Reveals',r.reveals],[r.retries===1?'Retry':'Retries',r.retries]].filter(([,n])=>n>0);
   const block=bank.blocks.find(b=>b.id===(session.questions[0]?.block??blockId))||bank.blocks[0],scores=unitScores(stats,block.id,block.units),tried=scores.rows.filter(row=>row.asked),untried=scores.rows.length-tried.length;

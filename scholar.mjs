@@ -69,17 +69,17 @@ const PIC_MS = { min: 2500, max: 6000, base: 800, perWord: 180 };
 // Time per picture step or part: long enough to read its caption, never under 2.5 s or over 6 s.
 export const picMs = caption => Math.min(PIC_MS.max, Math.max(PIC_MS.min, PIC_MS.base + PIC_MS.perWord * String(caption || '').split(/\s+/).filter(Boolean).length));
 /**
- * Terms of a block with every guided question right, per unit and in all.
+ * Terms of a block with every guided question right, per unit.
  * @param {object} s the Scholar lookup; @param {object} state the saved place (its picks); @param {number} block the block
- * @returns {{units: Object<number, {done: number, total: number}>, all: {done: number, total: number}}}
+ * @returns {{units: Object<number, {done: number, total: number}>}}
  */
 export function progressOf(s, state, block) {
-  const units = {}, all = { done: 0, total: 0 };
+  const units = {};
   for (const u of unitsOf(s, block)) {
     const its = itemsFor(s, block, u), done = its.filter(it => it.questions.every(q => right(q, triesOf(state, q)))).length;
-    units[u] = { done, total: its.length }; all.done += done; all.total += its.length;
+    units[u] = { done, total: its.length };
   }
-  return { units, all };
+  return { units };
 }
 /**
  * What the Scholar term list shows for the saved place: its units and items, right answers per item, the next term to

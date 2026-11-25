@@ -6,7 +6,7 @@
 // Writes: none
 // Credentials: none
 import { LABEL } from './settings.mjs';
-import { scoreTone } from './analytics.mjs';
+import { scoreTone, shine } from './analytics.mjs';
 import { questionsForMode } from './engine.mjs';
 import { EXAM } from './exam.mjs';
 import { escape } from './presentation.mjs';
@@ -84,8 +84,8 @@ export function readinessHtml(result) {
     `<p class="readiness-next"><span class="label">Weak or new</span> ${START_FIRST}</p>`) : '';
   const first = share(result.correct, result.asked), tone = result.asked >= MIN_ASKED ? TONES[scoreTone(first)] : '';
   const figures = [figure('Seen', `${result.seen}<small> of ${result.total}</small>`),
-    first === null ? '' : figure('First try', percentDown(first), tone),
-    result.exam ? figure('Last exam', `${percentNear(result.exam.correct / result.exam.size)}<span class="sr-only"> ${result.exam.pass ? 'passed' : 'not passed'}</span>`, result.exam.pass ? 'good' : 'bad') : ''].join('');
+    first === null ? '' : figure('First try', shine(percentDown(first)), tone),
+    result.exam ? figure('Last exam', `${shine(percentNear(result.exam.correct / result.exam.size))}<span class="sr-only"> ${result.exam.pass ? 'passed' : 'not passed'}</span>`, result.exam.pass ? 'good' : 'bad') : ''].join('');
   const weak = result.targets.filter(u => u.state === 'weak').length, shown = result.targets.slice(0, Math.max(NAMED_UNITS, weak)), more = result.targets.length - shown.length;
   const next = shown.length ? `<p class="readiness-next"><span class="label">${result.fallback ? 'Lowest' : 'Weak or new'}</span> ${shown.map(u => escape(u.title)).join(', ')}${more > 0 ? ` and ${more} more` : ''}</p>` : '';
   return wrap(result.block, figures, next);

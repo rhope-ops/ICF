@@ -16,7 +16,7 @@ import { announce, available, navigate, renderWithFocus } from './nav.mjs';
 import { poolShortfall } from './presentation.mjs';
 import { WEAK_SESSION_SIZE, bindWeakButtons, readiness, readinessHtml, weakButtonHtml } from './readiness.mjs';
 import { openScholar } from './scholar-ui.mjs';
-import { blockLoaded, progressOf, unitsOf } from './scholar.mjs';
+import { unitsOf } from './scholar.mjs';
 import * as screens from './screens.mjs';
 import { allSections, beginReview, bindDynamic, bindPoolKind, currentGroup, noteGroup, resumeStudy, selectQuestions, sessionOpen, startSession, syncPool } from './session.mjs';
 
@@ -121,7 +121,7 @@ export function renderMode() {
 }
 // Study hub: Questions, Cards, Glossary, and the separate Take exam.
 export function renderHub() {
-  main.innerHTML=screens.studyHubHtml({block:currentGroup(),scholar:unitsOf(shared.scholar,shared.groupId).length>0,scholarDone:blockLoaded(shared.scholar,shared.groupId)?progressOf(shared.scholar,shared.scholarState,shared.groupId).all:null});
+  main.innerHTML=screens.studyHubHtml({block:currentGroup(),scholar:unitsOf(shared.scholar,shared.groupId).length>0});
   const go={questions:'mode',cards:'cards-setup',glossary:'glossary'};
   main.querySelectorAll('[data-study]').forEach(b=>b.onclick=()=>{if(b.dataset.study==='glossary'){shared.glossEntry=null;shared.glossReturn=null;}navigate(go[b.dataset.study]);});
   if(!shared.glossary)main.querySelector('[data-study="glossary"]')?.setAttribute('disabled','');

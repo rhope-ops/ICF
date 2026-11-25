@@ -380,12 +380,18 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 [hidden]{display:none!important}
 .skip{position:absolute;left:-999px;top:0;&:focus{left:16px;top:8px;z-index:20;background:var(--sheet);padding:10px 14px}}
 .sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:-1px;padding:0;border:0}
+.perfect{--prism:#B0124F,#B23A00,#7A5C00,#1F6B2C,#00666F,#1F4FB0,#6A2FA0,#B0124F;background:linear-gradient(100deg,var(--prism)) 0 0/300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:prism 6s linear infinite;
+  :root[data-theme="dark"] &{--prism:#FF8FB8,#FFB070,#F2D36B,#8FE3A0,#7FE0E6,#9DB8FF,#CDA2FF,#FF8FB8}
+  @media (prefers-color-scheme:dark){:root:not([data-theme]) &{--prism:#FF8FB8,#FFB070,#F2D36B,#8FE3A0,#7FE0E6,#9DB8FF,#CDA2FF,#FF8FB8}}
+  @media (prefers-reduced-motion:reduce){animation:none;background-size:100% 100%}}
+@keyframes prism{to{background-position:300% 0}}
 @media (forced-colors:active){
 .mark-disc,.mark-keyline,.mark-eps-edge{fill:CanvasText}.mark-keyline,.mark-keyline-line,.mark-eps-edge{stroke:CanvasText}.mark-ring,.mark-eps,.mark-accent-line{stroke:Canvas}.mark-dots,.mark-accent,.mark-eps,.mark-phrase{fill:Canvas}
 .comm-badge{background:CanvasText}
 :is(.seg label:has(input:checked),.item.picked .letter,.exam-cell.answered,.exam-clock.low){forced-color-adjust:none}
 [data-screen-link]{border-color:Canvas;&[aria-current="page"]{color:Highlight;border-color:Highlight}}
 .knob{background:GrayText;& svg{stroke:Canvas}}
+.perfect{background:none;color:CanvasText}
 .sw-input:checked+.track-sw{border-color:Highlight;& .knob{background:Highlight}}
 .card:has(input:checked){border-color:Highlight;& >strong{color:Highlight;&::after{content:" \2713"/""}}}
 .seg label:has(input:checked){background:Highlight;color:HighlightText;&.pool-fit{background:Mark;color:MarkText}}

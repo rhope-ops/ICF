@@ -65,5 +65,5 @@ export async function loadExtras(){
   if(held)shared.scholarPending=raw;else{shared.scholarState=restoreScholarState(raw,shared.scholar);if(raw!==null&&!shared.scholarState&&shared.scholar)persist('scholar',null);}
   redrawLate();
   if(held&&await loadScholarGroup(raw.block)&&shared.scholarPending===raw){shared.scholarPending=null;shared.scholarState=restoreScholarState(raw,shared.scholar);if(!shared.scholarState)persist('scholar',null);}
-  if(shared.scholarState&&!blockLoaded(shared.scholar,shared.scholarState.block))await loadScholarGroup(shared.scholarState.block);if(shared.step==='units'&&blockLoaded(shared.scholar,shared.groupId))redrawLate();else syncScreens();  // Resume Scholar; the Mode card's Scholar progress
+  if(shared.scholarState&&!blockLoaded(shared.scholar,shared.scholarState.block))await loadScholarGroup(shared.scholarState.block);syncScreens();  // Resume Scholar
 }

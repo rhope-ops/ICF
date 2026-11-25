@@ -119,5 +119,8 @@ export function missedUnits(session,blocks) {
   for(const q of session.questions)if(missed.has(q.id))for(const id of q.units){const key=`${q.block}/${id}`;const title=blocks.find(b=>b.id===q.block)?.units.find(u=>u.id===id)?.title||`${LABEL.Section} ${id}`;const row=counts.get(key)||{id,title,count:0};row.count++;counts.set(key,row);}
   return [...counts.values()].sort((a,b)=>b.count-a.count||a.id-b.id);
 }
+// A shown percent, in the prismatic class when it reads exactly "100%" (a 100% shines wherever it appears).
+// Takes the text as shown, so the rounding of each screen decides.
+export const shine = text => text === '100%' ? '<span class="perfect">100%</span>' : text;
 // Map a score ratio to a CSS class: muted when there is no score, gold above 96 percent, correct from 70 percent.
 export const scoreTone = ratio => ratio===null?'muted':ratio>0.96?'score-gold':ratio>=0.7?'correct-label':'incorrect-label';
