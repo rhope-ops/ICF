@@ -1,8 +1,8 @@
-// The Scholar screens: the term list of a unit, one term's page with its guided questions and picture, and the unit review.
-// Inputs: the shared app state (Scholar content and saved place, glossary, bank), clicks and keys on the screen, and each block's Scholar file.
-// Outputs: the Scholar screens drawn into the page, the saved Scholar place, and toasts or status lines for screen readers.
-// Run: loaded by the browser as part of the app (site/dist/index.html); nav.mjs calls renderScholar() when the Scholar step is shown.
-// Network: the site's own files only (a block's Scholar file named in the Scholar index, fetched once with fetchJson when that block opens).
+// The Scholar screens: a unit's term list, a term's page (guided questions, picture) and the unit review.
+// Inputs: the shared state (Scholar content and place, glossary, bank), clicks and keys, and each block's Scholar file.
+// Outputs: the screens in the page, the saved Scholar place, toasts and status lines for screen readers.
+// Run: part of the app (index.html); nav.mjs calls renderScholar() when the Scholar step shows.
+// Network: the site's own files only (a block's Scholar file, fetched once with fetchJson when the block opens).
 // Writes: browser storage through persist('scholar', ...), the page DOM (main), and shared state and timers for the picture loop.
 // Credentials: none.
 import { shared } from './app-state.mjs';

@@ -1,5 +1,5 @@
-// Screen markup: pure functions of the state they receive (the app modules own state, storage, events and timers), so tests
-// import these screens directly. Every value comes in as an argument; only the layout helpers at the end touch the DOM.
+// Screen markup: pure functions of their arguments (app modules own state, storage, events and timers), so tests import
+// them directly; only the layout helpers at the end touch the DOM.
 // Inputs: the arguments of each function. Outputs: HTML strings; positionQuestion scrolls the window it receives.
 // Run: imported by the app modules and the tests (screens.*); the Scholar, Exam, setup and Glossary groups are
 // re-exported from screens-scholar.mjs, screens-exam.mjs, screens-setup.mjs and screens-glossary.mjs.
@@ -124,23 +124,19 @@ export function answerAnnouncement(event, attemptsBefore, session) {
 }
 
 // ---- Flash cards ----
-// saved: the card is in Manual (the SAVE button state). source: the card's question, or null for a highlight card.
-// back (optional): the card back panel, shown only after the card has been flipped (cardBackHtml).
-// Before the flip there is no Source row, Flag or glossary link, so nothing gives the hidden side away.
-// back: cardBackHtml markup made with save:'<!--save-->', so SAVE takes the left cell of the card's tools row.
-// Before the flip SAVE stands alone in that row.
-// missed: the card is in Missed Questions (the Missed set tag). glossEntry: the card's glossary entry after the first flip,
-// or null; it adds Open in Glossary to the row under Back (Hint stays under Next).
-// scholar: the card's term has a Scholar item: Open in Scholar joins Open in Glossary after the first flip.
+// saved: the card is in Manual (SAVE state). source: the card's question, or null for a highlight card.
+// back: the card back panel after the first flip (cardBackHtml with save:'<!--save-->', so SAVE takes the left cell of
+// the tools row); before the flip SAVE stands alone, with no Source row, Flag or glossary link to give the back away.
+// missed: the card is in Missed Questions. glossEntry: its glossary entry after the first flip, or null (adds Open in
+// Glossary under Back; Hint stays under Next). scholar: its term has a Scholar item (adds Open in Scholar).
 export function flashScreenHtml({preview, set, bank, saved, missed = false, message, source, back = '', glossEntry = null, scholar = false}) {
   const card = preview.cards[preview.index];
   const save = saveButton({id:'flash-save', key:cardKey(card), saved}), row = back ? back.replace('<!--save-->', save) : sourceRow('', '', '', save);
   return `<h1 class="sr-only">Flash cards</h1>${studyToolbar({mode:'Flash Card',locked:true,endId:'flash-exit',status:`Card ${preview.index+1} of ${preview.cards.length}`})}
     <section class="flash-study" aria-label="Flash card review">${set ? `<p class="flash-set-name label">Set · ${escape(set.name)}</p>` : ''}${cardHtml(preview,{unit:source ? questionUnitLabel(source,bank.blocks) : card.kind === 'highlight' ? 'Saved highlight' : '',flaggable:false,saveBox:row+`<p class="flash-message muted" role="status">${escape(message)}</p>`,missed,tools:glossEntry?`<button type="button" id="card-open-gloss" data-entry="${escape(glossEntry.id)}">Open in Glossary</button>${scholar?'<button type="button" id="card-open-scholar" data-tone="scholar">Open in Scholar</button>':''}`:''})}</section>`;
 }
-// Card back: Open in Glossary sits under Back; SAVE replaces the bookmark. The
-// SAVE · KEY TERMS · SOURCE · FLAG row: the terms in the definition and the related terms are the Key terms drop-down,
-// the question's course excerpts the Source drop-down, the card Flag at the right. Same order as the question screen.
+// Card back: Open in Glossary under Back; SAVE replaces the bookmark. The SAVE · KEY TERMS · SOURCE · FLAG row (as on
+// the question screen): the definition's and related terms in Key terms, the course excerpts in Source, Flag at the right.
 // entry: glossary entry or null; source: excerpt markup or ''; flagged: the card flag is saved; save: the Save button.
 export function cardBackHtml({entry, g, source = '', flagged = false, questionId = null, save = ''}) {
   const terms = entry ? entryTerms(entry, g) : [];

@@ -108,10 +108,9 @@ export function migrateReview(raw, bank) {
   return {...raw,version:bank.version,ids,index};
 }
 // Card sets, schema 3: exactly two fixed sets, Missed Questions (automatic) and Manual (the SAVE button).
-// Only the pinned schemas 1 and 2 migrate (flashcards.restoreCardSets checks their shape first); anything else is refused.
-// The Missed set keeps its cards. Every other set merges into Manual: a set already named Manual (or with id 'manual')
-// leads, then the rest in saved order. A card is kept once, at its first occurrence (sets store no save times, so saved
-// order is the earliest order known). Nothing is dropped.
+// Only schemas 1 and 2 migrate (flashcards.restoreCardSets checks their shape first); anything else is refused. Missed
+// keeps its cards; every other set merges into Manual, a set named Manual (or id 'manual') first, then saved order. A
+// card is kept once, at its first place (sets store no save times, so saved order is the earliest known). None is dropped.
 export const MISSED_SET=Object.freeze({id:'missed',name:'Missed Questions'}), MANUAL_SET=Object.freeze({id:'manual',name:'Manual'});
 /**
  * Merge the card sets of schema 1 or 2 into the two fixed sets of schema 3; throws when the schema is unknown.

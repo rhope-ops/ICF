@@ -417,7 +417,7 @@ section.source-excerpt{color:var(--muted);font-size:var(--t3);border:1px solid v
 .context-link{border-color:Highlight}
 .pic{& :is(.pic-shape,.pic-line,.pic-link line){stroke:CanvasText}& .pic-shape{fill:Canvas}& .pic-port{fill:CanvasText}& .pic-trunk .pic-trunk-core{stroke:Canvas}
   & :is(.pic-label,.pic-mono,.pic-group-label){fill:CanvasText;stroke:Canvas}& .is-on .pic-port{fill:Highlight}& .is-on .pic-mono{stroke:Highlight}
-  & .pic-group rect{fill:Canvas;stroke:CanvasText}& .pic-packet rect{fill:Highlight}& .pic-packet-text{fill:HighlightText;stroke:none}
+  & .pic-group rect{fill:Canvas;stroke:CanvasText}& .pic-packet rect{fill:Highlight}& .pic-dir{stroke:Highlight}& .pic-packet-text{fill:HighlightText;stroke:none}
   & .is-on :is(.pic-shape,line,rect){stroke:Highlight}& .is-on .pic-row-bg{fill:Highlight}& .is-on .pic-mono{fill:HighlightText}}
 .pic-parts [aria-pressed="true"]{border-color:Highlight;color:Highlight}
 .scholar-tap{& [data-tap-state="right"] :is(.pic-shape,line:not(.pic-hit),rect){stroke:Highlight;stroke-dasharray:none}
@@ -512,7 +512,7 @@ dialog .dialog-head h2{font-size:1.75rem}
   & .pic-group rect{fill:var(--scholar-soft);stroke:var(--scholar);stroke-width:1.2}
   & .pic-group-label{fill:var(--scholar);stroke:var(--scholar-soft)}
   & .pic-seg-tag .pic-shape,& .pic-seg-header .pic-shape,& .pic-seg-trailer .pic-shape{fill:var(--scholar-soft)}
-  & .pic-packet rect{fill:var(--scholar);stroke:none}& .pic-packet-text{fill:var(--blue-ink)}
+  & .pic-packet rect{fill:var(--scholar);stroke:none}& .pic-dir{fill:none;stroke:var(--scholar);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}& .pic-packet-text{fill:var(--blue-ink)}
   & .is-on :is(.pic-shape,line,rect){stroke:var(--scholar);stroke-width:3}& .is-on .pic-row-bg{fill:var(--scholar-soft);stroke:none}
   & .is-on.pic-trunk .pic-trunk-core{stroke:var(--paper);stroke-width:2}
   & .is-on.pic-cable line{stroke-width:5}& .is-on.pic-cable .pic-plug{stroke-width:10}& .is-on.pic-trunk line{stroke-width:6}

@@ -1,7 +1,7 @@
-// Scholar screen markup: the term list of a unit, the guided questions of a term (tap, order, sort, scenario) and the
-// unit review. Pure functions of the state they receive; scholar.mjs holds the rules, scholar-ui.mjs the events and state.
-// Inputs: the arguments of each function (Scholar items, glossary entries, tries, drafts). Outputs: HTML strings.
-// Run: imported through screens.mjs, which re-exports its public functions; tests import them as screens.*.
+// Scholar screen markup: a unit's term list, a term's guided questions (tap, order, sort, scenario) and the unit review.
+// Pure; scholar.mjs holds the rules, scholar-ui.mjs the events and state.
+// Inputs: Scholar items, glossary entries, tries, drafts. Outputs: HTML strings.
+// Run: re-exported by screens.mjs; tests use screens.*.
 // Network: none.
 // Writes: none.
 // Credentials: none.
@@ -14,9 +14,9 @@ import { typeOf, resolved as scholarResolved, right as scholarRight, currentDeci
 // Term list of one unit: unit choice (a segmented row), then each term with its summary. done: {itemId: right answers}.
 // todo: the first term of the unit whose guided questions are not all right, or null; review: show "Review this
 // unit" (G4: the unit's guided questions in a shuffled order, practice only).
-// each entry reuses its glossary entry (glossOf: entry id -> glossary entry or null): the
-// one-line glossary definition instead of the Scholar summary, and a term longer than SHORT_NAME characters shows its glossary
-// short form (an all-capital alias such as CMOS) with the full name for screen readers. The term page keeps the full texts.
+// Each entry shows its glossary entry (glossOf: entry id -> entry or null): the one-line definition, not the summary; a
+// term longer than SHORT_NAME shows its all-capital alias (CMOS), with the full name for screen readers. The term page
+// keeps the full texts.
 const SHORT_NAME = 24;
 // The term as the list shows it: a long term with an all-capital glossary alias shows the alias, the full name for screen readers.
 const listName = (term, g) => { const alias = term.length > SHORT_NAME && g?.aliases.find(a => /^[A-Z][A-Z0-9&]{1,9}$/.test(a));
@@ -47,11 +47,10 @@ export function scholarListHtml({block, units, unit, items, done = {}, todo = nu
 // The tiles of a Scholar question: the other modes' tiles, except that after the reveal a choice nobody picked stays neutral
 // and keeps its why.
 const scholarTiles = (qn, st) => answersHtml(scholarQuestion(qn), st, { assisted: true, neutralUnpicked: true });
-// One term. The sections form one connected accordion (linked together rather than as separate
-// pills), each open unless the reader closed it (open: {section: false}). The guided question mirrors the question
-// screen (q-sheet, #N heading, stem, answers, navrow with Next at the right, tool-row with Hint) and teaches: a Hint before
-// the pick, a "Look again" pointer to the section or picture step that explains it after a wrong pick, and a Takeaway when
-// the question is over (hint, nudge, takeaway). No course-page lines.
+// One term. The sections form one linked accordion, each open unless the reader closed it (open: {section: false}).
+// The guided question mirrors the question screen (q-sheet, #N heading, stem, answers, navrow with Next at the right,
+// tool-row with Hint) and teaches: a Hint before the pick, a "Look again" pointer to the section or picture step that
+// explains it after a wrong pick, a Takeaway when it is over. No course-page lines.
 // tries: this question's picks; hint: the hint is shown; done(question): it is over; pic: {index, motion, playing}.
 // back: 'Glossary' | 'Card N' | '' when the term was opened from the Glossary or a card.
 const SEE_LABEL = { deeper: 'Deeper explanation', analogy: 'Analogy', scenario: 'Sample scenario', example: 'Everyday example' };

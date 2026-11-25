@@ -1,10 +1,9 @@
-// Scholar pictures: an interactive, drawn diagram for each term, of both kinds. Pure: a picture description in, SVG and control markup out. No DOM, storage or network access.
-// Colours come only from CSS tokens through classes (styles.css .pic-*), so both themes and forced colours work.
-// kind 'steps': Back / Next step through captions; each step lights, hides and moves parts. kind 'explore': each part
-// is a button; the chosen part is lit and its caption shows. Captions are stacked in one grid cell so the caption box
-// always holds the tallest caption (the box keeps a fixed height).
-// Inputs: a picture description (kind, alt text, scene of nodes, links and groups, steps or parts) and a step or part index.
-// Outputs: SVG and control markup as strings, and checks of a picture description. Run: imported as an ES module by the app and the tests.
+// Scholar pictures: a drawn, interactive diagram for each term. Pure: no DOM, storage or network. Colours come only from
+// CSS classes (styles.css .pic-*), so both themes and forced colours work. 'steps': Back / Next step through captions;
+// each step lights, hides and moves parts. 'explore': each part is a button that lights its part and shows its caption.
+// Captions share one grid cell, so the box keeps the height of the tallest.
+// Inputs: a picture description (kind, alt, scene of nodes, links and groups, steps or parts) and a step or part index.
+// Outputs: SVG and control markup, and picture checks. Run: imported as an ES module by the app and the tests.
 // Network: none.
 // Writes: none (it returns strings; scholar-ui.mjs puts them on the page).
 // Credentials: none.

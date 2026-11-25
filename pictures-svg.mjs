@@ -1,17 +1,14 @@
-// Picture drawing: the scene constants and the SVG of a picture in one step or part state. Colours come
-// only from CSS classes. Inputs: a picture description and a state. Outputs: SVG strings.
-// Run: imported through pictures.mjs, which re-exports its public names.
+// Picture drawing: the scene constants and a picture's SVG in one step or part state; colours only from CSS classes.
+// Inputs: a picture description and a state. Outputs: SVG strings. Run: re-exported by pictures.mjs.
 // Network: none.
 // Writes: none.
 // Credentials: none.
 import { escape } from './presentation.mjs';
 
 export const VIEW = { w: 400, h: 240 };
-// Drawn shapes (icons). The shape kit also adds
-// people, documents and objects, so a picture can show who does what to what, not only network gear.
-// The picture kit addition adds the hardware and place
-// shapes most named by the terms the kit could not draw (building, disk, chip), a cable link, a layer stack (ranked or
-// layered bands) and a timeline (an axis with marks). A stack or timeline, like a panel or frame, is not a drawn shape.
+// Drawn shapes (icons): network gear, people, documents and objects (who does what to what), and hardware and places
+// (building, disk, chip). Links can be cables; a stack (ranked or layered bands) or a timeline (an axis with marks),
+// like a panel or frame, is not a drawn shape.
 export const ICONS = ['pc', 'switch', 'router', 'server', 'person', 'doc', 'lock', 'alert', 'envelope', 'shield', 'cloud', 'clock', 'building', 'disk', 'chip'];
 export const NODE_TYPES = [...ICONS, 'frame', 'text', 'panel', 'stack', 'timeline'];
 export const LINK_KINDS = ['trunk', 'access', 'plain', 'cable'];
@@ -21,7 +18,7 @@ export const BAND_H = 22;
 // ---- Drawing ----
 const SIZE = { pc: [30, 30], switch: [60, 20], router: [30, 30], server: [24, 34], text: [0, 0], person: [26, 30], doc: [22, 28], lock: [22, 28],
   alert: [30, 26], envelope: [30, 20], shield: [24, 30], cloud: [34, 22], clock: [28, 28], building: [32, 32], disk: [28, 30], chip: [30, 30] };
-// Label width estimate: capitals are wider (COMSEC overflowed its group box on phones).
+// Label width estimate: capitals are wider, so a capital name fits its group box on phones.
 export const textW = t => [...(t || '')].reduce((a, c) => a + (/[A-Z0-9]/.test(c) ? 8 : 6.5), 0);
 // The bounding box {x, y, w, h} of a node: its icon, text, frame, panel, stack or timeline.
 const box = n => n.type === 'text' ? { x: n.x - textW(n.label) / 2, y: n.y - 12, w: textW(n.label), h: 16 }
@@ -32,7 +29,7 @@ const box = n => n.type === 'text' ? { x: n.x - textW(n.label) / 2, y: n.y - 12,
   : { x: n.x - SIZE[n.type][0] / 2, y: n.y - SIZE[n.type][1] / 2, w: SIZE[n.type][0], h: SIZE[n.type][1] };
 // The centre point [x, y] of a node's box.
 const centre = n => { const b = box(n); return [b.x + b.w / 2, b.y + b.h / 2]; };
-// st: {on, off, fresh}: lit, hidden, and lit now but not in the previous state (fresh parts fade in).
+// st: {on, off, fresh}: lit, hidden, and lit now but not before (fresh parts fade in).
 const cls = (id, st) => `${st.on.has(id) ? ' is-on' : ''}${st.fresh.has(id) ? ' is-new' : ''}${st.off.has(id) ? ' is-off' : ''}`;
 // An SVG text element centred at x, y; an empty string when there is no text.
 export const label = (x, y, text, extra = '') => text ? `<text class="pic-label${extra}" x="${x}" y="${y}" text-anchor="middle">${escape(text)}</text>` : '';
@@ -234,33 +231,45 @@ function groupSvg(g, nodes, st, i) {
 
 // The height of a packet's box, in picture units.
 const PACKET_H = 18;
-// A packet's place on its line: at(t) is the point at fraction t of the way from the centre of the line's first node
-// to the centre of its second; text is the packet's label, w the width and h the height of its box.
+// A packet on its line: at(t), the point at fraction t from the first node's centre to the second's; text, its label;
+// w, h, its box; d, the unit step toward its `toward` end (0: none, or not an end of its line).
 function packetPlace(k, links, nodes) {
   const l = links.get(k.on), [x1, y1] = centre(nodes.get(l.from)), [x2, y2] = centre(nodes.get(l.to)), text = k.tag ? `Tag ${k.tag}` : (k.label || 'Frame');
-  return { at: t => [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t], text, w: 8 + 6 * text.length, h: PACKET_H };
+  const s = k.toward === l.to ? 1 : k.toward === l.from ? -1 : 0, n = Math.hypot(x2 - x1, y2 - y1) || 1;
+  return { at: t => [x1 + (x2 - x1) * t, y1 + (y2 - y1) * t], text, w: 8 + 6 * text.length, h: PACKET_H, d: s && [s * (x2 - x1) / n, s * (y2 - y1) / n] };
 }
-// from: where the packet was in the previous step (0-1 along the same link), null for no motion, or 'new' when the
-// previous step had no packet on this link: then it fades in at its place, since a glide from the line start crossed
-// labels and icons. The glide is an SVG animateTransform (0.25 s): it runs when a new drawing is put on the page, and
-// scholar-ui.mjs starts it again (beginElement) when it moves a drawing on the page to the next step. data-on names the
-// packet's line, so that move knows which old packet a new one takes the place of. Reduced motion passes from = null.
+// The short glide of a new packet with a direction (units): it starts near its place, never at the line start.
+const GLIDE = 12;
+// The points [arm, tip, arm] of a direction mark: a chevron just past the side of box x, y, w, h that faces step d.
+function markPts(x, y, w, h, [dx, dy]) {
+  const e = Math.min(dx ? w / 2 / Math.abs(dx) : Infinity, dy ? h / 2 / Math.abs(dy) : Infinity), at = (t, s) => [x + dx * t - dy * s, y + dy * t + dx * s];
+  return [at(e + 1, 3.5), at(e + 6, 0), at(e + 1, -3.5)];
+}
+// The SVG translate that moves a packet from offset fx, fy to its place in 0.25 s.
+const slide = (fx, fy) => `<animateTransform attributeName="transform" type="translate" from="${fx.toFixed(1)} ${fy.toFixed(1)}" to="0 0" dur="0.25s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".2 .7 .3 1"/>`;
+// from: the packet's place in the previous step (0-1 on the same link), null for no motion, or 'new' (no packet was on
+// the link): it fades in at its place (a glide from the line start crossed labels); with a direction it also glides
+// GLIDE units toward its end, in an inner group (the fade scales the outer one). scholar-ui.mjs restarts a glide
+// (beginElement); data-on names the line, so a move knows which old packet a new one replaces. Reduced motion: null.
 function packetSvg(k, links, nodes, from = null) {
-  const { at, text, w, h } = packetPlace(k, links, nodes), [x, y] = at(k.at);
-  const glide = from !== null && from !== 'new' && from !== k.at ? (([fx, fy]) => `<animateTransform attributeName="transform" type="translate" from="${(fx - x).toFixed(1)} ${(fy - y).toFixed(1)}" to="0 0" dur="0.25s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".2 .7 .3 1"/>`)(at(from)) : '';
-  return `<g class="pic-packet${k.tag ? ' is-tagged' : ''}${from === 'new' ? ' is-new' : ''}" data-on="${escape(k.on)}">${glide}<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4"/>${label(x, y + 4, text, ' pic-small pic-packet-text')}</g>`;
+  const { at, text, w, h, d } = packetPlace(k, links, nodes), [x, y] = at(k.at);
+  const glide = from !== null && from !== 'new' && from !== k.at ? (([fx, fy]) => slide(fx - x, fy - y))(at(from)) : '';
+  const body = `${glide}<rect x="${x - w / 2}" y="${y - h / 2}" width="${w}" height="${h}" rx="4"/>${label(x, y + 4, text, ' pic-small pic-packet-text')}${d ? `<path class="pic-dir" d="M${markPts(x, y, w, h, d).map(q => q.map(v => +v.toFixed(1)).join(' ')).join('L')}"/>` : ''}`;
+  return `<g class="pic-packet${k.tag ? ' is-tagged' : ''}${from === 'new' ? ' is-new' : ''}" data-on="${escape(k.on)}">${from === 'new' && d ? `<g>${slide(-GLIDE * d[0], -GLIDE * d[1])}${body}</g>` : body}</g>`;
 }
 
 /**
- * The box {x, y, r, b} of every packet of every step, so framing keeps room for packets not on screen.
+ * The box {x, y, r, b} of every packet of every step, with its mark and glide start, so framing keeps room for packets not on screen.
  * @param {object} p the picture.
  * @returns {{x: number, y: number, r: number, b: number}|null} the box, or null when the picture has no packets.
  */
 export function packetBounds(p) {
   const nodes = new Map(p.scene.nodes.map(n => [n.id, n])), links = new Map((p.scene.links || []).map(l => [l.id, l]));
+  // Each box holds the mark and the short glide's start (a Back step can make any packet new).
   const boxes = (p.steps || []).flatMap(s => s.packets || []).map(k => {
-    const { at, w, h } = packetPlace(k, links, nodes), [x, y] = at(k.at);
-    return { x: x - w / 2, y: y - h / 2, r: x + w / 2, b: y + h / 2 };
+    const { at, w, h, d } = packetPlace(k, links, nodes), [x, y] = at(k.at), q = [[x - w / 2, y - h / 2], [x + w / 2, y + h / 2], ...(d ? markPts(x, y, w, h, d) : [])];
+    const [gx, gy] = d ? [-GLIDE * d[0], -GLIDE * d[1]] : [0, 0], X = q.map(v => v[0]), Y = q.map(v => v[1]);
+    return { x: Math.min(...X) + Math.min(0, gx), y: Math.min(...Y) + Math.min(0, gy), r: Math.max(...X) + Math.max(0, gx), b: Math.max(...Y) + Math.max(0, gy) };
   });
   return boxes.length ? boxes.reduce((u, b) => ({ x: Math.min(u.x, b.x), y: Math.min(u.y, b.y), r: Math.max(u.r, b.r), b: Math.max(u.b, b.b) })) : null;
 }
@@ -294,9 +303,7 @@ export function hiddenIds(p, s) {
   return off;
 }
 
-// The SVG for one state. index: the step (steps) or the chosen part (explore; -1 = none).
-// Animation: prev is the state shown before (null on first draw); packets glide from their
-// previous place and newly lit parts fade in. still: reduced motion, so nothing moves or fades.
+// The state index shows: a step, or an explore part (-1: none).
 const stateOf = (p, index) => p.kind === 'steps' ? p.steps[Math.min(Math.max(index, 0), p.steps.length - 1)] : (p.parts[index] || {});
 /**
  * The SVG for one state. Animation: prev is the state shown before (null on first draw); packets glide from their
@@ -313,8 +320,9 @@ export function pictureSvg(p, index = 0, { prev = null, still = false, fixed = n
   const st = { on, off, carried: new Set((p.steps || []).flatMap(x => (x.packets || []).map(k => k.on))), fresh: before ? new Set([...on].filter(id => !(before.light || []).includes(id))) : new Set() };
   // The n-th packet on a line glides from the n-th packet that was on that line (two packets can share a line).
   const nth = (list, k) => list.filter(b => b.on === k.on).indexOf(k);
-  // Where a packet was in the previous state: 0-1 along the line, 'new' when it was not there, null for no motion.
-  const from = k => !before ? null : ((before.packets || []).filter(b => b.on === k.on)[nth(s.packets, k)]?.at ?? 'new');
+  // Where a packet was before: 0-1 on the line, 'new' when it was not there, null for no motion (also a packet with a
+  // direction on a Back move: it would glide against its mark).
+  const from = k => !before || (k.toward && prev > index) ? null : ((before.packets || []).filter(b => b.on === k.on)[nth(s.packets, k)]?.at ?? 'new');
   const dim = on.size ? ' has-light' : '';
   const masks = lineMasks(p, nodes);
   return `<svg class="pic${dim}" viewBox="0 0 ${VIEW.w} ${VIEW.h}" role="img" aria-label="${escape(p.alt)}" focusable="false">${masks.defs}`

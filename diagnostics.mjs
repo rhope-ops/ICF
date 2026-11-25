@@ -5,7 +5,7 @@
 // Writes: none (it only builds an object; flags.mjs shows or downloads it).
 // Credentials: none.
 import { APP } from './settings.mjs';
-export const APP_VERSION = '2.13.1';
+export const APP_VERSION = '2.14.0';
 // Build the diagnostic report object; throw when the device id is not a 36-character id. Names and storage are left out.
 export function diagnosticReport({deviceId, platform, browser, version, flags, session, now = new Date().toISOString()}) {
   if (!/^[a-f0-9-]{36}$/.test(deviceId)) throw Error('Invalid device identifier');

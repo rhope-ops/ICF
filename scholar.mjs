@@ -1,8 +1,8 @@
 // Scholar: pure lookups over scholar.json, the block files and the saved Scholar place. No DOM, storage or
 // network access. Every text shown comes from a block file, one item per concept entry (no facets).
 // Sample answers are practice only: they never enter stats, Results, missed cards or exam cycles.
-// Inputs: scholar.json (the index), the block files, a saved Scholar place and the user's moves. Outputs: new place and
-// lookup objects and lists. Run: imported as an ES module by the app and the tests; it is not run on its own.
+// Inputs: scholar.json (the index), the block files, a saved place and the user's moves. Outputs: a new place, lookups
+// and lists. Run: imported as an ES module by the app and the tests.
 // Network: none.
 // Writes: none (the caller saves the place that moveScholar and restoreScholarState return).
 // Credentials: none.
@@ -12,9 +12,9 @@ export { typeOf, restoreScholar, addScholarBlock, blockLoaded, unitsOf, itemsFor
 import { shuffle } from './engine.mjs';
 
 // ---- Row order of sort and order tasks (readers saw sort rows always alternate left-right-left) ----
-// The app shows the rows of a sort task and the cards of an order task in an order shuffled once per question: the
-// same question id always gives the same order, so a return visit looks the same. Rows keep their item index, so
-// saved picks, the key and the blind ledger do not change. ROW_TRIES: seeds tried before the authored order is kept.
+// Sort rows and order cards show in an order shuffled once per question id, so a return visit looks the same. Rows
+// keep their item index, so saved picks, the key and the blind ledger do not change. ROW_TRIES: seeds tried before the
+// authored order is kept.
 const ROW_TRIES = 64;
 // A seeded random source (mulberry32) from a text: the same text always gives the same numbers.
 function seededRandom(text) {

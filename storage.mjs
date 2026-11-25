@@ -1,8 +1,7 @@
-// Saved data layer: reading and writing the app's browser-storage keys, checking the question bank, restoring and
-// migrating saved sessions, review lists and card sets. Every restore accepts only an exact known version and rejects
-// corrupt or unknown data (it returns null or throws), so a bad save is never used.
-// Inputs: a storage object (the browser's localStorage in the app), the parsed question bank and saved values.
-// Outputs: validated, restored or migrated values and error messages. Run: imported as an ES module by the app and the tests.
+// Saved data: the app's browser-storage keys, the bank check, and restoring and migrating saved sessions, review lists
+// and card sets. A restore takes only an exact known version and rejects corrupt or unknown data (null or a throw).
+// Inputs: a storage object (localStorage in the app), the parsed bank and saved values.
+// Outputs: checked, restored or migrated values and error messages. Run: imported by the app and the tests.
 // Network: none (the migrations file is fetched by the caller and passed in as a loader function).
 // Writes: persistence() writes and removes keys in the storage object it is given, under the app's key prefix.
 // Credentials: none.

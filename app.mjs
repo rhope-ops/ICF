@@ -1,7 +1,7 @@
-// App start-up and wiring: reads the saved data, sets the shared state (app-state.mjs), binds the page-wide controls
-// (header, gear menu, keys, scroll), loads questions.json and the save migrations, restores the session and exam, and
-// draws the first screen. Each screen and concern lives in its own module (session, nav, setup-ui, study-ui, cards-ui,
-// scholar-ui, glossary-ui, exam-ui, flags, data-load).
+// App start-up: reads saved data, sets the shared state (app-state.mjs), binds page-wide controls (header, gear menu,
+// keys, scroll), loads questions.json and the save migrations, restores the session and exam, draws the first screen.
+// Each screen and concern has its own module (session, nav, setup-ui, study-ui, cards-ui, scholar-ui, glossary-ui,
+// exam-ui, flags, data-load).
 // Inputs: browser storage and the site's own files. Outputs: the running app. Run: index.html loads it as a module.
 // Network: the site's own files only (the question file and the save migrations; the rest through data-load.mjs) and
 // the offline worker sw.js. Writes: browser storage through persist() and the page DOM. Credentials: none.
