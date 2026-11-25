@@ -10,13 +10,13 @@
  * rotation in the Cloudflare dashboard). Only the public Site is counted; a preview copy, a local copy and any other
  * host load nothing.
  * - siteHost: the exact host name of the public Site.
- * - sitePath: the Site's folder on that host, with a slash at each end.
+ * - sitePath: the Site's folder on that host, with a slash at each end ('/' when the Site is the whole host).
  * - beaconUrl: the Cloudflare beacon script.
  * - beaconToken: the Site's token (32 hex characters), from the Cloudflare dashboard (Web Analytics, "Manage site").
  */
 export const PAGECOUNT_CONFIG = Object.freeze({
-  siteHost: 'rhope-ops.github.io',
-  sitePath: '/icf/',
+  siteHost: 'icf-companion.pages.dev',
+  sitePath: '/',
   beaconUrl: 'https://static.cloudflareinsights.com/beacon.min.js',
   beaconToken: '50a810e6b0e140449fe53828062f1353',
 });
